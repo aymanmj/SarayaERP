@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { FlaskConical, Landmark, Smartphone, Stethoscope } from "lucide-react";
 
 export function LoginPage() {
   const { t, i18n } = useTranslation();
@@ -17,6 +18,8 @@ export function LoginPage() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -33,15 +36,34 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      await login(username.trim(), password);
-     
+      await login(
+        username.trim(),
+        password,
+        mfaRequired ? mfaCode.trim() : undefined,
+      );
     } catch (err: any) {
       console.error(err);
+      const serverMsg = err?.response?.data?.message;
 
       if (err.code === "ERR_NETWORK") {
         setError(t("login.errNetwork", "تعذّر الاتصال بالسيرفر، تأكد أن الـ API شغّال."));
+      } else if (err.response?.status === 401 && serverMsg === "MFA_REQUIRED") {
+        setMfaRequired(true);
+        setMfaCode("");
+        setError(null);
       } else if (err.response?.status === 401) {
-        setError(t("login.errUnauthorized", "بيانات الدخول غير صحيحة."));
+        setError(
+          typeof serverMsg === "string" && serverMsg.trim()
+            ? serverMsg
+            : t("login.errUnauthorized", "بيانات الدخول غير صحيحة."),
+        );
+      } else if (err.response?.status === 429) {
+        setError(
+          t(
+            "login.errTooManyAttempts",
+            "تم تجاوز الحد المسموح من المحاولات. يرجى الانتظار والمحاولة لاحقاً.",
+          ),
+        );
       } else {
         setError(t("login.errUnexpected", "فشل تسجيل الدخول، حدث خطأ غير متوقع."));
       }
@@ -52,38 +74,22 @@ export function LoginPage() {
 
   const features = [
     {
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-        </svg>
-      ),
+      icon: <Stethoscope className="w-5 h-5" strokeWidth={1.75} />,
       label: t("login.triageTitle", "العيادات والطوارئ"),
       desc: t("login.triageDesc", "إدارة شاملة من الاستقبال حتى التخريج"),
     },
     {
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-        </svg>
-      ),
+      icon: <FlaskConical className="w-5 h-5" strokeWidth={1.75} />,
       label: t("login.labsTitle", "المختبر والأشعة"),
       desc: t("login.labsDesc", "أوامر ونتائج وتقارير متكاملة"),
     },
     {
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      ),
+      icon: <Landmark className="w-5 h-5" strokeWidth={1.75} />,
       label: t("login.financeTitle", "المحاسبة والتأمين"),
       desc: t("login.financeDesc", "فوترة ومطالبات تأمين وقيود محاسبية"),
     },
     {
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-        </svg>
-      ),
+      icon: <Smartphone className="w-5 h-5" strokeWidth={1.75} />,
       label: t("login.mobileTitle", "تطبيق الجوال"),
       desc: t("login.mobileDesc", "جولات الأطباء وإدارة التنويم والأدوية"),
     },
@@ -91,11 +97,8 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#060e1f] text-slate-50 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-[#0f3460]/25 blur-[150px]" />
-        <div className="absolute bottom-[-10rem] left-[-5rem] w-[500px] h-[500px] rounded-full bg-[#c5a044]/10 blur-[120px]" />
-      </div>
+      {/* Subtle architectural grid & clinical edge highlight */}
+      <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(circle at 80% 15%, rgba(14, 165, 233, 0.12), transparent 45%), radial-gradient(circle at 15% 85%, rgba(197, 160, 68, 0.08), transparent 40%)" }} />
 
       {/* ───────── Showcase Panel (Mirrors order based on dir={isRtl ? "rtl" : "ltr"}/"ltr") ───────── */}
       <div className="hidden lg:flex flex-col w-[52%] p-10 xl:p-14 relative z-10">
@@ -211,68 +214,108 @@ export function LoginPage() {
             className="rounded-2xl border border-white/[0.07] bg-white/[0.03] backdrop-blur-sm p-6 shadow-2xl shadow-black/20"
           >
             <div className="space-y-5">
-              {/* Username */}
-              <div className={isRtl ? "text-right" : "text-left"}>
-                <label className="block text-[12px] font-semibold mb-2 text-slate-400">
-                  {t("login.username", "اسم المستخدم")}
-                </label>
-                <div className="relative">
-                  <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
-                    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </span>
-                  <input
-                    name="username"
-                    className={`w-full bg-white/[0.04] border border-white/[0.08] rounded-xl py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all ${isRtl ? 'pl-4 pr-10' : 'pl-10 pr-4'}`}
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    dir="ltr"
-                    placeholder={t("login.usernamePlaceholder", "اسم المستخدم")}
-                  />
-                </div>
-              </div>
+              {!mfaRequired ? (
+                <>
+                  {/* Username */}
+                  <div className={isRtl ? "text-right" : "text-left"}>
+                    <label className="block text-[12px] font-semibold mb-2 text-slate-400">
+                      {t("login.username", "اسم المستخدم")}
+                    </label>
+                    <div className="relative">
+                      <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
+                        <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </span>
+                      <input
+                        name="username"
+                        className={`w-full bg-white/[0.04] border border-white/[0.08] rounded-xl py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all ${isRtl ? 'pl-4 pr-10' : 'pl-10 pr-4'}`}
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        autoComplete="username"
+                        dir="ltr"
+                        placeholder={t("login.usernamePlaceholder", "اسم المستخدم")}
+                      />
+                    </div>
+                  </div>
 
-              {/* Password */}
-              <div className={isRtl ? "text-right" : "text-left"}>
-                <label className="block text-[12px] font-semibold mb-2 text-slate-400">
-                  {t("login.password", "كلمة المرور")}
-                </label>
-                <div className="relative">
-                  <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
-                    <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </span>
+                  {/* Password */}
+                  <div className={isRtl ? "text-right" : "text-left"}>
+                    <label className="block text-[12px] font-semibold mb-2 text-slate-400">
+                      {t("login.password", "كلمة المرور")}
+                    </label>
+                    <div className="relative">
+                      <span className={`absolute top-1/2 -translate-y-1/2 text-slate-600 ${isRtl ? 'right-3' : 'left-3'}`}>
+                        <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </span>
+                      <input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-10 py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        dir="ltr"
+                        placeholder={t("login.passwordPlaceholder", "••••••••")}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className={`absolute top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors ${isRtl ? 'left-3' : 'right-3'}`}
+                      >
+                        {showPassword ? (
+                          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                          </svg>
+                        ) : (
+                          <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className={isRtl ? "text-right" : "text-left"}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <label htmlFor="mfa-code" className="block text-[12px] font-semibold text-[#e8d48b]">
+                      {t("login.mfaTitle", "رمز التحقق الثنائي (2FA)")}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMfaRequired(false);
+                        setMfaCode("");
+                        setError(null);
+                      }}
+                      className="text-[11px] text-slate-400 hover:text-white underline"
+                    >
+                      {t("login.mfaBack", "تغيير الحساب")}
+                    </button>
+                  </div>
+                  <p className="mb-3 text-[12px] text-slate-400">
+                    {t("login.mfaPrompt", "أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة.")}
+                  </p>
                   <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-10 py-3 text-[14px] text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]/40 focus:border-[#c5a044]/40 transition-all"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
+                    id="mfa-code"
+                    name="mfaCode"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
                     dir="ltr"
-                    placeholder={t("login.passwordPlaceholder", "••••••••")}
+                    autoFocus
+                    className="w-full bg-white/[0.04] border border-[#c5a044]/40 rounded-xl px-4 py-3 text-center text-[18px] tracking-[0.4em] font-mono text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#c5a044]"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder={t("login.mfaPlaceholder", "000000")}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className={`absolute top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-400 transition-colors ${isRtl ? 'left-3' : 'right-3'}`}
-                  >
-                    {showPassword ? (
-                      <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      </svg>
-                    ) : (
-                      <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    )}
-                  </button>
                 </div>
-              </div>
+              )}
 
               {/* Security note */}
               <div className="flex items-center gap-2 text-[11px] text-slate-600">

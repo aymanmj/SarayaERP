@@ -254,6 +254,53 @@ async function main() {
     });
   }
 
+  // Real DoctorSchedule rows for demo doctors so Patient Portal slot availability works out of the box
+  await prisma.doctorSchedule.upsert({
+    where: { doctorId: drAhmed.id },
+    update: {
+      hospitalId: hospital.id,
+      workDays: '0,1,2,3,4,6',
+      startTime: '09:00',
+      endTime: '17:00',
+      slotDuration: 30,
+      maxPerDay: 24,
+      specialty: 'الباطنية والقلب',
+    },
+    create: {
+      hospitalId: hospital.id,
+      doctorId: drAhmed.id,
+      workDays: '0,1,2,3,4,6',
+      startTime: '09:00',
+      endTime: '17:00',
+      slotDuration: 30,
+      maxPerDay: 24,
+      specialty: 'الباطنية والقلب',
+    },
+  });
+
+  await prisma.doctorSchedule.upsert({
+    where: { doctorId: drSara.id },
+    update: {
+      hospitalId: hospital.id,
+      workDays: '0,1,2,3,4',
+      startTime: '10:00',
+      endTime: '16:00',
+      slotDuration: 30,
+      maxPerDay: 18,
+      specialty: 'طب الأطفال',
+    },
+    create: {
+      hospitalId: hospital.id,
+      doctorId: drSara.id,
+      workDays: '0,1,2,3,4',
+      startTime: '10:00',
+      endTime: '16:00',
+      slotDuration: 30,
+      maxPerDay: 18,
+      specialty: 'طب الأطفال',
+    },
+  });
+
   // Ensure Benghazi branch has basic department + financial year + bed so switching branch shows clean data
   const benYear = await prisma.financialYear.upsert({
     where: { hospitalId_code: { hospitalId: benghaziBranch.id, code: 'FY-2026' } },

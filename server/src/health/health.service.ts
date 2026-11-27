@@ -158,14 +158,20 @@ export class HealthService implements OnModuleDestroy {
    * Readiness probe (for Kubernetes)
    */
   async ready(): Promise<{ ready: boolean; checks: Record<string, boolean> }> {
-    const dbUp = await this.checkDatabase()
-      .then((d) => d.status === 'up')
-      .catch(() => false);
+    const [dbUp, redisUp] = await Promise.all([
+      this.checkDatabase()
+        .then((d) => d.status === 'up')
+        .catch(() => false),
+      this.checkRedis()
+        .then((r) => r.status === 'up')
+        .catch(() => false),
+    ]);
 
     return {
-      ready: dbUp,
+      ready: dbUp && redisUp,
       checks: {
         database: dbUp,
+        redis: redisUp,
       },
     };
   }

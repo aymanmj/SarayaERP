@@ -129,6 +129,20 @@ describe('authStore', () => {
       expect(localStorage.getItem('auth_token')).toBeNull();
     });
 
+    it('should forward optional mfaCode when provided', async () => {
+      (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        data: { user: { ...mockUser, mfaEnabled: true }, success: true },
+      });
+
+      await useAuthStore.getState().login('ahmad', 'password123', '654321');
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
+        username: 'ahmad',
+        password: 'password123',
+        mfaCode: '654321',
+      });
+    });
+
     it('should throw on API failure', async () => {
       (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new Error('Invalid credentials')

@@ -103,7 +103,7 @@ services:
     networks:
       - saraya_demo_net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
       interval: 20s
       timeout: 10s
       retries: 5

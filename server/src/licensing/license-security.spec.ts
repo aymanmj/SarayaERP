@@ -120,4 +120,12 @@ describe('Signed license expiry integrity', () => {
     expect(fs.readFileSync(licensePath, 'utf8')).toBe(original);
     expect(fs.readdirSync(folder)).toEqual(['saraya.lic']);
   });
+
+  it('rejects downgrading or backdating an active valid license', () => {
+    const active = sign('2041-06-01');
+    expect(service.activateLicense(active).success).toBe(true);
+    expect(service.activateLicense(sign('2040-01-01')).success).toBe(false);
+    expect(service.renewLicense(sign('2000-01-01')).success).toBe(false);
+    expect(service.getStatus(true).expiryDate).toBe('2041-06-01');
+  });
 });

@@ -255,9 +255,9 @@ describe('EncountersService', () => {
           hospitalId: 1,
           patientId: 1,
           encounterId: 44,
-          totalAmount: 50,
-          patientShare: 10,
-          insuranceShare: 40,
+          totalAmount: '50.000',
+          patientShare: '10.000',
+          insuranceShare: '40.000',
           insuranceProviderId: 7,
         }),
       });

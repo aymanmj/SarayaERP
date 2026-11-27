@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-saraya_erp}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
@@ -25,7 +25,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis123}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data_clean:/data
     networks:
@@ -35,6 +35,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 30s
 
   # 3. Backend (Clean)
   backend:
@@ -45,22 +46,22 @@ services:
     restart: always
     environment:
       # Database Connection
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-AamyHISERP56223911llQq3399..Aa}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-saraya_erp}?schema=public"
       
       # Security Keys
-      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-86400s}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-900s}
       
       # Redis Connection
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       
       # Runtime Environment
       NODE_ENV: production
       PORT: 3000
       BASELINE_MIGRATIONS: "false"
-      COOKIE_SECURE: "false"
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
       
       # File Paths
       UPLOAD_PATH: /app/uploads

@@ -16,11 +16,6 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# محاولة تثبيت jq إذا لم يكن موجوداً (لقراءة JSON)
-if ! command -v jq &> /dev/null; then
-    apk add --no-cache jq 2>/dev/null || true
-fi
-
 log "عامل النسخ الاحتياطي v2.0 — يراقب ${BACKUP_DIR}..."
 
 # تحديث الحالة إلى جاهز

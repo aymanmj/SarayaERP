@@ -27,6 +27,36 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { VaultService } from '../../common/vault/vault.service';
+import type {
+  PatientAuthenticatedRequest,
+  PatientJwtPayload,
+} from './current-patient.decorator';
+
+interface DecodedJwtHeader {
+  header?: {
+    kid?: string;
+  };
+}
+
+function getDecodedHeaderKid(decoded: unknown): string | undefined {
+  if (!decoded || typeof decoded !== 'object' || !('header' in decoded)) {
+    return undefined;
+  }
+  const header = (decoded as DecodedJwtHeader).header;
+  return header && typeof header.kid === 'string' ? header.kid : undefined;
+}
+
+function hasJwtHeader(
+  decoded: unknown,
+): decoded is DecodedJwtHeader & { header: Record<string, unknown> } {
+  return Boolean(
+    decoded &&
+      typeof decoded === 'object' &&
+      'header' in decoded &&
+      (decoded as DecodedJwtHeader).header &&
+      typeof (decoded as DecodedJwtHeader).header === 'object',
+  );
+}
 
 @Injectable()
 export class PatientAuthGuard implements CanActivate {
@@ -39,7 +69,9 @@ export class PatientAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<PatientAuthenticatedRequest>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
@@ -47,18 +79,24 @@ export class PatientAuthGuard implements CanActivate {
     }
 
     try {
-      const decoded: any = this.jwtService.decode(token, { complete: true });
-      if (!decoded || !decoded.header) {
+      const decoded: unknown = this.jwtService.decode(token, {
+        complete: true,
+      });
+      if (!hasJwtHeader(decoded)) {
         throw new UnauthorizedException('رمز المصادقة غير صالح');
       }
 
-      const kid = decoded.header.kid;
+      const kid = getDecodedHeaderKid(decoded);
       const secret = await this.vaultService.getKeyOrSecret(kid);
 
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret,
-        issuer: 'saraya-patient', // Prevent Staff Tokens from accessing Patient Portal
-      });
+      const payload = await this.jwtService.verifyAsync<PatientJwtPayload>(
+        token,
+        {
+          secret,
+          issuer: 'saraya-patient', // Prevent Staff Tokens from accessing Patient Portal
+          algorithms: ['HS256'],
+        },
+      );
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       //  SECURITY LAYER 1: Role Validation
@@ -66,7 +104,7 @@ export class PatientAuthGuard implements CanActivate {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.role !== 'PATIENT') {
         this.logger.warn(
-          `🚫 Non-patient token attempted portal access: role=${payload.role}, sub=${payload.sub}`,
+          `🚫 Non-patient token attempted portal access: role=${String(payload.role)}, sub=${String(payload.sub)}`,
         );
         throw new UnauthorizedException('رمز غير صالح لبوابة المريض');
       }
@@ -77,7 +115,7 @@ export class PatientAuthGuard implements CanActivate {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.type !== 'access') {
         this.logger.warn(
-          `🚫 Non-access token used: type=${payload.type}, sub=${payload.sub}`,
+          `🚫 Non-access token used: type=${String(payload.type)}, sub=${String(payload.sub)}`,
         );
         throw new UnauthorizedException('نوع الرمز غير صالح');
       }
@@ -88,7 +126,7 @@ export class PatientAuthGuard implements CanActivate {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (payload.aud !== 'patient-portal') {
         this.logger.warn(
-          `🚫 Missing or wrong audience: aud=${payload.aud}, sub=${payload.sub}`,
+          `🚫 Missing or wrong audience: aud=${String(payload.aud)}, sub=${String(payload.sub)}`,
         );
         throw new UnauthorizedException('رمز غير مصرّح لهذه الخدمة');
       }
@@ -99,13 +137,13 @@ export class PatientAuthGuard implements CanActivate {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (!payload.sub || !payload.hospitalId) {
         this.logger.warn(
-          `🚫 Missing claims: sub=${payload.sub}, hospitalId=${payload.hospitalId}`,
+          `🚫 Missing claims: sub=${String(payload.sub)}, hospitalId=${String(payload.hospitalId)}`,
         );
         throw new UnauthorizedException('رمز ناقص البيانات');
       }
 
       // Attach validated patient context to request
-      request['patient'] = payload;
+      request.patient = payload;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;

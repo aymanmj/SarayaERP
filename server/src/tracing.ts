@@ -31,13 +31,12 @@ const sdk = new NodeSDK({
 // بدء التشغيل
 sdk.start();
 
-// الإقفال الآمن عند انتهاء العملية
-process.on('SIGTERM', () => {
-  sdk
-    .shutdown()
-    .then(() => console.log('Tracing terminated'))
-    .catch((error) => console.log('Error terminating tracing', error))
-    .finally(() => process.exit(0));
-});
+export async function shutdownTracing(): Promise<void> {
+  try {
+    await sdk.shutdown();
+  } catch (error) {
+    console.error('Error terminating tracing', error);
+  }
+}
 
 export default sdk;

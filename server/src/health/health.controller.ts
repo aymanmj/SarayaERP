@@ -1,7 +1,12 @@
 // src/health/health.controller.ts
 // Enhanced Health Check Controller for Monitoring
 
-import { Controller, Get, Header } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HealthService } from './health.service';
 import { Public } from '../auth/public.decorator';
 import { ConnectivityService } from '../common/services/connectivity.service';
@@ -40,7 +45,11 @@ export class HealthController {
   @Public()
   @Get('ready')
   async getReadiness() {
-    return this.healthService.ready();
+    const status = await this.healthService.ready();
+    if (!status.ready) {
+      throw new ServiceUnavailableException(status);
+    }
+    return status;
   }
 
   /**

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -64,7 +65,6 @@ import { ObGynModule } from './modules/obgyn/obgyn.module'; // ✅ [NEW] Obstetr
 import { ConsentFormsModule } from './modules/clinical/consent-forms/consent-forms.module'; // ✅ [NEW] Consent Forms
 import { CommissionModule } from './commission/commission.module'; // ✅ [NEW] Commission Rules
 import { AuditInterceptor } from './audit/audit.interceptor';
-import { APP_INTERCEPTOR, APP_GUARD } from '@nestjs/core';
 import { StaffRealtimeBus } from './websocket/staff-realtime.bus';
 import { ClsModule } from 'nestjs-cls';
 import { VaultModule } from './common/vault/vault.module';
@@ -94,7 +94,9 @@ import { TerminologyModule } from './terminology/terminology.module'; // ✅ [NE
 import { TenantModule } from './common/tenant/tenant.module'; // ✅ [NEW] Phase 1: Multi-Tenancy
 import { RcmModule } from './rcm/rcm.module'; // ✅ [NEW] Phase 1: Revenue Cycle Management
 import { NphiesModule } from './integration/nphies/nphies.module'; // ✅ [NEW] Phase 1: NPHIES (Saudi eClaims)
-import { StartupSecurityValidator } from './common/security/startup-security.validator'; // ✅ [NEW] Security Guard
+import { StartupSecurityValidator } from './common/security/startup-security.validator';
+import { CsrfOriginGuard } from './common/security/csrf-origin.guard'; // ✅ [NEW] Security Guard
+import { RedisThrottlerStorage } from './common/security/redis-throttler.storage';
 import { ConnectivityModule } from './common/services/connectivity.module'; // ✅ [NEW] Offline-First: Internet Connectivity Monitor
 import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality & Patient Safety — Incident/CAPA
 
@@ -132,40 +134,45 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     EncryptionModule,
     TenantModule, // ✅ [NEW] Phase 1: Multi-Tenancy & Organization Management
 
-    // ✅ Rate Limiting Configuration
-    ThrottlerModule.forRoot({
-      skipIf: () =>
-        process.env.DISABLE_THROTTLER === 'true' &&
-        process.env.NODE_ENV !== 'production',
-      throttlers: [
-        {
-          name: 'short',
-          ttl: 1000, // 1 second
-          limit:
-            process.env.DISABLE_THROTTLER === 'true' &&
-            process.env.NODE_ENV !== 'production'
-              ? 9999999
-              : 100,
-        },
-        {
-          name: 'medium',
-          ttl: 10000, // 10 seconds
-          limit:
-            process.env.DISABLE_THROTTLER === 'true' &&
-            process.env.NODE_ENV !== 'production'
-              ? 9999999
-              : 200,
-        },
-        {
-          name: 'long',
-          ttl: 60000, // 1 minute
-          limit:
-            process.env.DISABLE_THROTTLER === 'true' &&
-            process.env.NODE_ENV !== 'production'
-              ? 9999999
-              : 1000,
-        },
-      ],
+    // ✅ Rate Limiting Configuration (Redis-backed across replicas with local fallback)
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        storage: new RedisThrottlerStorage(config),
+        skipIf: () =>
+          process.env.DISABLE_THROTTLER === 'true' &&
+          process.env.NODE_ENV !== 'production',
+        throttlers: [
+          {
+            name: 'short',
+            ttl: 1000, // 1 second
+            limit:
+              process.env.DISABLE_THROTTLER === 'true' &&
+              process.env.NODE_ENV !== 'production'
+                ? 9999999
+                : 100,
+          },
+          {
+            name: 'medium',
+            ttl: 10000, // 10 seconds
+            limit:
+              process.env.DISABLE_THROTTLER === 'true' &&
+              process.env.NODE_ENV !== 'production'
+                ? 9999999
+                : 200,
+          },
+          {
+            name: 'long',
+            ttl: 60000, // 1 minute
+            limit:
+              process.env.DISABLE_THROTTLER === 'true' &&
+              process.env.NODE_ENV !== 'production'
+                ? 9999999
+                : 1000,
+          },
+        ],
+      }),
     }),
 
     // Core Modules
@@ -275,6 +282,11 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // ✅ CSRF Origin / Sec-Fetch-Site Guard for cookie-authenticated mutations
+    {
+      provide: APP_GUARD,
+      useClass: CsrfOriginGuard,
     },
     EventsGateway,
     StaffRealtimeBus,

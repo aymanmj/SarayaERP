@@ -6,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Money } from "../utils/money";
 
 type CashierInfo = {
   id: number;
@@ -64,17 +65,23 @@ export default function CashierClosedShiftsPage() {
   }, []);
 
   const summary = useMemo(() => {
-    let totalSystem = 0;
-    let totalActual = 0;
-    let totalDiff = 0;
+    let totalSystemDec = Money.decimal(0);
+    let totalActualDec = Money.decimal(0);
+    let totalDiffDec = Money.decimal(0);
 
     for (const r of rows) {
-      totalSystem += Number(r.systemCashTotal ?? 0);
-      totalActual += Number(r.actualCashTotal ?? 0);
-      totalDiff += Number(r.difference ?? 0);
+      totalSystemDec = Money.sumDecimal(totalSystemDec, r.systemCashTotal ?? 0);
+      totalActualDec = Money.sumDecimal(totalActualDec, r.actualCashTotal ?? 0);
+      totalDiffDec = Money.sumDecimal(totalDiffDec, r.difference ?? 0);
     }
 
-    return { totalSystem, totalActual, totalDiff };
+    return {
+      totalSystem: Money.toDbString(totalSystemDec),
+      totalActual: Money.toDbString(totalActualDec),
+      totalDiff: Money.toDbString(totalDiffDec),
+      isDiffZero: totalDiffDec.eq(0),
+      isDiffPositive: totalDiffDec.gt(0),
+    };
   }, [rows]);
 
 // Local formatDate removed
@@ -162,14 +169,14 @@ export default function CashierClosedShiftsPage() {
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 shadow">
           <div className="text-xs text-slate-400">{t("treasury.shifts.totalSystem", "إجمالي النقد حسب النظام")}</div>
           <div className="mt-1 text-lg font-semibold text-emerald-400">
-            {t("treasury.common.lyd", "د.ل")} {summary.totalSystem.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalSystem}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-700/70 bg-slate-900/70 p-4 shadow">
           <div className="text-xs text-slate-400">{t("treasury.shifts.totalActual", "إجمالي النقد الفعلي")}</div>
           <div className="mt-1 text-lg font-semibold text-yellow-300">
-            {t("treasury.common.lyd", "د.ل")} {summary.totalActual.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalActual}
           </div>
         </div>
 
@@ -178,14 +185,14 @@ export default function CashierClosedShiftsPage() {
           <div
             className={
               "mt-1 text-lg font-semibold " +
-              (summary.totalDiff === 0
+              (summary.isDiffZero
                 ? "text-slate-100"
-                : summary.totalDiff > 0
+                : summary.isDiffPositive
                 ? "text-emerald-400"
                 : "text-red-400")
             }
           >
-            {t("treasury.common.lyd", "د.ل")} {summary.totalDiff.toFixed(3)}
+            {t("treasury.common.lyd", "د.ل")} {summary.totalDiff}
           </div>
         </div>
       </div>
@@ -253,22 +260,22 @@ export default function CashierClosedShiftsPage() {
                     {r.cashier?.fullName || r.cashier?.username || "—"}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    {Number(r.systemCashTotal).toFixed(3)}
+                    {Money.toDbString(r.systemCashTotal ?? 0)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    {Number(r.actualCashTotal).toFixed(3)}
+                    {Money.toDbString(r.actualCashTotal ?? 0)}
                   </td>
                   <td
                     className={
                       "whitespace-nowrap px-3 py-2 " +
-                      (Number(r.difference) === 0
+                      (Money.decimal(r.difference ?? 0).eq(0)
                         ? "text-slate-100"
-                        : Number(r.difference) > 0
+                        : Money.decimal(r.difference ?? 0).gt(0)
                         ? "text-emerald-400"
                         : "text-red-400")
                     }
                   >
-                    {Number(r.difference).toFixed(3)}
+                    {Money.toDbString(r.difference ?? 0)}
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-300">
                     {r.note || "—"}

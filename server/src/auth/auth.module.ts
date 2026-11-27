@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { RtStrategy } from './rt.strategy';
+import { LoginLockoutStore } from '../common/security/redis-throttler.storage';
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { RtStrategy } from './rt.strategy';
       },
     }),
   ],
-  providers: [AuthService, JwtStrategy, RtStrategy],
+  providers: [AuthService, JwtStrategy, RtStrategy, LoginLockoutStore],
   controllers: [AuthController],
   exports: [AuthService, JwtModule, JwtStrategy],
 })

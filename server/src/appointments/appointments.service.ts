@@ -20,6 +20,7 @@ import {
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { assertStaffSchedulingEligibility } from '../hr/staff-credentialing.service';
+import { Money } from '../common/utils/money.util';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -588,18 +589,21 @@ export class AppointmentsService {
             },
           });
 
-          // حساب حصص الدفع
-          let patientShare = price;
-          let insuranceShare = 0;
+          // حساب حصص الدفع بدقة 3 خانات عشرية (LYD Banker's Rounding)
+          const totalDec = Money.roundDecimal(price);
+          let patientShareDec = totalDec;
+          let insuranceShareDec = Money.decimal(0);
           let insuranceProviderId: number | null = null;
 
           if (patientWithInsurance?.insurancePolicy?.isActive) {
-            const copayRate =
-              Number(
-                patientWithInsurance.insurancePolicy.patientCopayRate || 0,
-              ) / 100;
-            patientShare = Math.round(price * copayRate * 100) / 100;
-            insuranceShare = Math.round((price - patientShare) * 100) / 100;
+            const copayRateDec = Money.decimal(
+              patientWithInsurance.insurancePolicy.patientCopayRate || 0,
+            ).div(100);
+            patientShareDec = Money.roundDecimal(totalDec.mul(copayRateDec));
+            insuranceShareDec = Money.subtractDecimal(
+              totalDec,
+              patientShareDec,
+            );
             insuranceProviderId =
               patientWithInsurance.insurancePolicy.insuranceProviderId;
           }
@@ -618,12 +622,12 @@ export class AppointmentsService {
               patientId,
               encounterId: encounter.id,
               status: 'ISSUED',
-              totalAmount: price,
-              discountAmount: 0,
-              paidAmount: 0,
+              totalAmount: Money.toDbString(totalDec),
+              discountAmount: Money.toDbString(Money.decimal(0)),
+              paidAmount: Money.toDbString(Money.decimal(0)),
               currency: 'LYD',
-              patientShare,
-              insuranceShare,
+              patientShare: Money.toDbString(patientShareDec),
+              insuranceShare: Money.toDbString(insuranceShareDec),
               insuranceProviderId,
               financialYearId: financialYear.id,
               financialPeriodId: period.id,
@@ -926,17 +930,18 @@ export class AppointmentsService {
           include: { insurancePolicy: true },
         });
 
-        // حساب حصة المريض وحصة التأمين
-        let patientShare = price;
-        let insuranceShare = 0;
+        // حساب حصة المريض وحصة التأمين بدقة 3 خانات عشرية (LYD Banker's Rounding)
+        const totalDec = Money.roundDecimal(price);
+        let patientShareDec = totalDec;
+        let insuranceShareDec = Money.decimal(0);
         let insuranceProviderId: number | null = null;
 
         if (patientData?.insurancePolicy?.isActive) {
-          // نسبة الخصم على المريض (copay) - كلما زادت قل ما يدفعه التأمين
-          const copayRate =
-            Number(patientData.insurancePolicy.patientCopayRate || 0) / 100;
-          patientShare = Math.round(price * copayRate * 100) / 100;
-          insuranceShare = Math.round((price - patientShare) * 100) / 100;
+          const copayRateDec = Money.decimal(
+            patientData.insurancePolicy.patientCopayRate || 0,
+          ).div(100);
+          patientShareDec = Money.roundDecimal(totalDec.mul(copayRateDec));
+          insuranceShareDec = Money.subtractDecimal(totalDec, patientShareDec);
           insuranceProviderId = patientData.insurancePolicy.insuranceProviderId;
         }
 
@@ -954,12 +959,12 @@ export class AppointmentsService {
             patientId: appt.patientId,
             encounterId: encounter.id,
             status: 'ISSUED',
-            totalAmount: price,
-            discountAmount: 0,
-            paidAmount: 0,
+            totalAmount: Money.toDbString(totalDec),
+            discountAmount: Money.toDbString(Money.decimal(0)),
+            paidAmount: Money.toDbString(Money.decimal(0)),
             currency: 'LYD',
-            patientShare,
-            insuranceShare,
+            patientShare: Money.toDbString(patientShareDec),
+            insuranceShare: Money.toDbString(insuranceShareDec),
             insuranceProviderId,
             financialYearId: financialYear.id,
             financialPeriodId: period.id,
@@ -1241,11 +1246,6 @@ export class AppointmentsService {
           return; // Only care if it's OPEN (not closed/executed)
         }
 
-        // Only cancel if NO other non-cancelled invoices remain
-        const activeRegularInvoices = encounter.invoices.filter(
-          (inv) => inv.status !== 'CANCELLED' && inv.type !== 'CREDIT_NOTE',
-        );
-
         // Even if there are other invoices, if this event is triggered, it means the main ticket was refunded/cancelled
         // For outpatient consultation, normally there's 1 invoice.
         // We will cancel the clinical session immediately to clear the queue.
@@ -1268,9 +1268,10 @@ export class AppointmentsService {
           });
         }
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       this.logger.error(
-        `Failed to cancel encounter/appointment after invoice cancellation: ${err.message}`,
+        `Failed to cancel encounter/appointment after invoice cancellation: ${errMsg}`,
       );
     }
   }

@@ -28,7 +28,8 @@ COPY . .
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
-# البناء
+# البناء (رفع حد ذاكرة Node لمرحلة البناء لتفادي OOM مع مخطط Prisma الكبير)
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build:protected
 
 # تجميع سكربت الـ Seed
@@ -77,19 +78,20 @@ COPY package*.json ./
 # تعديل أمر الـ seed
 RUN sed -i 's/"ts-node prisma\/seed.ts"/"node dist\/prisma\/seed.js"/g' package.json
 
-# تثبيت تبعيات الإنتاج فقط
-RUN npm ci --only=production
+# تثبيت تبعيات الإنتاج فقط مع تثبيت Prisma CLI المطابق لنسخة المشروع للعمل دون إنترنت
+RUN npm ci --omit=dev && npm install --no-save --no-audit --no-fund prisma@6.19.3
 
 # ========= طبقات نادرة التغيير (Prisma + مفاتيح + سكربتات) =========
 # نسخ Prisma schema + توليد Client (تتغير فقط لو تغير schema.prisma)
 COPY --from=builder /app/prisma ./prisma
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate
 
 # نسخ المفتاح العام والسكربتات (نادرة التغيير)
 COPY --from=builder /app/src/licensing/public.key ./public.key
 COPY --from=builder /app/src/licensing/public.key ./dist/licensing/public.key
 COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh
 COPY --from=builder /app/scripts ./scripts
 
 # ========= طبقة كثيرة التغيير (كود التطبيق) — الأخيرة دائماً! =========

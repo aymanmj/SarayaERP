@@ -34,16 +34,36 @@ describe('MpiService', () => {
     }),
   };
 
-  const mockPrisma = {
+  type MockMpiPrisma = {
+    orgSetting: { findUnique: jest.Mock };
+    globalPatient: { findMany: jest.Mock };
+    patient: { findUnique: jest.Mock; findFirst: jest.Mock };
+    patientOtp: {
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+      updateMany: jest.Mock;
+    };
+    auditLog: { create: jest.Mock; findMany: jest.Mock };
+    $transaction: jest.Mock;
+  };
+
+  const mockPrisma: MockMpiPrisma = {
     orgSetting: { findUnique: jest.fn() },
     globalPatient: { findMany: jest.fn() },
-    patient: { findUnique: jest.fn() },
+    patient: { findUnique: jest.fn(), findFirst: jest.fn() },
     patientOtp: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
+    auditLog: { create: jest.fn(), findMany: jest.fn() },
+    $transaction: jest.fn((fn: (tx: MockMpiPrisma) => unknown) =>
+      fn(mockPrisma),
+    ),
   };
 
   const mockOutboundQueueService = {
@@ -228,7 +248,9 @@ describe('MpiService', () => {
       expect(result.expiresAt).toBeInstanceOf(Date);
 
       // Verify bcrypt hash was stored (not plaintext)
-      const createCall = mockPrisma.patientOtp.create.mock.calls[0][0];
+      const [createCall] = mockPrisma.patientOtp.create.mock.calls[0] as [
+        { data: { code: string } },
+      ];
       const storedCode = createCall.data.code;
       expect(storedCode).not.toMatch(/^\d{6}$/); // Must NOT be a 6-digit plaintext
       expect(
@@ -240,7 +262,7 @@ describe('MpiService', () => {
       expect(mockOutboundQueueService.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'sms',
-          payload: expect.objectContaining({ patientId: 1 }),
+          payload: expect.objectContaining({ patientId: 1 }) as unknown,
         }),
       );
     });
@@ -323,11 +345,15 @@ describe('MpiService', () => {
       expect(result.fhirReference).toContain('/Patient/1');
 
       // Verify the consent token is a valid JWT
-      const decoded = jwt.decode(result.consentToken) as any;
+      const decoded = jwt.decode(result.consentToken) as {
+        sub?: number;
+        type?: string;
+        scope?: string;
+      } | null;
       expect(decoded).not.toBeNull();
-      expect(decoded.sub).toBe(1);
-      expect(decoded.type).toBe('mpi_consent');
-      expect(decoded.scope).toBe('patient/*.read');
+      expect(decoded?.sub).toBe(1);
+      expect(decoded?.type).toBe('mpi_consent');
+      expect(decoded?.scope).toBe('patient/*.read');
     });
 
     it('should mark OTP as verified after successful validation', async () => {
@@ -358,11 +384,8 @@ describe('MpiService', () => {
   // ============================================
   describe('revokeConsent', () => {
     beforeEach(() => {
-      // Add missing mock methods for revocation
-      (mockPrisma as any).patientOtp.updateMany = jest.fn();
-      (mockPrisma as any).auditLog = { create: jest.fn(), findMany: jest.fn() };
-      (mockPrisma as any).$transaction = jest.fn(async (fn: any) =>
-        fn(mockPrisma),
+      mockPrisma.$transaction.mockImplementation((fn: unknown) =>
+        Promise.resolve((fn as (tx: MockMpiPrisma) => unknown)(mockPrisma)),
       );
     });
 
@@ -385,8 +408,8 @@ describe('MpiService', () => {
         fullName: 'أحمد محمد',
         hospitalId: 1,
       });
-      (mockPrisma as any).patientOtp.updateMany.mockResolvedValue({ count: 3 });
-      (mockPrisma as any).auditLog.create.mockResolvedValue({ id: 1 });
+      mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 3 });
+      mockPrisma.auditLog.create.mockResolvedValue({ id: 1 });
 
       const result = await service.revokeConsent({
         patientId: 1,
@@ -399,16 +422,16 @@ describe('MpiService', () => {
       expect(result.message).toContain('revoked');
 
       // Verify OTPs were invalidated
-      expect((mockPrisma as any).patientOtp.updateMany).toHaveBeenCalled();
+      expect(mockPrisma.patientOtp.updateMany).toHaveBeenCalled();
 
       // Verify audit log was created
-      expect((mockPrisma as any).auditLog.create).toHaveBeenCalledWith(
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             action: 'MPI_CONSENT_REVOKED',
             entity: 'Patient',
             entityId: 1,
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -419,8 +442,8 @@ describe('MpiService', () => {
         fullName: 'أحمد محمد',
         hospitalId: 1,
       });
-      (mockPrisma as any).patientOtp.updateMany.mockResolvedValue({ count: 1 });
-      (mockPrisma as any).auditLog.create.mockResolvedValue({ id: 1 });
+      mockPrisma.patientOtp.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.auditLog.create.mockResolvedValue({ id: 1 });
 
       const result = await service.revokeConsent({
         patientId: 1,
@@ -433,8 +456,9 @@ describe('MpiService', () => {
       expect(result).toBeDefined();
 
       // Verify OTP filter included requestingOrganizationId
-      const updateCall = (mockPrisma as any).patientOtp.updateMany.mock
-        .calls[0][0];
+      const [updateCall] = mockPrisma.patientOtp.updateMany.mock.calls[0] as [
+        { where: { requestingOrganizationId?: number } },
+      ];
       expect(updateCall.where.requestingOrganizationId).toBe(5);
     });
   });
@@ -444,10 +468,7 @@ describe('MpiService', () => {
   // ============================================
   describe('getConsentAuditTrail', () => {
     beforeEach(() => {
-      (mockPrisma as any).auditLog = { create: jest.fn(), findMany: jest.fn() };
-      (mockPrisma as any).patient.findFirst = jest
-        .fn()
-        .mockResolvedValue({ id: 1, hospitalId: 1 });
+      mockPrisma.patient.findFirst.mockResolvedValue({ id: 1, hospitalId: 1 });
     });
 
     it('should return combined consent requests and revocations', async () => {
@@ -465,7 +486,7 @@ describe('MpiService', () => {
       ]);
 
       // Mock revocation audit logs
-      (mockPrisma as any).auditLog.findMany.mockResolvedValue([
+      mockPrisma.auditLog.findMany.mockResolvedValue([
         {
           id: 10,
           action: 'MPI_CONSENT_REVOKED',
@@ -481,9 +502,9 @@ describe('MpiService', () => {
       expect(result.consentRequests).toHaveLength(1);
       expect(result.consentRequests[0].status).toBe('GRANTED');
       expect(result.revocations).toHaveLength(1);
-      expect((result.revocations[0].details as any)?.reason).toBe(
-        'Patient withdrawal',
-      );
+      expect(
+        (result.revocations[0].details as { reason?: string } | null)?.reason,
+      ).toBe('Patient withdrawal');
     });
 
     it('should classify expired OTP as EXPIRED status', async () => {
@@ -498,7 +519,7 @@ describe('MpiService', () => {
           lockedUntil: null,
         },
       ]);
-      (mockPrisma as any).auditLog.findMany.mockResolvedValue([]);
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
 
       const result = await service.getConsentAuditTrail(1, 1);
 
@@ -517,7 +538,7 @@ describe('MpiService', () => {
           attempts: 5, // Triggers LOCKED
         },
       ]);
-      (mockPrisma as any).auditLog.findMany.mockResolvedValue([]);
+      mockPrisma.auditLog.findMany.mockResolvedValue([]);
 
       const result = await service.getConsentAuditTrail(1, 1);
 

@@ -1,6 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OrgType } from '@prisma/client';
+import { OrgType, type Prisma } from '@prisma/client';
+
+interface OrgTreeNode {
+  hospitals?: { id: number }[];
+  children?: OrgTreeNode[];
+}
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { lockStaffUser } from '../../auth/staff-session-lock';
 
@@ -29,7 +34,7 @@ export class TenantService {
     timezone?: string;
     country?: string;
     locale?: string;
-    taxConfig?: any;
+    taxConfig?: Prisma.InputJsonValue;
   }) {
     // التحقق من وجود المؤسسة الأم إذا تم تحديدها
     if (data.parentId) {
@@ -90,9 +95,9 @@ export class TenantService {
     const org = await this.getOrganizationTree(orgId);
     const hospitalIds: number[] = [];
 
-    const collectIds = (node: any) => {
+    const collectIds = (node: OrgTreeNode) => {
       if (node.hospitals) {
-        hospitalIds.push(...node.hospitals.map((h: any) => h.id));
+        hospitalIds.push(...node.hospitals.map((h) => h.id));
       }
       if (node.children) {
         node.children.forEach(collectIds);
@@ -136,7 +141,7 @@ export class TenantService {
    * جلب كل المستشفيات/الفروع في النظام (للبحث الإداري)
    */
   async getAllHospitals(search?: string) {
-    const where: any = {};
+    const where: Prisma.HospitalWhereInput = {};
     if (search && search.trim()) {
       const q = search.trim();
       where.OR = [

@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import PrintLayout from "../components/print/PrintLayout";
+import { Money } from "../utils/money";
+import {
+  buildStatementRows,
+  type StatementRow,
+} from "../utils/patientStatementBalance";
 
 type InvoiceStatus =
   | "DRAFT"
@@ -87,16 +92,6 @@ type DispenseSummary = {
   items: DispenseItemRow[];
 };
 
-type StatementRow = {
-  date: string;
-  kind: "INVOICE" | "PAYMENT" | "REFUND";
-  ref: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number; // الرصيد التراكمي على المريض بعد هذا السطر
-};
-
 // encounterId -> list of dispenses from pharmacy
 type EncounterDispenseMap = Record<number, DispenseSummary[]>;
 
@@ -129,7 +124,7 @@ function formatStatus(status: InvoiceStatus) {
   }
 }
 
-function formatMethod(method: PaymentMethod) {
+function formatMethod(method: string) {
   switch (method) {
     case "CASH":
       return "نقداً";
@@ -144,8 +139,8 @@ function formatMethod(method: PaymentMethod) {
   }
 }
 
-function formatMoney(value: number) {
-  return value.toFixed(3) + " LYD";
+function formatMoney(value: number | string) {
+  return Money.toFixed(value, 3) + " LYD";
 }
 
 export default function PatientStatementPage() {
@@ -245,65 +240,11 @@ export default function PatientStatementPage() {
 
   const statementRows = useMemo<StatementRow[]>(() => {
     if (!data) return [];
-
-    type BaseRow = Omit<StatementRow, "balance">;
-    const tmp: BaseRow[] = [];
-
-    // 🧾 الفواتير = مدين على المريض
-    for (const inv of data.invoices) {
-      const total = Number(inv.totalAmount ?? 0);
-      const discount = Number(inv.discountAmount ?? 0);
-      const netAmount = total - discount; // الصافي المستحق على المريض
-
-      if (netAmount === 0) continue;
-
-      tmp.push({
-        date: inv.createdAt,
-        kind: "INVOICE",
-        ref: `فاتورة #${inv.id}`,
-        description: inv.encounter
-          ? `حالة #${inv.encounter.id} – ${inv.encounter.type}`
-          : "فاتورة خدمات للمريض",
-        debit: netAmount,
-        credit: 0,
-      });
-    }
-
-    // 💵 الدفعات = دائن (تسديد من المريض)
-    for (const p of data.payments) {
-      const amount = Number(p.amount ?? 0);
-      if (amount === 0) continue;
-
-      tmp.push({
-        date: p.paidAt,
-        kind: "PAYMENT",
-        ref: `دفعة #${p.id}`,
-        description: p.invoice
-          ? `سداد على فاتورة #${p.invoice.id} (${formatMethod(p.method)})`
-          : `دفعة (${formatMethod(p.method)})`,
-        debit: 0,
-        credit: amount,
-      });
-    }
-
-    for (const refund of data.refunds ?? []) {
-      tmp.push({ date: refund.executedAt, kind: "REFUND", ref: `استرداد #${refund.id}`, description: `صرف للمريض — فاتورة #${refund.invoiceId} / إيصال #${refund.paymentId} (${formatMethod(refund.method)}) — ${refund.executionReference}`, debit: Number(refund.amount), credit: 0 });
-    }
-
-    // ⏱️ ترتيب زمني (الفواتير قبل الدفعات إذا في نفس اللحظة)
-    tmp.sort((a, b) => {
-      const ta = new Date(a.date).getTime();
-      const tb = new Date(b.date).getTime();
-      if (ta !== tb) return ta - tb;
-      if (a.kind === b.kind) return 0;
-      return a.kind === "INVOICE" ? -1 : 1;
-    });
-
-    // 🧮 حساب الرصيد المتحرك (على المريض)
-    let running = 0;
-    return tmp.map((row) => {
-      running += row.debit - row.credit;
-      return { ...row, balance: running };
+    return buildStatementRows({
+      invoices: data.invoices,
+      payments: data.payments,
+      refunds: data.refunds,
+      formatMethod,
     });
   }, [data]);
 
@@ -620,7 +561,7 @@ export default function PatientStatementPage() {
                       <div style={{ background: '#f8fafc', padding: '8px 16px', fontSize: '12px', fontWeight: 700, color: '#334155', display: 'flex', justifyContent: 'space-between' }}>
                         <span>زيارة رقم: {encounterId}</span>
                         <span style={{ color: '#059669' }}>
-                          الإجمالي: {formatMoney(dispenses.reduce((sum, d) => sum + d.totalAmount, 0))}
+                          الإجمالي: {formatMoney(Money.sumPosted(...dispenses.map((d) => d.totalAmount)).toFixed(3))}
                         </span>
                       </div>
                       {dispenses.map(d => (

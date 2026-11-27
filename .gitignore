@@ -93,12 +93,22 @@ data/keys/*
 # Certificates & SSL
 ############################
 certs/
+ssl/
 certbot/
 *.pem
 *.key
 !server/src/licensing/public.key
 *.crt
 secrets/
+.sys.dat
+server/.sys.dat
+saraya.lic
+server/saraya.lic
+client/auto-ignore.cjs
+client/scratch_update2.cjs
+client/eslint-report2.json
+client/build_output.txt
+client/Dockerfile.temp
 
 ############################
 # AI / Agent Tools

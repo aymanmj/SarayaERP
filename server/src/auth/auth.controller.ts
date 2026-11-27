@@ -66,7 +66,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const { accessToken, refreshToken, user, accessibleBranches } =
-      await this.authService.login(dto.username, dto.password);
+      await this.authService.login(dto.username, dto.password, dto.mfaCode);
 
     this.setCookies(response, accessToken, refreshToken);
     return {
@@ -143,6 +143,49 @@ export class AuthController {
       hospitalId: tokens.hospitalId,
       userId: tokens.userId,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('mfa/status')
+  @Header('Cache-Control', 'no-store')
+  async mfaStatus(@CurrentUser() user: JwtPayload) {
+    return this.authService.getMfaStatus(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('mfa/setup')
+  @Header('Cache-Control', 'no-store')
+  @HttpCode(HttpStatus.OK)
+  async setupMfa(@CurrentUser() user: JwtPayload) {
+    return this.authService.setupMfa(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('mfa/enable')
+  @Header('Cache-Control', 'no-store')
+  @HttpCode(HttpStatus.OK)
+  async enableMfa(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { code?: string },
+  ) {
+    if (typeof body?.code !== 'string' || !body.code.trim()) {
+      throw new BadRequestException('يرجى إدخال رمز التحقق');
+    }
+    return this.authService.enableMfa(user, body.code);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('mfa/disable')
+  @Header('Cache-Control', 'no-store')
+  @HttpCode(HttpStatus.OK)
+  async disableMfa(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { password?: string; code?: string },
+  ) {
+    if (typeof body?.password !== 'string' || !body.password) {
+      throw new BadRequestException('يرجى إدخال كلمة المرور');
+    }
+    return this.authService.disableMfa(user, body.password, body.code ?? '');
   }
 
   @UseGuards(JwtAuthGuard)

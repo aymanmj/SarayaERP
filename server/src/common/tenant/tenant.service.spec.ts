@@ -99,12 +99,12 @@ describe('TenantService', () => {
       });
 
       expect(result).toEqual(mockOrganization);
-      expect(mockPrisma.organization.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          code: 'SARAYA-NET',
-          type: OrgType.NETWORK,
-          currency: 'SAR',
-        }),
+      const firstCreateCalls = mockPrisma.organization.create.mock
+        .calls as Array<[{ data?: Record<string, unknown> }]>;
+      expect(firstCreateCalls[0]?.[0]?.data).toMatchObject({
+        code: 'SARAYA-NET',
+        type: OrgType.NETWORK,
+        currency: 'SAR',
       });
     });
 
@@ -150,13 +150,13 @@ describe('TenantService', () => {
         name: 'اختبار الافتراضيات',
       });
 
-      expect(mockPrisma.organization.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          currency: 'LYD',
-          timezone: 'Africa/Tripoli',
-          country: 'LY',
-          locale: 'ar',
-        }),
+      const defaultCreateCalls = mockPrisma.organization.create.mock
+        .calls as Array<[{ data?: Record<string, unknown> }]>;
+      expect(defaultCreateCalls[0]?.[0]?.data).toMatchObject({
+        currency: 'LYD',
+        timezone: 'Africa/Tripoli',
+        country: 'LY',
+        locale: 'ar',
       });
     });
   });

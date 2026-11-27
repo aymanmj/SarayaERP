@@ -428,7 +428,7 @@ export class PharmacyService {
               form: it.product.form,
               unitPrice:
                 it.prepaidUnitPrice === null
-                  ? Number(it.product.sellPrice ?? 0)
+                  ? Money.toUnitDb(it.product.sellPrice ?? 0)
                   : Money.toDbString(it.prepaidUnitPrice),
             }
           : null,
@@ -1941,7 +1941,7 @@ export class PharmacyService {
       .then((list) =>
         list.map((d) => ({
           ...d,
-          unitPrice: Number(d.sellPrice ?? 0),
+          unitPrice: Money.toUnitDb(d.sellPrice ?? 0),
           stockOnHand: Number(d.stockOnHand ?? 0),
         })),
       );
@@ -2000,8 +2000,8 @@ export class PharmacyService {
       createdAt: t.createdAt,
       type: t.type,
       quantity: Number(t.quantity),
-      unitCost: Number(t.unitCost),
-      totalCost: Number(t.totalCost),
+      unitCost: Money.toUnitDb(t.unitCost),
+      totalCost: Money.toDb(t.totalCost),
       batchNumber: t.batchNumber,
       expiryDate: t.expiryDate,
       drug: {
@@ -2035,12 +2035,14 @@ export class PharmacyService {
       createdAt: r.dispensedAt,
       notes: r.notes,
       doctor: r.prescription?.doctor,
-      totalAmount: r.items.reduce((sum, it) => sum + Number(it.totalAmount), 0),
+      totalAmount: Money.toNumber(
+        Money.sumPosted(...r.items.map((it) => it.totalAmount)),
+      ),
       items: r.items.map((it) => ({
         id: it.id,
         quantity: Number(it.quantity),
-        unitPrice: Number(it.unitPrice),
-        totalAmount: Number(it.totalAmount),
+        unitPrice: Money.toUnitDb(it.unitPrice),
+        totalAmount: Money.toDb(it.totalAmount),
         batchNumber: it.batchNumber,
         expiryDate: it.expiryDate,
         dispensedDrug: it.product,

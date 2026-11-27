@@ -19,6 +19,15 @@ export default function DeliveryRegistrationPage() {
 
   const [loading, setLoading] = useState(false);
   const [encounter, setEncounter] = useState<any>(null);
+  const [openEncounters, setOpenEncounters] = useState<Array<{
+    id: number;
+    type: string;
+    status: string;
+    patient?: { id: number; fullName: string; mrn: string };
+    doctor?: { fullName: string } | null;
+  }>>([]);
+  const [encounterSearch, setEncounterSearch] = useState('');
+  const [loadingEncounters, setLoadingEncounters] = useState(false);
   
   // Form State
   const [deliveryMethod, setDeliveryMethod] = useState('NVD');
@@ -42,8 +51,24 @@ export default function DeliveryRegistrationPage() {
   useEffect(() => {
     if (encounterId) {
       loadEncounter(encounterId);
+    } else {
+      loadOpenEncounters();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId]);
+
+  const loadOpenEncounters = async () => {
+    try {
+      setLoadingEncounters(true);
+      const res = await apiClient.get('/encounters', { params: { status: 'OPEN' } });
+      const items = Array.isArray(res.data) ? res.data : (res.data?.items || res.data?.data || []);
+      setOpenEncounters(items);
+    } catch {
+      setOpenEncounters([]);
+    } finally {
+      setLoadingEncounters(false);
+    }
+  };
 
   const loadEncounter = async (id: string) => {
     try {
@@ -116,12 +141,75 @@ export default function DeliveryRegistrationPage() {
     }
   };
 
-  if (!encounterId) return <div className="p-8 text-center text-red-500">{t('obgyn.delivery.encounterIdRequired', 'يجب تحديد رقم الزيارة (Encounter ID) للبدء.')}</div>;
+  if (!encounterId) {
+    const query = encounterSearch.trim().toLowerCase();
+    const filteredEncounters = openEncounters.filter((item) => {
+      if (!query) return true;
+      return (
+        String(item.id).includes(query) ||
+        (item.patient?.fullName || '').toLowerCase().includes(query) ||
+        (item.patient?.mrn || '').toLowerCase().includes(query)
+      );
+    });
+
+    return (
+      <div className="container mx-auto p-6 space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">{t('obgyn.delivery.selectEncounterTitle', 'تسجيل ولادة جديدة')}</h1>
+            <p className="text-sm text-slate-400 mt-1">{t('obgyn.delivery.selectEncounterHint', 'اختر الزيارة / الحالة النشطة للأم للمتابعة وتسجيل الولادة.')}</p>
+          </div>
+          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">
+            {t('obgyn.delivery.btn.back', 'رجوع')}
+          </Button>
+        </div>
+
+        <Card className="bg-slate-900/60 border border-slate-700 text-slate-100">
+          <CardContent className="p-4 space-y-4">
+            <Input
+              value={encounterSearch}
+              onChange={(e) => setEncounterSearch(e.target.value)}
+              placeholder={t('obgyn.delivery.searchEncounterPlaceholder', 'ابحث باسم المريضة أو رقم الملف (MRN) أو رقم الزيارة...')}
+              className="bg-slate-900 border-slate-700 text-white"
+            />
+            {loadingEncounters ? (
+              <div className="py-8 text-center text-slate-400 text-sm">{t('obgyn.anc.loading', 'جاري التحميل...')}</div>
+            ) : filteredEncounters.length === 0 ? (
+              <div className="py-8 text-center text-slate-500 text-sm">{t('obgyn.delivery.noOpenEncounters', 'لا توجد زيارات مفتوحة مطابقة حالياً.')}</div>
+            ) : (
+              <div className="space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar">
+                {filteredEncounters.map((enc) => (
+                  <button
+                    key={enc.id}
+                    type="button"
+                    onClick={() => navigate(`/obgyn/deliveries/new?encounterId=${enc.id}`)}
+                    className="w-full text-right p-3 rounded-xl border border-slate-800 hover:border-sky-500/50 hover:bg-slate-800/50 transition-colors flex items-center justify-between gap-3 cursor-pointer"
+                  >
+                    <div>
+                      <div className="font-bold text-white text-sm">{enc.patient?.fullName || `#${enc.id}`}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">
+                        {enc.patient?.mrn ? `MRN: ${enc.patient.mrn} · ` : ''}
+                        {enc.type} #{enc.id}
+                        {enc.doctor?.fullName ? ` · ${enc.doctor.fullName}` : ''}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/30 font-semibold">
+                      #{enc.id}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6" dir={isRtl ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">{t('obgyn.delivery.title', 'تسجيل ولادة جديدة via Saraya')}</h1>
+        <h1 className="text-3xl font-bold text-white">{t('obgyn.delivery.title', 'تسجيل ولادة جديدة')}</h1>
         <Button 
             variant="secondary" 
             onClick={() => navigate(-1)}

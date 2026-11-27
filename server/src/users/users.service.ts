@@ -10,6 +10,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LicenseService } from '../licensing/license.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { invalidateStaffSessions } from '../auth/staff-session-lock';
+
+const PLATFORM_PRIVILEGED_ROLES = new Set(['SUPER_ADMIN', 'SYSTEM_ADMIN']);
+
+function sanitizeUser<
+  T extends { passwordHash?: unknown; mfaSecret?: unknown },
+>(user: T): Omit<T, 'passwordHash' | 'mfaSecret'> {
+  const { passwordHash: _omitted, mfaSecret: _omittedMfa, ...safe } = user;
+  void _omitted;
+  void _omittedMfa;
+  return safe;
+}
 
 export interface CreateUserInput {
   fullName: string;
@@ -59,7 +71,7 @@ export class UsersService {
   ) {}
 
   async findAll(hospitalId: number) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
         hospitalId,
         isDeleted: false,
@@ -73,6 +85,7 @@ export class UsersService {
       },
       orderBy: { fullName: 'asc' },
     });
+    return users.map((u) => sanitizeUser(u));
   }
 
   // async create(hospitalId: number, data: any) {
@@ -145,7 +158,26 @@ export class UsersService {
   //   });
   // }
 
-  async create(hospitalId: number, data: CreateUserInput) {
+  async create(
+    hospitalId: number,
+    data: CreateUserInput,
+    actorIsSuperAdmin = false,
+  ) {
+    if (typeof data.password !== 'string' || data.password.trim().length < 8) {
+      throw new BadRequestException('كلمة المرور يجب أن لا تقل عن 8 أحرف.');
+    }
+
+    if (Array.isArray(data.roles)) {
+      const requestsPrivileged = data.roles.some((roleName) =>
+        PLATFORM_PRIVILEGED_ROLES.has(roleName.trim().toUpperCase()),
+      );
+      if (requestsPrivileged && !actorIsSuperAdmin) {
+        throw new ForbiddenException(
+          'لا تملك صلاحية إسناد أدوار إدارة المنصة.',
+        );
+      }
+    }
+
     // 1. التحقق من اسم المستخدم
     const exists = await this.prisma.user.findUnique({
       where: { username: data.username },
@@ -170,7 +202,7 @@ export class UsersService {
     // 3. إنشاء المستخدم (الكود القديم)
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           hospitalId,
@@ -217,14 +249,46 @@ export class UsersService {
 
       return user;
     });
+
+    return sanitizeUser(created);
   }
 
-  async update(hospitalId: number, id: number, data: UpdateUserInput) {
+  async update(
+    hospitalId: number,
+    id: number,
+    data: UpdateUserInput,
+    actorIsSuperAdmin = false,
+  ) {
     const user = await this.prisma.user.findFirst({
       where: { id, hospitalId },
+      include: {
+        userRoles: {
+          include: {
+            role: { select: { name: true } },
+          },
+        },
+      },
     });
 
     if (!user) throw new NotFoundException('المستخدم غير موجود.');
+
+    const targetIsPrivileged = (user.userRoles || []).some((ur) =>
+      PLATFORM_PRIVILEGED_ROLES.has(ur.role.name.trim().toUpperCase()),
+    );
+    if (targetIsPrivileged && !actorIsSuperAdmin) {
+      throw new ForbiddenException('لا تملك صلاحية تعديل حساب إدارة المنصة.');
+    }
+
+    if (Array.isArray(data.roles)) {
+      const requestsPrivileged = data.roles.some((roleName) =>
+        PLATFORM_PRIVILEGED_ROLES.has(roleName.trim().toUpperCase()),
+      );
+      if (requestsPrivileged && !actorIsSuperAdmin) {
+        throw new ForbiddenException(
+          'لا تملك صلاحية إسناد أدوار إدارة المنصة.',
+        );
+      }
+    }
 
     // ✅ التحقق من تكرار البريد الإلكتروني (إذا تم تغييره)
     if (data.email && data.email !== user.email) {
@@ -274,8 +338,13 @@ export class UsersService {
       annualLeaveBalance: data.annualLeaveBalance ?? undefined,
     };
 
-    if (data.password && data.password.trim() !== '') {
-      updateData.passwordHash = await bcrypt.hash(data.password, 10);
+    const passwordChanged =
+      typeof data.password === 'string' && data.password.trim() !== '';
+    if (passwordChanged) {
+      if ((data.password ?? '').trim().length < 8) {
+        throw new BadRequestException('كلمة المرور يجب أن لا تقل عن 8 أحرف.');
+      }
+      updateData.passwordHash = await bcrypt.hash(data.password as string, 10);
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -298,16 +367,20 @@ export class UsersService {
         }
       }
 
+      if (passwordChanged) {
+        await invalidateStaffSessions(tx, id);
+      }
+
       return updatedUser;
     });
 
-    if (data.isActive === false) {
+    if (data.isActive === false || passwordChanged) {
       this.eventEmitter?.emit('user.deactivated', { hospitalId, userId: id });
     } else if (Array.isArray(data.roles)) {
       this.eventEmitter?.emit('user.roles_updated', { hospitalId, userId: id });
     }
 
-    return updated;
+    return sanitizeUser(updated);
   }
 
   async findActiveDoctors(hospitalId: number) {

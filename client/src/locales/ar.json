@@ -35,7 +35,25 @@
     "cancel": "إلغاء",
     "ending": "جارٍ إنهاء الجلسة",
     "ended": "تم إنهاء الجلسة.",
-    "endError": "تعذر تأكيد إنهاء الجلسة. يمكنك المحاولة مجددًا."
+    "endError": "تعذر تأكيد إنهاء الجلسة. يمكنك المحاولة مجددًا.",
+    "mfa": {
+      "title": "المصادقة الثنائية (TOTP 2FA)",
+      "subtitle": "حماية حساب الطاقم برمز تحقق متغير عبر تطبيقات المصادقة.",
+      "enabledBadge": "مفعّلة",
+      "disabledBadge": "غير مفعّلة",
+      "enableStart": "إعداد المصادقة الثنائية",
+      "secretLabel": "المفتاح السري للإضافة في تطبيق المصادقة (Google Authenticator / Authy):",
+      "codeLabel": "رمز التحقق (6 أرقام)",
+      "confirmEnable": "تفعيل الآن",
+      "disableStart": "إلغاء المصادقة الثنائية",
+      "passwordLabel": "كلمة المرور الحالية",
+      "confirmDisable": "تأكيد الإلغاء",
+      "enabledSuccess": "تم تفعيل المصادقة الثنائية لحسابك بنجاح.",
+      "disabledSuccess": "تم إلغاء المصادقة الثنائية بنجاح.",
+      "invalidCode": "رمز التحقق غير صحيح أو منتهي الصلاحية.",
+      "disableError": "تعذر إلغاء المصادقة الثنائية؛ تحقق من كلمة المرور والرمز.",
+      "actionError": "تعذر تنفيذ طلب المصادقة الثنائية."
+    }
   },
   "common": {
     "about": "حول النظام",
@@ -223,7 +241,14 @@
     "cancelAndEdit": "إلغاء وتعديل الأدوية",
     "overrideAndApprove": "تجاوز واعتماد الوصفة"
   },
+  "theme": {
+    "label": "المظهر السريري",
+    "clinicalLight": "النهاري السريري",
+    "clinicalDark": "ليلي للمناوبات",
+    "clinicalEmerald": "سرايا الطبي"
+  },
   "menu": {
+    "obgynSection": "النساء والولادة والخصوبة",
     "about": "حول النظام",
     "accounting": "المحاسبة العامة",
     "activeInpatients": "حالات الإيواء",
@@ -277,7 +302,7 @@
     "incomeStatement": "قائمة الدخل",
     "insurance": "شركات التأمين",
     "integration": "الربط والتكامل",
-    "inventoryAlerts": "تنبيهات المخزون 🔔",
+    "inventoryAlerts": "تنبيهات المخزون",
     "invoices": "سجل الفواتير",
     "ivf": "الحقن المجهري (IVF)",
     "journal": "دفتر اليومية العامة",
@@ -367,7 +392,12 @@
     "brandDesc": "نظام شامل لإدارة ملفات المرضى، المواعيد، التنويم، العمليات، المختبر، الأشعة، الصيدلية، والمحاسبة مع سجل تدقيق كامل.",
     "errNetwork": "تعذّر الاتصال بالسيرفر، تأكد أن الـ API شغّال.",
     "errUnauthorized": "بيانات الدخول غير صحيحة.",
-    "errUnexpected": "فشل تسجيل الدخول، حدث خطأ غير متوقع."
+    "errTooManyAttempts": "تم تجاوز الحد المسموح من المحاولات. يرجى الانتظار والمحاولة لاحقاً.",
+    "errUnexpected": "فشل تسجيل الدخول، حدث خطأ غير متوقع.",
+    "mfaTitle": "رمز التحقق الثنائي (2FA)",
+    "mfaPrompt": "أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة.",
+    "mfaPlaceholder": "000000",
+    "mfaBack": "تغيير الحساب"
   },
   "dashboard": {
     "welcome": "أهلاً {{name}} 👋",
@@ -1974,6 +2004,8 @@
         "submitCare": "تسجيل الحمل"
       },
       "create": {
+        "patientSearchLabel": "المريضة * — ابحث بالاسم أو رقم الملف",
+        "patientSearchPlaceholder": "ابحث عن المريضة بالاسم أو رقم الملف أو الهاتف...",
         "bloodGroup": "فصيلة الدم",
         "gravida": "عدد مرات الحمل (Gravida)",
         "lmpDate": "تاريخ آخر دورة (LMP) *",
@@ -1996,6 +2028,7 @@
         }
       },
       "list": {
+        "activeEmptyState": "لا توجد حالات حمل نشطة مسجلة حالياً.",
         "emptyState": "لا توجد سجلات حمل لهذه المريضة.",
         "rhNegativeLabel": "🔴 Rh-",
         "title": "سجلات الحمل",
@@ -2054,6 +2087,7 @@
       },
       "title": "متابعة الحمل",
       "toast": {
+        "patientRequired": "يرجى اختيار المريضة أولاً",
         "addVisitError": "فشل إضافة الزيارة",
         "addVisitSuccess": "تم إضافة زيارة المتابعة",
         "createCareError": "فشل تسجيل الحمل",
@@ -2158,7 +2192,11 @@
         "degree4": "درجة 4",
         "none": "لا يوجد"
       },
-      "title": "تسجيل ولادة جديدة via Saraya",
+      "selectEncounterHint": "اختر الزيارة / الحالة النشطة للأم للمتابعة وتسجيل الولادة.",
+      "selectEncounterTitle": "تسجيل ولادة جديدة",
+      "searchEncounterPlaceholder": "ابحث باسم المريضة أو رقم الملف (MRN) أو رقم الزيارة...",
+      "noOpenEncounters": "لا توجد زيارات مفتوحة مطابقة حالياً.",
+      "title": "تسجيل ولادة جديدة",
       "toast": {
         "encounterIdMissing": "رقم الزيارة مفقود",
         "error": "فشل تسجيل الولادة",
@@ -2196,6 +2234,8 @@
         "submitCase": "فتح الملف"
       },
       "create": {
+        "wifeSearchLabel": "ملف الزوجة (المريضة) * — ابحث بالاسم أو رقم الملف",
+        "wifeSearchPlaceholder": "ابحث عن الزوجة بالاسم أو رقم الملف أو الهاتف...",
         "amh": "AMH (ng/mL)",
         "diagnosis": "التشخيص",
         "diagnosisPlaceholder": "التشخيص التفصيلي...",

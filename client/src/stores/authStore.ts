@@ -21,6 +21,7 @@ interface User {
   hospitalId: number;
   roles: string[];
   permissions: string[];
+  mfaEnabled?: boolean;
 }
 
 interface AuthState {
@@ -33,7 +34,7 @@ interface AuthState {
   isSwitchingBranch: boolean;
   // Actions
   setAuth: (payload: { user: User; accessibleBranches?: Branch[] }) => void;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, mfaCode?: string) => Promise<void>;
   logout: () => void;
   clearSession: () => void;
   acceptRefreshedSession: (hospitalId: number, userId: number) => boolean;
@@ -45,18 +46,26 @@ interface AuthState {
 // Store
 // ============================================
 
+function safeJsonParse<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: typeof window !== "undefined" && localStorage.getItem("user_info") 
-        ? JSON.parse(localStorage.getItem("user_info") || "null") 
-        : null,
+  user: safeJsonParse<User | null>("user_info", null),
   sessionRevision: 0,
   isAuthenticated:
     typeof window !== "undefined" ? localStorage.getItem("auth_status") === "true" : false,
   
   // ✅ Multi-Branch State
-  accessibleBranches: typeof window !== "undefined" && localStorage.getItem("accessible_branches")
-    ? JSON.parse(localStorage.getItem("accessible_branches") || "[]")
-    : [],
+  accessibleBranches: safeJsonParse<Branch[]>("accessible_branches", []),
   currentBranchId: typeof window !== "undefined" && localStorage.getItem("current_branch_id")
     ? Number(localStorage.getItem("current_branch_id"))
     : null,
@@ -84,8 +93,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  async login(username, password) {
-    const res = await apiClient.post("/auth/login", { username, password });
+  async login(username, password, mfaCode) {
+    const res = await apiClient.post(
+      "/auth/login",
+      mfaCode ? { username, password, mfaCode } : { username, password },
+    );
     const payload = res.data;
 
     get().setAuth(payload);

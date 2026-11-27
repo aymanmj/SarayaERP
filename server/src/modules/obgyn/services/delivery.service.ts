@@ -10,6 +10,7 @@ import { ObstetricHistoryService } from './obstetric-history.service';
 import { BillingService } from '../../../billing/billing.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { EncounterStatus, ChargeSource, EncounterType } from '@prisma/client';
+import { Money } from '../../../common/utils/money.util';
 
 @Injectable()
 export class DeliveryService {
@@ -217,17 +218,20 @@ export class DeliveryService {
       return;
     }
 
-    // Use defaultPrice as basePrice
-    let price = Number(serviceItem.defaultPrice);
+    // Use defaultPrice as basePrice via Money
+    const basePriceDec = Money.decimal(serviceItem.defaultPrice);
+    let finalPriceDec = basePriceDec;
 
     // 3. Apply Multipliers / Rules
     // Rule: Multiple Birth (Twins/Triplets) -> 50% extra per additional baby
     if (delivery.babyCount > 1) {
       const extraBabies = delivery.babyCount - 1;
-      const surcharge = price * 0.5 * extraBabies;
-      price += surcharge;
+      const surchargeDec = Money.roundDecimal(
+        basePriceDec.mul('0.5').mul(extraBabies),
+      );
+      finalPriceDec = Money.addDecimal(basePriceDec, surchargeDec);
       this.logger.log(
-        `Applied Multiple Birth Surcharge: +${surcharge} for ${extraBabies} extra babies`,
+        `Applied Multiple Birth Surcharge: +${Money.toDbString(surchargeDec)} for ${extraBabies} extra babies`,
       );
     }
 
@@ -239,8 +243,8 @@ export class DeliveryService {
         serviceItemId: serviceItem.id,
         quantity: 1,
         sourceType: ChargeSource.OTHER,
-        unitPrice: price,
-        totalAmount: price,
+        unitPrice: Money.toUnitDbString(finalPriceDec),
+        totalAmount: Money.toDbString(finalPriceDec),
         performerId: userId,
       },
     });

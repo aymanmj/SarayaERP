@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { apiClient } from "../../api/apiClient";
 import { toast } from "sonner";
 import { HasPermission } from "../HasPermission";
+import { Money } from "../../utils/money";
 
 // --- Types Definitions ---
 
@@ -75,8 +76,7 @@ function formatDateTime(iso?: string | null) {
 }
 
 function formatMoney(val: number | string | null | undefined) {
-  const num = Number(val ?? 0);
-  return num.toFixed(3);
+  return Money.toFixed(val ?? 0, 3);
 }
 
 export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
@@ -133,34 +133,43 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
   const quickTotals = useMemo(() => {
     if (!summary) {
       return {
-        totalCharges: 0,
-        totalInvoiced: 0,
-        totalPaid: 0,
-        outstanding: 0,
+        totalCharges: "0.000",
+        totalInvoiced: "0.000",
+        totalPaid: "0.000",
+        outstanding: "0.000",
+        hasOutstanding: false,
       };
     }
 
     // إجمالي البنود (الخدمات المسجلة)
-    const totalCharges = summary.charges.reduce((sum, ch) => {
-      return sum + Number(ch.totalAmount ?? 0);
-    }, 0);
+    const totalChargesDec = Money.sumDecimal(
+      ...summary.charges.map((ch) => ch.totalAmount ?? 0),
+    );
 
     // إجمالي المفوتر (بعد الخصم)
-    const totalInvoiced = summary.invoices.reduce((sum, inv) => {
-      const total = Number(inv.totalAmount ?? 0);
-      const discount = Number(inv.discountAmount ?? 0);
-      return sum + (total - discount);
-    }, 0);
+    const totalInvoicedDec = summary.invoices.reduce(
+      (sum, inv) =>
+        sum
+          .plus(Money.decimal(inv.totalAmount ?? 0))
+          .minus(Money.decimal(inv.discountAmount ?? 0)),
+      Money.decimal(0),
+    );
 
     // إجمالي المدفوع (نجمع paidAmount لكل فاتورة)
-    const totalPaid = summary.invoices.reduce((sum, inv) => {
-      return sum + Number(inv.paidAmount ?? 0);
-    }, 0);
+    const totalPaidDec = Money.sumDecimal(
+      ...summary.invoices.map((inv) => inv.paidAmount ?? 0),
+    );
 
     // الرصيد المستحق على هذه الحالة (الخدمات - المدفوعات)
-    const outstanding = totalCharges - totalPaid;
+    const outstandingDec = totalChargesDec.minus(totalPaidDec);
 
-    return { totalCharges, totalInvoiced, totalPaid, outstanding };
+    return {
+      totalCharges: Money.toFixed(totalChargesDec, 3),
+      totalInvoiced: Money.toFixed(totalInvoicedDec, 3),
+      totalPaid: Money.toFixed(totalPaidDec, 3),
+      outstanding: Money.toFixed(outstandingDec, 3),
+      hasOutstanding: outstandingDec.gt("0.001"),
+    };
   }, [summary]);
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -207,7 +216,7 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
           <div
             className={
               "text-sm font-semibold " +
-              (quickTotals.outstanding > 0.001
+              (quickTotals.hasOutstanding
                 ? "text-rose-300"
                 : "text-emerald-300")
             }
@@ -407,9 +416,10 @@ export function BillingTab({ encounterId, hospitalId }: BillingTabProps) {
                     المتبقي:{" "}
                     <span className="text-rose-300 font-mono">
                       {formatMoney(
-                        Number(inv.totalAmount) -
-                          Number(inv.paidAmount) -
-                          Number(inv.discountAmount),
+                        Money.decimal(inv.totalAmount ?? 0)
+                          .minus(Money.decimal(inv.paidAmount ?? 0))
+                          .minus(Money.decimal(inv.discountAmount ?? 0))
+                          .toFixed(3),
                       )}{" "}
                       {inv.currency}
                     </span>

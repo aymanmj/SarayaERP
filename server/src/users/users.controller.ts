@@ -35,7 +35,11 @@ export class UsersController {
     @Req() req: { user: JwtPayload },
     @Body() body: Parameters<UsersService['create']>[1],
   ) {
-    return this.usersService.create(req.user.hospitalId, body);
+    return this.usersService.create(
+      req.user.hospitalId,
+      body,
+      Boolean(req.user.isSuperAdmin),
+    );
   }
 
   @Patch(':id')
@@ -45,7 +49,12 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: Parameters<UsersService['update']>[2],
   ) {
-    return this.usersService.update(req.user.hospitalId, id, body);
+    return this.usersService.update(
+      req.user.hospitalId,
+      id,
+      body,
+      Boolean(req.user.isSuperAdmin),
+    );
   }
 
   @Get('doctors-list')

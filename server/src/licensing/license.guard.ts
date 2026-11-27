@@ -30,8 +30,22 @@ export class LicenseGuard implements CanActivate {
     }
 
     // 📊 Allow Prometheus to scrape metrics without license-locking the health/obs layer
-    const request = context.switchToHttp().getRequest();
-    if (request.url.includes('/metrics')) {
+    const request = context.switchToHttp().getRequest<{
+      url?: string;
+      path?: string;
+    }>();
+    const rawUrl = typeof request.url === 'string' ? request.url : '';
+    const pathname = (
+      (typeof request.path === 'string'
+        ? request.path
+        : rawUrl.split('?')[0]) || ''
+    ).replace(/\/+$/, '');
+    if (
+      pathname === '/api/metrics' ||
+      pathname === '/metrics' ||
+      pathname === '/api/health/metrics' ||
+      pathname === '/health/metrics'
+    ) {
       return true;
     }
 

@@ -295,6 +295,13 @@ export class LicenseService implements OnModuleInit {
         return { success: false, message: 'License fingerprint mismatch' };
       }
 
+      const downgradeError = this._assertNotDowngradingActiveLicense(
+        decoded.expiryDate,
+      );
+      if (downgradeError) {
+        return { success: false, message: downgradeError };
+      }
+
       this._storeSignedLicense(key);
 
       // Clear any old bonus metadata to prevent overriding the new expiry date
@@ -349,6 +356,12 @@ export class LicenseService implements OnModuleInit {
       // Only the issuer can authorize a new expiry. Carry-over must be included
       // in the RS256-signed key; local metadata cannot grant additional days.
       validatedExpiry(newLicense.expiryDate);
+      const downgradeError = this._assertNotDowngradingActiveLicense(
+        newLicense.expiryDate,
+      );
+      if (downgradeError) {
+        return { success: false, message: downgradeError };
+      }
       const finalExpiryDate = newLicense.expiryDate;
       const bonusDays = 0;
       this._storeSignedLicense(key);
@@ -381,6 +394,24 @@ export class LicenseService implements OnModuleInit {
 
   private get _bonusMetadataPath(): string {
     return path.join(path.dirname(this.licenseFilePath), 'renewal.meta.json');
+  }
+
+  private _assertNotDowngradingActiveLicense(
+    newExpiryStr: string,
+  ): string | null {
+    const current = this.getStatus(true);
+    if (!current.isValid || current.isExpired || !current.expiryDate) {
+      return null;
+    }
+    const currentExpiry = validatedExpiry(current.expiryDate);
+    const newExpiry = validatedExpiry(newExpiryStr);
+    if (
+      newExpiry.getTime() < currentExpiry.getTime() ||
+      newExpiry.getTime() < Date.now() - 86400000
+    ) {
+      return 'لا يمكن استبدال ترخيص نشط بمفتاح منتهٍ أو بتاريخ انتهاء أقدم.';
+    }
+    return null;
   }
 
   private _storeSignedLicense(key: string): void {

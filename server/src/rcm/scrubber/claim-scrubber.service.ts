@@ -13,6 +13,7 @@ type ScrubClaim = Prisma.ClaimGetPayload<{
 }>;
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { Money } from '../../common/utils/money.util';
 
 /**
  * نتيجة فحص واحدة
@@ -137,7 +138,7 @@ export class ClaimScrubberService {
     }
 
     // المبلغ
-    if (!claim.claimedAmount || Number(claim.claimedAmount) <= 0) {
+    if (!claim.claimedAmount || Money.decimal(claim.claimedAmount).lte(0)) {
       results.push({
         ruleCode: 'COMPLETENESS',
         severity: 'ERROR',

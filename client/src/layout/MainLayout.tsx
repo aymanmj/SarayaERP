@@ -3,274 +3,46 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useSocketStore } from "../stores/socketStore";
+import { useLicenseStore } from "../stores/licenseStore";
 import { useState, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { NotificationBell } from "../components/NotificationBell";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
-
-// ... (Icons تبقى كما هي - لا تغيير) ...
-const Icons = {
-  ChevronLeft: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  ),
-  Activity: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
-  ),
-  Users: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  ),
-  DollarSign: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="12" x2="12" y1="2" y2="22" />
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </svg>
-  ),
-  Package: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m7.5 4.27 9 5.15" />
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-      <path d="M12 22.08V12" />
-    </svg>
-  ),
-  Calculator: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="16" height="20" x="4" y="2" rx="2" />
-      <line x1="8" x2="16" y1="6" y2="6" />
-      <line x1="16" x2="16" y1="14" y2="18" />
-      <path d="M16 10h.01" />
-      <path d="M12 10h.01" />
-      <path d="M8 10h.01" />
-      <path d="M12 14h.01" />
-      <path d="M8 14h.01" />
-      <path d="M12 18h.01" />
-      <path d="M8 18h.01" />
-    </svg>
-  ),
-  Building: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
-      <path d="M9 22v-4h6v4" />
-      <path d="M8 6h.01" />
-      <path d="M16 6h.01" />
-      <path d="M12 6h.01" />
-      <path d="M12 10h.01" />
-      <path d="M12 14h.01" />
-      <path d="M16 10h.01" />
-      <path d="M16 14h.01" />
-      <path d="M8 10h.01" />
-      <path d="M8 14h.01" />
-    </svg>
-  ),
-  ChartBar: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 3v18h18" />
-      <path d="M18 17V9" />
-      <path d="M13 17V5" />
-      <path d="M8 17v-3" />
-    </svg>
-  ),
-  Settings: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ),
-  Scissors: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="6" cy="6" r="3" />
-      <circle cx="6" cy="18" r="3" />
-      <line x1="20" x2="8.12" y1="4" y2="15.88" />
-      <line x1="14.47" x2="20" y1="14.48" y2="20" />
-      <line x1="8.12" x2="12" y1="8.12" y2="12" />
-    </svg>
-  ),
-  Home: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  ),
-  Network: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="16" y="16" width="6" height="6" rx="1" />
-      <rect x="2" y="16" width="6" height="6" rx="1" />
-      <rect x="9" y="2" width="6" height="6" rx="1" />
-      <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
-      <path d="M12 12V8" />
-    </svg>
-  ),
-  Shield: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  ),
-  ShieldCheck: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
-  ),
-};
-
-import { useLicenseStore } from "../stores/licenseStore"; // Import store
+import { ThemeSwitcher } from "../components/ThemeSwitcher";
+import {
+  AlertTriangle,
+  Baby,
+  BarChart3,
+  Building2,
+  Calculator,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  Clock,
+  DollarSign,
+  GitBranch,
+  Home,
+  Loader2,
+  LogOut,
+  Menu,
+  Network,
+  Package,
+  RefreshCw,
+  Scissors,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Stethoscope,
+  Users,
+} from "lucide-react";
 
 type MenuItem = {
   label: string;
   path: string;
-  access?: string; // كود الصلاحية الدقيق
-  requiredModule?: string; // 👈 جديد: المودل المطلوب لتفعيل هذا العنصر
-  translationKey?: string; // مفتاح الترجمة
+  access?: string;
+  requiredModule?: string;
+  translationKey?: string;
 };
 
 type MenuSection = {
@@ -279,8 +51,8 @@ type MenuSection = {
   icon: ReactNode;
   allowedRoles: string[];
   items: MenuItem[];
-  requiredModule?: string; // 👈 جديد: المودل المطلوب للقسم كله
-  translationKey?: string; // مفتاح الترجمة
+  requiredModule?: string;
+  translationKey?: string;
 };
 
 export function MainLayout() {
@@ -289,7 +61,6 @@ export function MainLayout() {
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  // ✅ Multi-Branch
   const accessibleBranches = useAuthStore((s) => s.accessibleBranches);
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const switchBranch = useAuthStore((s) => s.switchBranch);
@@ -300,13 +71,11 @@ export function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
 
-  // ✅ Multi-Branch: اسم الفرع الحالي
   const currentBranchName = useMemo(() => {
     const branch = accessibleBranches.find((b) => b.id === currentBranchId);
     return branch?.name || t("common.mainBranch", "الفرع الرئيسي");
   }, [accessibleBranches, currentBranchId, t]);
 
-  // License Store
   const fetchLicenseStatus = useLicenseStore((s) => s.fetchLicenseStatus);
   const isModuleEnabled = useLicenseStore((s) => s.isModuleEnabled);
   const licenseDetails = useLicenseStore((s) => s.details);
@@ -322,44 +91,30 @@ export function MainLayout() {
   useEffect(() => {
     if (user) {
       connect();
-      fetchLicenseStatus(); // ✅ Fetch license on auth
+      fetchLicenseStatus();
     }
     return () => disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // إغلاق القائمة الجانبية عند تغيير الصفحة (للموبايل)
   useEffect(() => {
-     
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // ✅ الدالة المصححة للتحقق من الوصول
   const hasAccess = (item: MenuItem, allowedRoles: string[]) => {
     if (!user) return false;
 
-    // 1. License Check (Global override)
     if (item.requiredModule && !isModuleEnabled(item.requiredModule)) {
       return false;
     }
 
-    // 2. Admin sees everything (provided license allows it!)
-    // 2. Admin sees everything (provided license allows it!)
     if (user.roles?.includes("ADMIN")) return true;
 
-    // 3. Role/Permission Check
     const permissionCode = item.access;
     if (permissionCode) {
-      if (user.permissions && user.permissions.includes(permissionCode)) {
-        return true;
-      }
-      // If permission code exists but user doesn't have it -> strictly fail?
-      // Or fallback to roles? Usually if protected by permission, roles don't matter unless configured.
-      // Let's assume strict permission check if code is present.
-      return false;
+      return Boolean(user.permissions && user.permissions.includes(permissionCode));
     }
 
-    // 4. Fallback: Check roles if no specific permission code
     if (allowedRoles && allowedRoles.length > 0) {
       return allowedRoles.some((r) => user.roles.includes(r));
     }
@@ -372,15 +127,15 @@ export function MainLayout() {
       key: "home",
       title: "الرئيسية",
       translationKey: "home",
-      icon: <Icons.Home />,
-      allowedRoles: [], // Open to all authenticated
+      icon: <Home size={18} strokeWidth={1.75} />,
+      allowedRoles: [],
       items: [{ label: "لوحة المتابعة", path: "/", translationKey: "dashboard" }],
     },
     {
       key: "clinical",
       title: "التشغيل السريري",
       translationKey: "clinical",
-      icon: <Icons.Activity />,
+      icon: <Stethoscope size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
         {
@@ -395,7 +150,12 @@ export function MainLayout() {
           access: "clinical:appointments:view",
           translationKey: "appointments",
         },
-        { label: "المرضى", path: "/patients", access: "clinical:patients:view", translationKey: "patients" },
+        {
+          label: "المرضى",
+          path: "/patients",
+          access: "clinical:patients:view",
+          translationKey: "patients",
+        },
         {
           label: "سجل الحالات",
           path: "/encounters",
@@ -423,7 +183,7 @@ export function MainLayout() {
         {
           label: "جولات الأطباء",
           path: "/doctor-rounds",
-          access: "clinical:doctor:view", 
+          access: "clinical:doctor:view",
           translationKey: "rounds",
         },
         {
@@ -439,80 +199,134 @@ export function MainLayout() {
           translationKey: "beds",
         },
         {
-          label: "تسجيل ولادة (OB/GYN)",
-          path: "/obgyn/deliveries/new",
-          requiredModule: "OBGYN",
-          translationKey: "obgyn",
+          label: "الصيدلية",
+          path: "/pharmacy",
+          access: "pharmacy:dashboard:view",
+          requiredModule: "PHARMACY",
+          translationKey: "pharmacy",
         },
+        {
+          label: "مختبر التحاليل",
+          path: "/lab",
+          access: "lab:dashboard:view",
+          requiredModule: "LAB",
+          translationKey: "labs",
+        },
+        {
+          label: "الأشعة",
+          path: "/radiology",
+          access: "rad:dashboard:view",
+          requiredModule: "RADIOLOGY",
+          translationKey: "radiology",
+        },
+        {
+          label: "تجهيز الأسرة",
+          path: "/housekeeping",
+          access: "adt:bed:manage",
+          translationKey: "housekeeping",
+        },
+        {
+          label: "نظام الإحالات",
+          path: "/referrals",
+          access: "clinical:encounters:view",
+          translationKey: "referrals",
+        },
+        {
+          label: "العناية المركزة (ICU)",
+          path: "/clinical/icu",
+          access: "adt:bed:view",
+          translationKey: "icu",
+        },
+        {
+          label: "مجموعات الطلبات (Order Sets)",
+          path: "/clinical/order-sets",
+          access: "clinical:encounters:view",
+          translationKey: "orderSets",
+        },
+        {
+          label: "المسارات العلاجية (Pathways)",
+          path: "/clinical/pathways",
+          access: "clinical:encounters:view",
+          translationKey: "pathways",
+        },
+        {
+          label: "لوحة السجلات وفجوات الرعاية",
+          path: "/clinical/registries",
+          access: "clinical:encounters:view",
+          translationKey: "registries",
+        },
+        {
+          label: "الجدولة المتقدمة للموارد",
+          path: "/clinical/scheduling",
+          access: "clinical:appointments:view",
+          translationKey: "scheduling",
+        },
+        {
+          label: "قوائم الانتظار الذكية",
+          path: "/clinical/waitlist",
+          access: "clinical:appointments:view",
+          translationKey: "waitlist",
+        },
+      ],
+    },
+    {
+      key: "obgyn",
+      title: "النساء والولادة والخصوبة",
+      translationKey: "obgynSection",
+      icon: <Baby size={18} strokeWidth={1.75} />,
+      allowedRoles: ["ADMIN", "DOCTOR", "NURSE"],
+      requiredModule: "OBGYN",
+      items: [
         {
           label: "متابعة الحمل (ANC)",
           path: "/obgyn/anc",
+          access: "obgyn:view",
           requiredModule: "OBGYN",
           translationKey: "anc",
         },
         {
+          label: "تسجيل ولادة (OB/GYN)",
+          path: "/obgyn/deliveries/new",
+          access: "obgyn:manage",
+          requiredModule: "OBGYN",
+          translationKey: "obgyn",
+        },
+        {
           label: "الحقن المجهري (IVF)",
           path: "/obgyn/fertility",
+          access: "obgyn:view",
           requiredModule: "OBGYN",
           translationKey: "ivf",
         },
         {
           label: "أمراض الذكورة والعقم",
           path: "/andrology",
+          access: "obgyn:view",
           requiredModule: "OBGYN",
           translationKey: "andrology",
         },
-        { 
-          label: "الصيدلية", 
-          path: "/pharmacy", 
-          access: "pharmacy:dashboard:view",
-          requiredModule: "PHARMACY",
-          translationKey: "pharmacy",
-        },
-        { 
-          label: "مختبر التحاليل", 
-          path: "/lab", 
-          access: "lab:dashboard:view",
-          requiredModule: "LAB",
-          translationKey: "labs",
-        },
-        { 
-          label: "الأشعة", 
-          path: "/radiology", 
-          access: "rad:dashboard:view",
-          requiredModule: "RADIOLOGY",
-          translationKey: "radiology",
-        },
-        { label: "تجهيز الأسرة", path: "/housekeeping", access: "adt:bed:manage", translationKey: "housekeeping" },
-        { label: "📋 نظام الإحالات", path: "/referrals", translationKey: "referrals" },
-        { label: "العناية المركزة (ICU)", path: "/clinical/icu", access: "adt:bed:view", translationKey: "icu" },
-        { label: "مجموعات الطلبات (Order Sets)", path: "/clinical/order-sets", translationKey: "orderSets" },
-        { label: "المسارات العلاجية (Pathways)", path: "/clinical/pathways", translationKey: "pathways" },
-        { label: "لوحة السجلات وفجوات الرعاية", path: "/clinical/registries", translationKey: "registries" },
-        { label: "الجدولة المتقدمة للموارد", path: "/clinical/scheduling", translationKey: "scheduling" },
-        { label: "قوائم الانتظار الذكية", path: "/clinical/waitlist", translationKey: "waitlist" },
       ],
     },
     {
       key: "surgery",
       title: "العمليات الجراحية",
       translationKey: "surgery",
-      icon: <Icons.Scissors />,
+      icon: <Scissors size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
-        { 
-          label: "جدول العمليات", 
-          path: "/surgery", 
+        {
+          label: "جدول العمليات",
+          path: "/surgery",
           access: "surgery:dashboard:view",
           translationKey: "surgerySchedule",
-        }
+        },
       ],
     },
     {
       key: "humanResources",
       title: "الموارد البشرية",
       translationKey: "hr",
-      icon: <Icons.Users />,
+      icon: <Users size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       requiredModule: "HR",
       items: [
@@ -527,354 +341,132 @@ export function MainLayout() {
       key: "revenue",
       title: "الإيرادات والخزينة",
       translationKey: "revenue",
-      icon: <Icons.DollarSign />,
+      icon: <DollarSign size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
         { label: "الخزينة (POS)", path: "/cashier", access: "billing:payments:collect", translationKey: "cashier" },
-        {
-          label: "سجل الفواتير",
-          path: "/invoices",
-          access: "billing:invoices:view",
-          translationKey: "invoices",
-        },
-        {
-          label: "تقرير الكاشير اليومي",
-          path: "/cashier/reports/daily",
-          access: "billing:payments:collect",
-          translationKey: "cashierReport",
-        },
-        {
-          label: "تقرير المستخدمين",
-          path: "/cashier/reports/by-cashier",
-          access: "billing:payments:collect",
-          translationKey: "userReport",
-        },
-        {
-          label: "الشفتات المقفولة",
-          path: "/cashier/shifts",
-          access: "billing:payments:collect",
-          translationKey: "closedShifts",
-        },
-        {
-          label: "تحليل ذمم المرضى",
-          path: "/accounting/patients-aging",
-          access: "acc:reports:view",
-          translationKey: "patientsAging",
-        },
+        { label: "سجل الفواتير", path: "/invoices", access: "billing:invoices:view", translationKey: "invoices" },
+        { label: "تقرير الكاشير اليومي", path: "/cashier/reports/daily", access: "billing:payments:collect", translationKey: "cashierReport" },
+        { label: "تقرير المستخدمين", path: "/cashier/reports/by-cashier", access: "billing:payments:collect", translationKey: "userReport" },
+        { label: "الشفتات المقفولة", path: "/cashier/shifts", access: "billing:payments:collect", translationKey: "closedShifts" },
+        { label: "تحليل ذمم المرضى", path: "/accounting/patients-aging", access: "acc:reports:view", translationKey: "patientsAging" },
       ],
     },
     {
       key: "insurance",
       title: "التأمين الصحي والمطالبات",
       translationKey: "insuranceSection",
-      icon: <Icons.ShieldCheck />,
+      icon: <ShieldCheck size={18} strokeWidth={1.75} />,
       allowedRoles: ["ADMIN", "ACCOUNTANT", "RCM_MANAGER", "CASHIER"],
       items: [
-        {
-          label: "شركات التأمين",
-          path: "/insurance/providers",
-          access: "billing:insurance:manage",
-          translationKey: "insurance",
-        },
-        {
-          label: "الموافقات المسبقة",
-          path: "/insurance/pre-auth",
-          access: "billing:insurance:manage",
-          translationKey: "preAuth",
-        },
-        {
-          label: "مطالبات التأمين",
-          path: "/insurance/claims",
-          access: "billing:insurance:manage",
-          translationKey: "claims",
-        },
+        { label: "شركات التأمين", path: "/insurance/providers", access: "billing:insurance:manage", translationKey: "insurance" },
+        { label: "الموافقات المسبقة", path: "/insurance/pre-auth", access: "billing:insurance:manage", translationKey: "preAuth" },
+        { label: "مطالبات التأمين", path: "/insurance/claims", access: "billing:insurance:manage", translationKey: "claims" },
       ],
     },
     {
       key: "analytics",
       title: "التحليلات والتقارير",
       translationKey: "analytics",
-      icon: <Icons.ChartBar />,
+      icon: <BarChart3 size={18} strokeWidth={1.75} />,
       allowedRoles: ["ADMIN", "CEO", "QUALITY_MANAGER"],
       items: [
-        {
-          label: "اللوحة التنفيذية (KPIs)",
-          path: "/analytics/executive",
-          translationKey: "executive",
-        },
-        {
-          label: "مؤشرات الجودة (HIMSS)",
-          path: "/analytics/clinical-kpis",
-          translationKey: "himss",
-        },
-        {
-          label: "لوحة التقارير والتحليلات",
-          path: "/reports",
-          access: "acc:reports:view",
-          translationKey: "reports",
-        },
-        {
-          label: "تقارير أداء الأطباء",
-          path: "/reports/doctor-performance",
-          translationKey: "doctorPerf",
-        },
-        {
-          label: "📊 إيرادات الأقسام",
-          path: "/reports/revenue-department",
-          translationKey: "revDept",
-        },
+        { label: "اللوحة التنفيذية (KPIs)", path: "/analytics/executive", translationKey: "executive" },
+        { label: "مؤشرات الجودة (HIMSS)", path: "/analytics/clinical-kpis", translationKey: "himss" },
+        { label: "لوحة التقارير والتحليلات", path: "/reports", access: "acc:reports:view", translationKey: "reports" },
+        { label: "تقارير أداء الأطباء", path: "/reports/doctor-performance", translationKey: "doctorPerf" },
+        { label: "إيرادات الأقسام", path: "/reports/revenue-department", translationKey: "revDept" },
       ],
     },
     {
       key: "purchases",
       title: "المخازن وسلاسل الإمداد",
       translationKey: "purchases",
-      icon: <Icons.Package />,
+      icon: <Package size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
-        {
-          label: "📊 لوحة تحكم المخزون",
-          path: "/inventory/dashboard",
-          access: "inventory:stock:view",
-          translationKey: "stockDashboard",
-        },
-        {
-          label: "البيانات الأساسية (الأصناف)",
-          path: "/inventory/master-data/products",
-          access: "inventory:stock:manage",
-          translationKey: "products",
-        },
-        {
-          label: "فئات الأصناف للتقييم",
-          path: "/inventory/master-data/categories",
-          access: "inventory:stock:manage",
-          translationKey: "categories",
-        },
-        {
-          label: "إعدادات معاملات التحويل",
-          path: "/inventory/settings/product-uoms",
-          access: "inventory:stock:manage",
-          translationKey: "uomConversion",
-        },
-        {
-          label: "إدارة وحدات القياس (UOMs)",
-          path: "/inventory/master-data/uoms",
-          access: "inventory:stock:manage",
-          translationKey: "uoms",
-        },
-        {
-          label: "🏭 إدارة المستودعات",
-          path: "/inventory/warehouses",
-          access: "inventory:stock:manage",
-          translationKey: "warehouses",
-        },
-        {
-          label: "طلبات الشراء (PR)",
-          path: "/inventory/procurement/pr/new",
-          access: "inventory:stock:manage",
-          translationKey: "pr",
-        },
-        {
-          label: "أوامر الشراء (PO)",
-          path: "/purchases/orders",
-          access: "purchases:manage",
-          translationKey: "po",
-        },
-        {
-          label: "استلام بضاعة (GRN)",
-          path: "/inventory/procurement/grn/new",
-          access: "inventory:stock:manage",
-          translationKey: "grn",
-        },
+        { label: "لوحة تحكم المخزون", path: "/inventory/dashboard", access: "inventory:stock:view", translationKey: "stockDashboard" },
+        { label: "البيانات الأساسية (الأصناف)", path: "/inventory/master-data/products", access: "inventory:stock:manage", translationKey: "products" },
+        { label: "فئات الأصناف للتقييم", path: "/inventory/master-data/categories", access: "inventory:stock:manage", translationKey: "categories" },
+        { label: "إعدادات معاملات التحويل", path: "/inventory/settings/product-uoms", access: "inventory:stock:manage", translationKey: "uomConversion" },
+        { label: "إدارة وحدات القياس (UOMs)", path: "/inventory/master-data/uoms", access: "inventory:stock:manage", translationKey: "uoms" },
+        { label: "إدارة المستودعات", path: "/inventory/warehouses", access: "inventory:stock:manage", translationKey: "warehouses" },
+        { label: "طلبات الشراء (PR)", path: "/inventory/procurement/pr/new", access: "inventory:stock:manage", translationKey: "pr" },
+        { label: "أوامر الشراء (PO)", path: "/purchases/orders", access: "purchases:manage", translationKey: "po" },
+        { label: "استلام بضاعة (GRN)", path: "/inventory/procurement/grn/new", access: "inventory:stock:manage", translationKey: "grn" },
         { label: "الموردون", path: "/suppliers", access: "purchases:suppliers:manage", translationKey: "suppliers" },
+        { label: "فواتير المشتريات", path: "/purchases/invoices", access: "purchases:invoices:manage", translationKey: "purchaseInvoices" },
+        { label: "تحليل ذمم الموردين", path: "/suppliers/aging", access: "purchases:dashboard:view", translationKey: "supplierAging" },
+        { label: "مخزون الصيدلية", path: "/pharmacy/stock", access: "pharmacy:inventory:view", requiredModule: "PHARMACY", translationKey: "pharmacyStock" },
+        { label: "تنبيهات المخزون", path: "/inventory/alerts", access: "inventory:stock:view", translationKey: "inventoryAlerts" },
+        { label: "تقرير حركات المخزون", path: "/pharmacy/stock-report", access: "pharmacy:inventory:view", requiredModule: "PHARMACY", translationKey: "stockReport" },
         {
-          label: "فواتير المشتريات",
-          path: "/purchases/invoices",
-          access: "purchases:invoices:manage",
-          translationKey: "purchaseInvoices",
+          label: i18n.language.startsWith("ar") ? "متابعة استهلاك المواد" : "Material consumption operations",
+          path: "/inventory/consumption-operations",
+          access: "inventory:view",
+          translationKey: "consumptionOperations",
         },
-        {
-          label: "تحليل ذمم الموردين",
-          path: "/suppliers/aging",
-          access: "purchases:dashboard:view",
-          translationKey: "supplierAging",
-        },
-        {
-          label: "مخزون الصيدلية",
-          path: "/pharmacy/stock",
-          access: "pharmacy:inventory:view",
-          requiredModule: "PHARMACY",
-          translationKey: "pharmacyStock",
-        },
-        {
-          label: "تنبيهات المخزون 🔔",
-          path: "/inventory/alerts",
-          access: "inventory:stock:view",
-          translationKey: "inventoryAlerts",
-        },
-        {
-          label: "تقرير حركات المخزون",
-          path: "/pharmacy/stock-report",
-          access: "pharmacy:inventory:view",
-          requiredModule: "PHARMACY",
-          translationKey: "stockReport",
-        },
-        { label: i18n.language.startsWith('ar') ? 'متابعة استهلاك المواد' : 'Material consumption operations', path: '/inventory/consumption-operations', access: 'inventory:view', translationKey: 'consumptionOperations' },
         { label: "التحويلات المخزنية", path: "/inventory/transfers", access: "inventory:transfers:manage", translationKey: "transfers" },
-        {
-          label: "طلبات المواد",
-          path: "/inventory/material-requests",
-          access: "inventory:stock:manage",
-          translationKey: "materialRequests",
-        },
-        {
-          label: "جرد المخزون",
-          path: "/inventory/counts",
-          access: "inventory:stock:manage",
-          translationKey: "counts",
-        },
+        { label: "طلبات المواد", path: "/inventory/material-requests", access: "inventory:stock:manage", translationKey: "materialRequests" },
+        { label: "جرد المخزون", path: "/inventory/counts", access: "inventory:stock:manage", translationKey: "counts" },
       ],
     },
     {
       key: "assets",
       title: "الأصول والصيانة",
       translationKey: "assets",
-      icon: <Icons.Building />,
+      icon: <Building2 size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       requiredModule: "ASSETS",
       items: [
         { label: "سجل الأصول", path: "/assets", access: "assets:dashboard:view", translationKey: "assetsRegistry" },
         { label: "إدارة الصيانة", path: "/assets/maintenance", access: "assets:maintenance:manage", translationKey: "maintenance" },
-        {
-          label: "احتساب الإهلاك",
-          path: "/assets/depreciation",
-          access: "assets:manage",
-          translationKey: "depreciation",
-        },
+        { label: "احتساب الإهلاك", path: "/assets/depreciation", access: "assets:manage", translationKey: "depreciation" },
       ],
     },
     {
       key: "accounting",
       title: "المحاسبة العامة",
       translationKey: "accounting",
-      icon: <Icons.Calculator />,
+      icon: <Calculator size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       requiredModule: "ACCOUNTS",
       items: [
-        {
-          label: "السنوات المالية",
-          path: "/financial-years",
-          access: "acc:settings:manage",
-          translationKey: "years",
-        },
-        {
-          label: "دليل الحسابات",
-          path: "/accounting/chart-of-accounts",
-          access: "acc:dashboard:view",
-          translationKey: "coa",
-        },
-        {
-          label: "الأرصدة الافتتاحية",
-          path: "/accounting/opening-balances",
-          access: "acc:opening-balances",
-          translationKey: "openingBalances",
-        },
-        {
-          label: "قيد يدوي",
-          path: "/accounting/manual-entry",
-          access: "acc:entries:create",
-          translationKey: "manualEntry",
-        },
-        {
-          label: "دفتر اليومية العامة",
-          path: "/accounting/journal",
-          access: "acc:entries:view",
-          translationKey: "journal",
-        },
-        {
-          label: "سجل القيود المحاسبية (Entries)",
-          path: "/accounting/entries",
-          access: "acc:entries:view",
-          translationKey: "entries",
-        },
-        {
-          label: "دفتر الأستاذ",
-          path: "/accounting/ledger",
-          access: "acc:reports:view",
-          translationKey: "ledger",
-        },
-        {
-          label: "ميزان المراجعة",
-          path: "/accounting/trial-balance",
-          access: "acc:reports:view",
-          translationKey: "trialBalance",
-        },
-        {
-          label: "قائمة الدخل",
-          path: "/accounting/income-statement",
-          access: "acc:reports:view",
-          translationKey: "incomeStatement",
-        },
-        {
-          label: "مراكز التكلفة",
-          path: "/accounting/cost-centers",
-          access: "acc:cost_centers:manage",
-          translationKey: "costCenters",
-        },
-        {
-          label: "أذونات الصرف والقبض",
-          path: "/accounting/vouchers",
-          access: "acc:entries:create",
-          translationKey: "vouchers",
-        },
-        {
-          label: "الميزانية العمومية",
-          path: "/accounting/balance-sheet",
-          access: "acc:reports:view",
-          translationKey: "balanceSheet",
-        },
-        {
-          label: "إقفال السنة",
-          path: "/accounting/year-closing",
-          access: "acc:year:close",
-          translationKey: "closing",
-        },
+        { label: "السنوات المالية", path: "/financial-years", access: "acc:settings:manage", translationKey: "years" },
+        { label: "دليل الحسابات", path: "/accounting/chart-of-accounts", access: "acc:dashboard:view", translationKey: "coa" },
+        { label: "الأرصدة الافتتاحية", path: "/accounting/opening-balances", access: "acc:opening-balances", translationKey: "openingBalances" },
+        { label: "قيد يدوي", path: "/accounting/manual-entry", access: "acc:entries:create", translationKey: "manualEntry" },
+        { label: "دفتر اليومية العامة", path: "/accounting/journal", access: "acc:entries:view", translationKey: "journal" },
+        { label: "سجل القيود المحاسبية (Entries)", path: "/accounting/entries", access: "acc:entries:view", translationKey: "entries" },
+        { label: "دفتر الأستاذ", path: "/accounting/ledger", access: "acc:reports:view", translationKey: "ledger" },
+        { label: "ميزان المراجعة", path: "/accounting/trial-balance", access: "acc:reports:view", translationKey: "trialBalance" },
+        { label: "قائمة الدخل", path: "/accounting/income-statement", access: "acc:reports:view", translationKey: "incomeStatement" },
+        { label: "مراكز التكلفة", path: "/accounting/cost-centers", access: "acc:cost_centers:manage", translationKey: "costCenters" },
+        { label: "أذونات الصرف والقبض", path: "/accounting/vouchers", access: "acc:entries:create", translationKey: "vouchers" },
+        { label: "الميزانية العمومية", path: "/accounting/balance-sheet", access: "acc:reports:view", translationKey: "balanceSheet" },
+        { label: "إقفال السنة", path: "/accounting/year-closing", access: "acc:year:close", translationKey: "closing" },
       ],
     },
     {
       key: "quality",
       title: "الجودة وسلامة المريض",
       translationKey: "quality",
-      icon: <Icons.Shield />,
+      icon: <Shield size={18} strokeWidth={1.75} />,
       allowedRoles: ["ADMIN", "QUALITY_MANAGER", "MEDICAL_DIRECTOR"],
       items: [
-        {
-          label: "🛡️ لوحة الجودة والحوادث",
-          path: "/quality",
-          access: "quality:incidents:view",
-          translationKey: "qualityDashboard",
-        },
-        {
-          label: "📋 الإبلاغ عن حادثة / Near Miss",
-          path: "/quality?tab=report",
-          access: "quality:incidents:report",
-          translationKey: "incidentReport",
-        },
-        {
-          label: "✅ مهام CAPA المسندة إليّ",
-          path: "/quality?tab=my-capa",
-          translationKey: "myCapa",
-        },
+        { label: "لوحة الجودة والحوادث", path: "/quality", access: "quality:incidents:view", translationKey: "qualityDashboard" },
+        { label: "الإبلاغ عن حادثة / Near Miss", path: "/quality?tab=report", access: "quality:incidents:report", translationKey: "incidentReport" },
+        { label: "مهام CAPA المسندة إليّ", path: "/quality?tab=my-capa", translationKey: "myCapa" },
       ],
     },
     {
       key: "integration",
       title: "الربط والتكامل",
       translationKey: "integration",
-      icon: <Icons.Network />,
+      icon: <Network size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
-        { label: "🌐 السجل الوطني (MPI)", path: "/settings", access: "admin:settings:manage", translationKey: "mpi" },
+        { label: "السجل الوطني (MPI)", path: "/settings", access: "admin:settings:manage", translationKey: "mpi" },
         { label: "إدارة الأجهزة (LIS/PACS)", path: "/integration", access: "integration:manage", translationKey: "gateway" },
       ],
     },
@@ -882,12 +474,12 @@ export function MainLayout() {
       key: "settings",
       title: "الإعدادات",
       translationKey: "settings",
-      icon: <Icons.Settings />,
+      icon: <Settings size={18} strokeWidth={1.75} />,
       allowedRoles: [],
       items: [
-        { label: "🏛️ المؤسسة والفروع", path: "/settings", access: "admin:settings:manage", translationKey: "branches" },
-        { label: "🌳 الشبكة والمؤسسات", path: "/settings/organizations", access: "admin:settings:manage", translationKey: "tenants" },
-        { label: "🔀 وصول الفروع", path: "/settings/branch-access", access: "admin:users:manage", translationKey: "branchAccess" },
+        { label: "المؤسسة والفروع", path: "/settings", access: "admin:settings:manage", translationKey: "branches" },
+        { label: "الشبكة والمؤسسات", path: "/settings/organizations", access: "admin:settings:manage", translationKey: "tenants" },
+        { label: "وصول الفروع", path: "/settings/branch-access", access: "admin:users:manage", translationKey: "branchAccess" },
         { label: "إعدادات النظام", path: "/settings/system", access: "admin:settings:manage", translationKey: "system" },
         { label: "الأقسام (Departments)", path: "/settings/departments", access: "admin:settings:manage", translationKey: "departments" },
         { label: "التخصصات (Specialties)", path: "/settings/specialties", access: "admin:settings:manage", translationKey: "specialties" },
@@ -898,31 +490,23 @@ export function MainLayout() {
         { label: "لوحة تدقيق الامتثال (ISO/SOC2)", path: "/settings/compliance", access: "admin:audit:view", translationKey: "compliance" },
         { label: "سجل التدقيق (Audit Logs)", path: "/audit/logs", access: "admin:audit:view", translationKey: "auditLogs" },
         { label: "جداول الأطباء", path: "/settings/doctor-schedules", access: "admin:settings:manage", translationKey: "doctorSchedules" },
-        { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage", translationKey: "backups" }, 
-        { label: "📝 قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage", translationKey: "noteTemplates" },
-        { label: "⚙️ إعدادات العمولات", path: "/settings/commissions", access: "admin:settings:manage", translationKey: "commissions" },
-        { label: "حول النظام", path: "/about", translationKey: "about" }, 
+        { label: "النسخ الاحتياطي والاستعادة", path: "/settings/backup", access: "admin:settings:manage", translationKey: "backups" },
+        { label: "قوالب الملاحظات الطبية", path: "/settings/note-templates", access: "admin:settings:manage", translationKey: "noteTemplates" },
+        { label: "إعدادات العمولات", path: "/settings/commissions", access: "admin:settings:manage", translationKey: "commissions" },
+        { label: "حول النظام", path: "/about", translationKey: "about" },
       ],
     },
   ];
 
-  // فلترة القائمة
-   
   const authorizedMenu = useMemo(() => {
     if (!user) return [];
 
-    // Filter Logic
     return menuStructure
       .map((section) => {
-        // Check Section Module
-        if (
-          section.requiredModule &&
-          !isModuleEnabled(section.requiredModule)
-        ) {
+        if (section.requiredModule && !isModuleEnabled(section.requiredModule)) {
           return null;
         }
 
-        // Filter Items
         const validItems = section.items.filter((item) =>
           hasAccess(item, section.allowedRoles),
         );
@@ -932,16 +516,34 @@ export function MainLayout() {
         return { ...section, items: validItems };
       })
       .filter((section): section is MenuSection => section !== null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isModuleEnabled, licenseState, licenseDetails, licenseFeatures]);
 
+  useEffect(() => {
+    const activeSection = authorizedMenu.find((section) =>
+      section.items.some(
+        (item) =>
+          item.path === location.pathname ||
+          (item.path !== "/" &&
+            location.pathname.startsWith(item.path.split("?")[0])),
+      ),
+    );
+    if (activeSection) {
+      setOpenSection(activeSection.key);
+    }
+  }, [location.pathname, authorizedMenu]);
+
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 ${isRtl ? 'border-r-[3px]' : 'border-l-[3px]'} 
-     ${isActive ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium" : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"}`;
+    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 ${
+      isRtl ? "border-r-[3px]" : "border-l-[3px]"
+    } ${
+      isActive
+        ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium"
+        : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"
+    }`;
 
   return (
     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Mobile Overlay */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
@@ -949,19 +551,23 @@ export function MainLayout() {
         />
       )}
 
-      <aside className={`w-64 flex flex-col bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
+      <aside
+        className={`w-64 flex flex-col bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
         fixed md:relative top-0
-        ${isRtl ? 'right-0 border-l border-slate-800' : 'left-0 border-r border-slate-800'}
+        ${isRtl ? "right-0 border-l border-slate-800" : "left-0 border-r border-slate-800"}
         transition-transform duration-300 ease-in-out
-        ${mobileMenuOpen ? 'translate-x-0' : (isRtl ? 'translate-x-full md:translate-x-0' : '-translate-x-full md:translate-x-0')}
-        md:flex`}>
+        ${mobileMenuOpen ? "translate-x-0" : isRtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0"}
+        md:flex`}
+      >
         <div className="px-5 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-3">
           <img src="/sarayalogo.png" alt="السرايا" className="w-10 h-10 rounded-lg object-contain" />
           <div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-0.5">
               HOSPITAL SUITE
             </div>
-            <div className="font-bold text-sm text-white leading-tight">{t("common.appName", "نظام السرايا الطبي")}</div>
+            <div className="font-bold text-sm text-white leading-tight">
+              {t("common.appName", "نظام السرايا الطبي")}
+            </div>
           </div>
         </div>
 
@@ -973,41 +579,39 @@ export function MainLayout() {
                 <button
                   type="button"
                   onClick={() => toggleSection(section.key)}
+                  data-testid={`menu-section-${section.key}`}
                   className={`flex items-center justify-between w-full px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200
                     ${isOpen ? "text-slate-100" : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"}`}
                 >
                   <div className="flex items-center gap-3">
-                    <span
-                      className={isOpen ? "text-sky-500" : "text-slate-500"}
-                    >
+                    <span className={isOpen ? "text-sky-500" : "text-slate-500"}>
                       {section.icon}
                     </span>
-                    <span>{t("menu." + (section.translationKey || section.key), section.title)}</span>
+                    <span>
+                      {t("menu." + (section.translationKey || section.key), section.title)}
+                    </span>
                   </div>
                   <span
-                    className={`transition-transform duration-300 text-slate-600 ${isOpen ? (isRtl ? "-rotate-90" : "rotate-90") : "rotate-0"}`}
+                    className={`transition-transform duration-300 text-slate-600 ${
+                      isOpen ? (isRtl ? "-rotate-90" : "rotate-90") : "rotate-0"
+                    }`}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={isRtl ? "" : "scale-x-[-1]"}
-                    >
-                      <path d="m15 18-6-6 6-6" />
-                    </svg>
+                    <ChevronLeft size={16} strokeWidth={1.75} className={isRtl ? "" : "scale-x-[-1]"} />
                   </span>
                 </button>
 
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[2000px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isOpen ? "max-h-[2000px] opacity-100 mt-1" : "max-h-0 opacity-0"
+                  }`}
                 >
-                  <div className={`space-y-1 py-1 ${isRtl ? 'pr-4 pl-1 mr-2 border-r border-slate-800/50' : 'pl-4 pr-1 ml-2 border-l border-slate-800/50'}`}>
+                  <div
+                    className={`space-y-1 py-1 ${
+                      isRtl
+                        ? "pr-4 pl-1 mr-2 border-r border-slate-800/50"
+                        : "pl-4 pr-1 ml-2 border-l border-slate-800/50"
+                    }`}
+                  >
                     {section.items.map((item) => (
                       <NavLink
                         key={item.path}
@@ -1027,9 +631,7 @@ export function MainLayout() {
         <div className="p-4 border-t border-slate-800 bg-slate-950 flex-shrink-0">
           {user && (
             <div className="mb-3">
-              <div className="font-semibold text-sm text-white">
-                {user.fullName}
-              </div>
+              <div className="font-semibold text-sm text-white">{user.fullName}</div>
               <div className="text-slate-500 text-[10px] truncate">
                 {user.roles?.join(" | ")}
               </div>
@@ -1045,16 +647,16 @@ export function MainLayout() {
             onClick={logout}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
           >
-            {t("common.logout", "تسجيل الخروج")}
+            <LogOut size={14} strokeWidth={1.75} />
+            <span>{t("common.logout", "تسجيل الخروج")}</span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
-        {/* Grace Period Warning */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 relative">
         {licenseDetails?.isGracePeriod && (
-          <div className="bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-rose-500/30 flex items-center justify-center gap-3 flex-wrap">
-            <span className="animate-pulse">⚠️</span>
+          <div className="saraya-solid-bg bg-rose-900/90 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-rose-500/30 flex items-center justify-center gap-3 flex-wrap">
+            <AlertTriangle size={16} className="text-amber-300 shrink-0" />
             <span>
               <strong>تنبيه:</strong> انتهت فترة الاشتراك. متبقي{" "}
               <strong className="text-amber-300">
@@ -1064,54 +666,49 @@ export function MainLayout() {
             </span>
             <a
               href="/activation"
-              className="inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
+              className="inline-flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
             >
-              🔄 تجديد الاشتراك الآن
+              <RefreshCw size={12} />
+              <span>تجديد الاشتراك الآن</span>
             </a>
           </div>
         )}
 
-        {/* Expiring Soon Warning (within 7 days but not yet expired) */}
         {!licenseDetails?.isGracePeriod &&
           licenseDetails?.daysRemaining !== undefined &&
           licenseDetails.daysRemaining <= 7 &&
           licenseDetails.daysRemaining > 0 && (
-          <div className="bg-amber-900/80 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-amber-500/30 flex items-center justify-center gap-3 flex-wrap">
-            <span>⏳</span>
-            <span>
-              ينتهي اشتراكك خلال{" "}
-              <strong className="text-amber-200">{licenseDetails.daysRemaining} يوم</strong>.
-              جدّد مبكراً للاحتفاظ بالأيام المتبقية!
-            </span>
-            <a
-              href="/activation"
-              className="inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
-            >
-              تجديد مبكر
-            </a>
-          </div>
-        )}
+            <div className="saraya-solid-bg bg-amber-900/80 text-white text-center text-sm py-2 px-4 shadow-lg backdrop-blur-sm z-50 border-b border-amber-500/30 flex items-center justify-center gap-3 flex-wrap">
+              <Clock size={16} className="text-amber-200 shrink-0" />
+              <span>
+                ينتهي اشتراكك خلال{" "}
+                <strong className="text-amber-200">{licenseDetails.daysRemaining} يوم</strong>.
+                جدّد مبكراً للاحتفاظ بالأيام المتبقية!
+              </span>
+              <a
+                href="/activation"
+                className="inline-block bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition-colors border border-white/20"
+              >
+                تجديد مبكر
+              </a>
+            </div>
+          )}
 
         <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
-          {/* زر القائمة للموبايل */}
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
             aria-label={t("common.openMenu", "فتح القائمة")}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" x2="21" y1="6" y2="6" />
-              <line x1="3" x2="21" y1="12" y2="12" />
-              <line x1="3" x2="21" y1="18" y2="18" />
-            </svg>
+            <Menu size={22} strokeWidth={1.75} />
           </button>
           <div className="hidden md:block text-slate-400 text-xs font-medium">
             {t("common.welcomeMsg", "مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية")}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <ThemeSwitcher />
             <LanguageSwitcher />
             <NotificationBell />
-            {/* ✅ Multi-Branch: زر تبديل الفرع */}
             {accessibleBranches.length > 1 && (
               <div className="relative">
                 <button
@@ -1119,24 +716,27 @@ export function MainLayout() {
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-900/30 hover:bg-sky-900/50 border border-sky-700/30 text-sky-300 text-xs font-medium transition-all duration-200"
                   title={t("common.switchBranch", "تبديل الفرع")}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 3v12" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
+                  <GitBranch size={14} strokeWidth={1.75} />
                   <span className="hidden sm:inline max-w-[120px] truncate">
                     {currentBranchName}
                   </span>
                   {isSwitchingBranch ? (
-                    <svg className="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <Loader2 size={12} className="animate-spin text-sky-400" />
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    <ChevronDown size={12} strokeWidth={2} />
                   )}
                 </button>
                 {branchMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setBranchMenuOpen(false)} />
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setBranchMenuOpen(false)}
+                    />
                     <div className="absolute left-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
                       <div className="px-3 py-2 border-b border-slate-700/50">
-                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{t("common.switchBranch", "تبديل الفرع")}</div>
+                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                          {t("common.switchBranch", "تبديل الفرع")}
+                        </div>
                       </div>
                       <div className="py-1 max-h-60 overflow-y-auto custom-scrollbar">
                         {accessibleBranches.map((branch) => (
@@ -1155,7 +755,7 @@ export function MainLayout() {
                           >
                             <span className="truncate">{branch.name}</span>
                             {branch.id === currentBranchId && (
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-sky-400 flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                              <Check size={14} strokeWidth={2.5} className="text-sky-400 flex-shrink-0" />
                             )}
                           </button>
                         ))}
@@ -1183,650 +783,3 @@ export function MainLayout() {
     </div>
   );
 }
-
-// // src/layout/MainLayout.tsx
-
-// import { Outlet, NavLink, useLocation } from "react-router-dom";
-// import { useAuthStore } from "../stores/authStore";
-// import { useState, ReactNode, useEffect, useMemo } from "react";
-// import { NotificationBell } from "../components/NotificationBell";
-
-// // --- الأيقونات ---
-// const Icons = {
-//   ChevronLeft: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="16"
-//       height="16"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="m15 18-6-6 6-6" />
-//     </svg>
-//   ),
-//   Activity: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-//     </svg>
-//   ),
-//   Users: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-//       <circle cx="9" cy="7" r="4" />
-//       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-//       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-//     </svg>
-//   ),
-//   DollarSign: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <line x1="12" x2="12" y1="2" y2="22" />
-//       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-//     </svg>
-//   ),
-//   Package: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="m7.5 4.27 9 5.15" />
-//       <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-//       <path d="m3.3 7 8.7 5 8.7-5" />
-//       <path d="M12 22.08V12" />
-//     </svg>
-//   ),
-//   Calculator: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <rect width="16" height="20" x="4" y="2" rx="2" />
-//       <line x1="8" x2="16" y1="6" y2="6" />
-//       <line x1="16" x2="16" y1="14" y2="18" />
-//       <path d="M16 10h.01" />
-//       <path d="M12 10h.01" />
-//       <path d="M8 10h.01" />
-//       <path d="M12 14h.01" />
-//       <path d="M8 14h.01" />
-//       <path d="M12 18h.01" />
-//       <path d="M8 18h.01" />
-//     </svg>
-//   ),
-//   Building: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
-//       <path d="M9 22v-4h6v4" />
-//       <path d="M8 6h.01" />
-//       <path d="M16 6h.01" />
-//       <path d="M12 6h.01" />
-//       <path d="M12 10h.01" />
-//       <path d="M12 14h.01" />
-//       <path d="M16 10h.01" />
-//       <path d="M16 14h.01" />
-//       <path d="M8 10h.01" />
-//       <path d="M8 14h.01" />
-//     </svg>
-//   ),
-//   Settings: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-//       <circle cx="12" cy="12" r="3" />
-//     </svg>
-//   ),
-//   Scissors: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <circle cx="6" cy="6" r="3" />
-//       <circle cx="6" cy="18" r="3" />
-//       <line x1="20" x2="8.12" y1="4" y2="15.88" />
-//       <line x1="14.47" x2="20" y1="14.48" y2="20" />
-//       <line x1="8.12" x2="12" y1="8.12" y2="12" />
-//     </svg>
-//   ),
-//   Home: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-//       <polyline points="9 22 9 12 15 12 15 22" />
-//     </svg>
-//   ),
-//   Network: () => (
-//     <svg
-//       xmlns="http://www.w3.org/2000/svg"
-//       width="18"
-//       height="18"
-//       viewBox="0 0 24 24"
-//       fill="none"
-//       stroke="currentColor"
-//       strokeWidth="2"
-//       strokeLinecap="round"
-//       strokeLinejoin="round"
-//     >
-//       <rect x="16" y="16" width="6" height="6" rx="1" />
-//       <rect x="2" y="16" width="6" height="6" rx="1" />
-//       <rect x="9" y="2" width="6" height="6" rx="1" />
-//       <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
-//       <path d="M12 12V8" />
-//     </svg>
-//   ),
-// };
-
-// type MenuItem = {
-//   label: string;
-//   path: string;
-//   access?: string; // كود الصلاحية (Permission Code)
-// };
-
-// type MenuSection = {
-//   key: string;
-//   title: string;
-//   icon: ReactNode;
-//   allowedRoles: string[]; // أدوار (Roles) للتحقق الثانوي
-//   items: MenuItem[];
-// };
-
-// export function MainLayout() {
-//   const user = useAuthStore((s) => s.user);
-//   const logout = useAuthStore((s) => s.logout);
-//   const location = useLocation();
-//   const [openSection, setOpenSection] = useState<string | null>(null);
-
-//   const toggleSection = (key: string) => {
-//     setOpenSection((prev) => (prev === key ? null : key));
-//   };
-
-//   // --- دالة فحص الصلاحية ---
-//   const hasAccess = (permissionCode?: string) => {
-//     if (!user) return false;
-//     // 2. Admin sees everything (provided license allows it!)
-//     if (user.roles?.includes("ADMIN")) return true; // الأدمن يرى كل شيء
-//     if (!permissionCode) return true; // عنصر ليس له صلاحية محددة (متاح للجميع ضمن الدور)
-//     return user.permissions?.includes(permissionCode);
-//   };
-
-//   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-//     `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 border-r-[3px]
-//      ${isActive ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium" : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"}`;
-
-//   // === هيكلية القائمة الكاملة ===
-//   const menuStructure: MenuSection[] = [
-//     {
-//       key: "home",
-//       title: "الرئيسية",
-//       icon: <Icons.Home />,
-//       allowedRoles: [
-//         "ADMIN",
-//         "DOCTOR",
-//         "NURSE",
-//         "RECEPTION",
-//         "PHARMACIST",
-//         "LAB_TECH",
-//         "RAD_TECH",
-//         "ACCOUNTANT",
-//         "STORE_KEEPER",
-//         "HR",
-//       ],
-//       items: [{ label: "لوحة المتابعة", path: "/" }],
-//     },
-//     {
-//       key: "clinical",
-//       title: "التشغيل السريري",
-//       icon: <Icons.Activity />,
-//       allowedRoles: ["ADMIN", "DOCTOR", "NURSE", "RECEPTION"],
-//       items: [
-//         {
-//           label: "فرز الطوارئ (Triage)",
-//           path: "/triage",
-//           access: "emr:vitals:record",
-//         },
-//         {
-//           label: "المواعيد",
-//           path: "/appointments",
-//           access: "clinical:appointment:view",
-//         },
-//         { label: "المرضى", path: "/patients", access: "emr:patient:view" },
-//         {
-//           label: "سجل الحالات",
-//           path: "/encounters",
-//           access: "emr:patient:view",
-//         },
-//         {
-//           label: "الإيواء (Admissions)",
-//           path: "/admissions",
-//           access: "clinical:appointment:create",
-//         },
-//         {
-//           label: "حالات الإيواء حالياً",
-//           path: "/active-inpatients",
-//           access: "emr:patient:view",
-//         },
-//         {
-//           label: "محطة التمريض (Ward)",
-//           path: "/nursing",
-//           access: "emr:vitals:record",
-//         },
-//         { label: "الصيدلية", path: "/pharmacy" },
-//         { label: "المعمل", path: "/lab" },
-//         { label: "الأشعة", path: "/radiology" },
-//         { label: "تجهيز الأسرة (Housekeeping)", path: "/housekeeping" },
-//       ],
-//     },
-//     {
-//       key: "surgery",
-//       title: "العمليات الجراحية",
-//       icon: <Icons.Scissors />,
-//       allowedRoles: ["ADMIN", "DOCTOR", "NURSE"],
-//       items: [{ label: "جدول العمليات", path: "/surgery" }],
-//     },
-//     {
-//       key: "humanResources",
-//       title: "الموارد البشرية",
-//       icon: <Icons.Users />,
-//       allowedRoles: ["ADMIN", "HR"],
-//       items: [
-//         { label: "تعريف الورديات", path: "/hr/shifts" },
-//         { label: "جدول المناوبات", path: "/hr/roster" },
-//         { label: "إدارة الإجازات", path: "/hr/leaves" },
-//         { label: "الحضور والانصراف", path: "/attendance" },
-//         { label: "الرواتب والأجور", path: "/payroll" },
-//       ],
-//     },
-//     {
-//       key: "revenue",
-//       title: "الإيرادات والخزينة",
-//       icon: <Icons.DollarSign />,
-//       allowedRoles: ["ADMIN", "ACCOUNTANT", "CASHIER"],
-//       items: [
-//         {
-//           label: "لوحة التقارير والتحليلات",
-//           path: "/reports",
-//           access: "acc:report:view",
-//         },
-//         { label: "الخزينة (POS)", path: "/cashier" },
-//         {
-//           label: "سجل الفواتير",
-//           path: "/invoices",
-//           access: "billing:invoice:view",
-//         },
-//         {
-//           label: "تقرير الكاشير اليومي",
-//           path: "/cashier/reports/daily",
-//           access: "billing:invoice:view",
-//         },
-//         {
-//           label: "تقرير المستخدمين",
-//           path: "/cashier/reports/by-cashier",
-//           access: "billing:invoice:view",
-//         },
-//         {
-//           label: "الشفتات المقفولة",
-//           path: "/cashier/shifts",
-//           access: "billing:invoice:view",
-//         },
-//         {
-//           label: "تحليل ذمم المرضى",
-//           path: "/accounting/patients-aging",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "شركات التأمين",
-//           path: "/insurance/providers",
-//           access: "billing:invoice:create",
-//         },
-//         {
-//           label: "الموافقات المسبقة",
-//           path: "/insurance/pre-auth",
-//           access: "billing:invoice:create",
-//         },
-//         {
-//           label: "مطالبات التأمين",
-//           path: "/insurance/claims",
-//           access: "billing:invoice:view",
-//         },
-//       ],
-//     },
-//     {
-//       key: "purchases",
-//       title: "المشتريات والمخزون",
-//       icon: <Icons.Package />,
-//       allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
-//       items: [
-//         { label: "الموردون", path: "/suppliers" },
-//         {
-//           label: "فواتير المشتريات",
-//           path: "/purchases/invoices",
-//           access: "purchases:invoice:create",
-//         },
-//         {
-//           label: "تحليل ذمم الموردين",
-//           path: "/suppliers/aging",
-//           access: "purchases:invoice:view",
-//         },
-//         { label: "مخزون الصيدلية", path: "/pharmacy/stock" },
-//         { label: "تقرير حركات المخزون", path: "/pharmacy/stock-report" },
-//         { label: "التحويلات المخزنية", path: "/inventory/transfers" },
-//       ],
-//     },
-//     {
-//       key: "assets",
-//       title: "الأصول والصيانة",
-//       icon: <Icons.Building />,
-//       allowedRoles: ["ADMIN", "ACCOUNTANT", "STORE_KEEPER"],
-//       items: [
-//         { label: "سجل الأصول", path: "/assets", access: "acc:report:view" },
-//         { label: "إدارة الصيانة", path: "/assets/maintenance" },
-//         {
-//           label: "احتساب الإهلاك",
-//           path: "/assets/depreciation",
-//           access: "acc:entry:create",
-//         },
-//       ],
-//     },
-//     {
-//       key: "accounting",
-//       title: "المحاسبة العامة",
-//       icon: <Icons.Calculator />,
-//       allowedRoles: ["ADMIN", "ACCOUNTANT"],
-//       items: [
-//         {
-//           label: "السنوات المالية",
-//           path: "/financial-years",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "دليل الحسابات",
-//           path: "/accounting/chart-of-accounts",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "الأرصدة الافتتاحية",
-//           path: "/accounting/opening-balances",
-//           access: "acc:entry:create",
-//         },
-//         {
-//           label: "قيد يدوي",
-//           path: "/accounting/manual-entry",
-//           access: "acc:entry:create",
-//         },
-//         {
-//           label: "دفتر اليومية العامة",
-//           path: "/accounting/journal",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "سجل القيود (Entries)",
-//           path: "/accounting/entries",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "دفتر الأستاذ",
-//           path: "/accounting/ledger",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "ميزان المراجعة",
-//           path: "/accounting/trial-balance",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "قائمة الدخل",
-//           path: "/accounting/income-statement",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "الميزانية العمومية",
-//           path: "/accounting/balance-sheet",
-//           access: "acc:report:view",
-//         },
-//         {
-//           label: "إقفال السنة",
-//           path: "/accounting/year-closing",
-//           access: "acc:year:close",
-//         },
-//       ],
-//     },
-//     {
-//       key: "integration",
-//       title: "الربط والتكامل",
-//       icon: <Icons.Network />,
-//       allowedRoles: ["ADMIN", "IT_ADMIN"],
-//       items: [{ label: "إدارة الأجهزة (LIS/PACS)", path: "/integration" }],
-//     },
-//     {
-//       key: "settings",
-//       title: "الإعدادات",
-//       icon: <Icons.Settings />,
-//       allowedRoles: ["ADMIN"],
-//       items: [
-//         { label: "الإعدادات العامة", path: "/settings" },
-//         { label: "الأقسام (Departments)", path: "/settings/departments" },
-//         { label: "التخصصات (Specialties)", path: "/settings/specialties" },
-//         { label: "قوائم الأسعار", path: "/settings/price-lists" },
-//         { label: "الخدمات والأسعار", path: "/services" },
-//         { label: "المستخدمون والصلاحيات", path: "/users" },
-//       ],
-//     },
-//   ];
-
-//   // 🛡️ فلترة القائمة ديناميكياً
-//   const authorizedMenu = useMemo(() => {
-//     if (!user) return [];
-
-//     // إذا كان أدمن، نعرض كل شيء
-//     if (user.roles.includes("ADMIN")) return menuStructure;
-
-//     return (
-//       menuStructure
-//         .map((section) => ({
-//           ...section,
-//           // نفلتر العناصر بناءً على الصلاحية الدقيقة (access code)
-//           // وإذا لم يكن هناك كود، نعتمد على التحقق من الدور العام (allowedRoles) للقسم
-//           items: section.items.filter((item) => {
-//             // التحقق من الصلاحية الدقيقة
-//             const hasPermission = hasAccess(item.access);
-
-//             // التحقق من الدور العام للقسم (Secondary Check)
-//             const hasRole = section.allowedRoles.some((role) =>
-//               user.roles.includes(role),
-//             );
-
-//             return hasPermission && hasRole;
-//           }),
-//         }))
-//         // إخفاء القسم بالكامل إذا لم يتبقَ فيه أي عناصر
-//         .filter((section) => section.items.length > 0)
-//     );
-//   }, [user, menuStructure]);
-
-//   return (
-//     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
-//       {/* Sidebar */}
-//       <aside className="w-64 hidden md:flex flex-col border-l border-slate-800 bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-40">
-//         {/* Header */}
-//         <div className="px-5 py-5 border-b border-slate-800 flex-shrink-0">
-//           <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-1">
-//             HOSPITAL SUITE
-//           </div>
-//           <div className="font-bold text-lg text-white">نظام السرايا الطبي</div>
-//         </div>
-
-//         {/* Navigation */}
-//         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-//           {authorizedMenu.map((section) => {
-//             const isOpen = openSection === section.key;
-//             return (
-//               <div key={section.key} className="mb-1">
-//                 <button
-//                   type="button"
-//                   onClick={() => toggleSection(section.key)}
-//                   className={`flex items-center justify-between w-full px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200
-//                     ${isOpen ? "text-slate-100" : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"}`}
-//                 >
-//                   <div className="flex items-center gap-3">
-//                     <span
-//                       className={isOpen ? "text-sky-500" : "text-slate-500"}
-//                     >
-//                       {section.icon}
-//                     </span>
-//                     <span>{section.title}</span>
-//                   </div>
-//                   <span
-//                     className={`transition-transform duration-300 text-slate-600 ${isOpen ? "-rotate-90" : "rotate-0"}`}
-//                   >
-//                     <Icons.ChevronLeft />
-//                   </span>
-//                 </button>
-
-//                 <div
-//                   className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-[800px] opacity-100 mt-1" : "max-h-0 opacity-0"}`}
-//                 >
-//                   <div className="pr-4 pl-1 space-y-1 py-1 mr-2 border-r border-slate-800/50">
-//                     {section.items.map((item) => (
-//                       <NavLink
-//                         key={item.path}
-//                         to={item.path}
-//                         className={navLinkClasses}
-//                       >
-//                         {item.label}
-//                       </NavLink>
-//                     ))}
-//                   </div>
-//                 </div>
-//               </div>
-//             );
-//           })}
-//         </nav>
-
-//         {/* Footer */}
-//         <div className="p-4 border-t border-slate-800 bg-slate-950 flex-shrink-0">
-//           {user && (
-//             <div className="mb-3">
-//               <div className="font-semibold text-sm text-white">
-//                 {user.fullName}
-//               </div>
-//               <div className="text-slate-500 text-[10px] truncate">
-//                 {user.roles?.join(" | ")}
-//               </div>
-//             </div>
-//           )}
-//           <button
-//             onClick={logout}
-//             className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
-//           >
-//             تسجيل الخروج
-//           </button>
-//         </div>
-//       </aside>
-
-//       {/* Main Content */}
-//       <main className="flex-1 flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 relative">
-//         {/* Header (Desktop & Mobile) */}
-//         <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
-//           <div className="hidden md:block text-slate-400 text-xs font-medium">
-//             مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية
-//           </div>
-//           <div className="flex items-center gap-4">
-//             <NotificationBell />
-//             {user && (
-//               <div className="text-left text-[11px] hidden md:block">
-//                 <div className="text-white font-medium">{user.fullName}</div>
-//                 <div className="text-slate-500">{user.roles?.[0]}</div>
-//               </div>
-//             )}
-//           </div>
-//         </header>
-
-//         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 custom-scrollbar">
-//           <div className="max-w-[1600px] mx-auto min-h-full">
-//             <Outlet />
-//           </div>
-//         </div>
-//       </main>
-//     </div>
-//   );
-// }

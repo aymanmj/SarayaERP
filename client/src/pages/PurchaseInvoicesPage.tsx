@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useTranslation } from "react-i18next";
+import { Money } from "../utils/money";
 
 type SupplierLite = {
   id: number;
@@ -54,9 +55,10 @@ type LineFormRow = {
   expiryDate?: string;
 };
 
-function formatMoney(val: string | number | null | undefined) {
-  const num = Number(val ?? 0);
-  return num.toFixed(3);
+function formatMoney(
+  val: Parameters<typeof Money.toDbString>[0] | null | undefined,
+) {
+  return Money.toDbString(val ?? 0);
 }
 
 export default function PurchaseInvoicesPage() {
@@ -143,22 +145,25 @@ export default function PurchaseInvoicesPage() {
 
   const totalAmount = useMemo(
     () =>
-      lines.reduce((sum, l) => {
-        const qty = Number(l.quantity || 0);
-        const price = Number(l.unitPrice || 0);
-        return sum + qty * price;
-      }, 0),
+      lines.reduce(
+        (sum, l) =>
+          Money.sumDecimal(
+            sum,
+            Money.postedUnitLine(l.unitPrice || 0, l.quantity || 0).totalPriceDb,
+          ),
+        Money.decimal(0),
+      ),
     [lines],
   );
 
   const discountNum = useMemo(
-    () => Number(discountAmount || 0),
+    () => Money.decimal(discountAmount || 0),
     [discountAmount],
   );
-  const vatNum = useMemo(() => Number(vatAmount || 0), [vatAmount]);
+  const vatNum = useMemo(() => Money.decimal(vatAmount || 0), [vatAmount]);
 
   const netAmount = useMemo(
-    () => totalAmount - discountNum + vatNum,
+    () => Money.toDbString(totalAmount.minus(discountNum).plus(vatNum)),
     [totalAmount, discountNum, vatNum],
   );
 
@@ -236,13 +241,13 @@ export default function PurchaseInvoicesPage() {
         invoiceDate,
         dueDate: dueDate || undefined,
         currency: currency || "LYD",
-        discountAmount: Number(discountAmount || 0),
-        vatAmount: Number(vatAmount || 0),
+        discountAmount: Number(Money.toDbString(discountAmount || 0)),
+        vatAmount: Number(Money.toDbString(vatAmount || 0)),
         notes: notes || undefined,
         lines: validLines.map((l) => ({
           description: l.description || "بند شراء",
           quantity: Number(l.quantity),
-          unitPrice: Number(l.unitPrice),
+          unitPrice: Number(Money.toUnitDbString(l.unitPrice || 0)),
           drugItemId: l.productId ? Number(l.productId) : undefined,
           batchNumber: l.batchNumber || undefined,
           expiryDate: l.expiryDate ? new Date(l.expiryDate) : undefined,
@@ -461,8 +466,10 @@ export default function PurchaseInvoicesPage() {
               </thead>
               <tbody>
                 {lines.map((line, idx) => {
-                  const lineTotal =
-                    Number(line.quantity || 0) * Number(line.unitPrice || 0);
+                  const lineTotal = Money.postedUnitLine(
+                    line.unitPrice || 0,
+                    line.quantity || 0,
+                  ).totalPriceDb;
                   return (
                     <tr
                       key={idx}
@@ -645,9 +652,9 @@ export default function PurchaseInvoicesPage() {
               </thead>
               <tbody>
                 {invoices.map((inv) => {
-                  const net = Number(inv.netAmount ?? 0);
-                  const paid = Number(inv.paidAmount ?? 0);
-                  const remaining = net - paid;
+                  const remaining = Money.decimal(inv.netAmount ?? 0).minus(
+                    Money.decimal(inv.paidAmount ?? 0),
+                  );
 
                   return (
                     <tr

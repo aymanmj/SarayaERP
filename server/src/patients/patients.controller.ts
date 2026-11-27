@@ -7,10 +7,10 @@ import {
   Patch,
   Post,
   UseGuards,
-  BadRequestException,
   ParseIntPipe,
   Query,
 } from '@nestjs/common';
+import type { Gender, IdentityType, MaritalStatus } from '@prisma/client';
 import { PatientsService } from './patients.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -22,44 +22,38 @@ import { ClinicalABACGuard } from '../auth/guards/clinical-abac.guard';
 import { RequireClinicalRelation } from '../auth/decorators/abac.decorator';
 import { ApiTags } from '@nestjs/swagger';
 
+interface PatientMutationBody {
+  fullName?: string;
+  nationalId?: string | null;
+  dateOfBirth?: string | Date | null;
+  gender?: Gender | null;
+  phone?: string | null;
+  address?: string | null;
+  email?: string | null;
+  notes?: string | null;
+  motherName?: string | null;
+  familyBooklet?: string | null;
+  familySheet?: string | null;
+  registryNumber?: string | null;
+  identityType?: IdentityType | null;
+  identityNumber?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  insurancePolicyId?: number | string | null;
+  insuranceMemberId?: string | null;
+}
+
 @ApiTags('patients')
 @UseGuards(JwtAuthGuard, PermissionsGuard, ClinicalABACGuard)
 @Controller('patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
-  // @Post()
-  // @Permissions('patients:view')
-  // create(@Body() body: any, @CurrentUser() user: JwtPayload) {
-  //   let dob: Date | undefined;
-  //   if (body.dateOfBirth) {
-  //     const d = new Date(body.dateOfBirth);
-  //     if (Number.isNaN(d.getTime())) {
-  //       throw new BadRequestException('تاريخ الميلاد غير صالح');
-  //     }
-  //     dob = d;
-  //   }
-
-  //   return this.patientsService.create(user.hospitalId, {
-  //     fullName: body.fullName,
-  //     nationalId: body.nationalId || undefined,
-  //     dateOfBirth: dob,
-  //     gender: body.gender || undefined,
-  //     phone: body.phone || undefined,
-  //     address: body.address || undefined,
-  //     email: body.email || undefined,
-  //     notes: body.notes || undefined,
-  //     // ✅ [NEW] حقول التأمين
-  //     insurancePolicy: body.insurancePolicyId
-  //       ? { connect: { id: Number(body.insurancePolicyId) } }
-  //       : undefined,
-  //     insuranceMemberId: body.insuranceMemberId || undefined,
-  //   });
-  // }
-
   @Post()
   @Permissions('patients:manage')
-  create(@Body() body: any, @CurrentUser() user: JwtPayload) {
+  create(
+    @Body() body: PatientMutationBody & { fullName: string },
+    @CurrentUser() user: JwtPayload,
+  ) {
     let dob: Date | undefined;
     if (body.dateOfBirth) {
       const d = new Date(body.dateOfBirth);
@@ -156,40 +150,11 @@ export class PatientsController {
     return this.patientsService.findOne(user.hospitalId, id);
   }
 
-  // @Patch(':id')
-  // @Permissions('patients:view')
-  // update(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @Body() body: any,
-  //   @CurrentUser() user: JwtPayload,
-  // ) {
-  //   let dob: Date | undefined;
-  //   if (body.dateOfBirth) {
-  //     dob = new Date(body.dateOfBirth);
-  //   }
-
-  //   return this.patientsService.update(user.hospitalId, id, {
-  //     fullName: body.fullName,
-  //     nationalId: body.nationalId,
-  //     dateOfBirth: dob,
-  //     gender: body.gender,
-  //     phone: body.phone,
-  //     address: body.address,
-  //     email: body.email,
-  //     notes: body.notes,
-  //     // ✅ [NEW] تحديث التأمين
-  //     insurancePolicyId: body.insurancePolicyId
-  //       ? Number(body.insurancePolicyId)
-  //       : null, // null لفك الارتباط
-  //     insuranceMemberId: body.insuranceMemberId,
-  //   });
-  // }
-
   @Patch(':id')
   @Permissions('patients:manage')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
+    @Body() body: PatientMutationBody,
     @CurrentUser() user: JwtPayload,
   ) {
     let dob: Date | undefined;

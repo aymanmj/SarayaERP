@@ -67,6 +67,13 @@ export default function AntenatalCarePage() {
   const [showNewCareForm, setShowNewCareForm] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
 
+  // Patient selector when opened directly from sidebar (/obgyn/anc)
+  const [selectedPatientId, setSelectedPatientId] = useState<number | ''>('');
+  const [selectedPatientInfo, setSelectedPatientInfo] = useState<{ fullName: string; mrn: string } | null>(null);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientSearchResults, setPatientSearchResults] = useState<Array<{ id: number; fullName: string; mrn: string; phone?: string }>>([]);
+  const [showPatientResults, setShowPatientResults] = useState(false);
+
   // New Care Form
   const [lmpDate, setLmpDate] = useState('');
   const [gravida, setGravida] = useState(1);
@@ -97,8 +104,13 @@ export default function AntenatalCarePage() {
     if (careId) {
       loadCare(Number(careId));
     } else if (patientId) {
+      setCare(null);
       loadPatientCares(Number(patientId));
+    } else {
+      setCare(null);
+      loadActiveCares();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [careId, patientId]);
 
   const loadCare = async (id: number) => {
@@ -117,7 +129,7 @@ export default function AntenatalCarePage() {
     try {
       setLoading(true);
       const res = await apiClient.get(`/obgyn/anc/patient/${pid}`);
-      setCares(res.data);
+      setCares(Array.isArray(res.data) ? res.data : []);
     } catch {
       toast.error(t('obgyn.anc.toast.loadCaresError', 'فشل تحميل سجلات الحمل'));
     } finally {
@@ -125,17 +137,65 @@ export default function AntenatalCarePage() {
     }
   };
 
+  const loadActiveCares = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/obgyn/anc');
+      setCares(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      toast.error(t('obgyn.anc.toast.loadCaresError', 'فشل تحميل سجلات الحمل'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchPatients = async (query: string) => {
+    setPatientSearch(query);
+    if (query.trim().length < 2) {
+      setPatientSearchResults([]);
+      setShowPatientResults(false);
+      return;
+    }
+    try {
+      const res = await apiClient.get('/patients', { params: { search: query.trim(), limit: 8 } });
+      const items = res.data?.items || res.data?.data || [];
+      setPatientSearchResults(items);
+      setShowPatientResults(items.length > 0);
+    } catch {
+      /* ignore search transient failure */
+    }
+  };
+
+  const selectPatient = (p: { id: number; fullName: string; mrn: string }) => {
+    setSelectedPatientId(p.id);
+    setSelectedPatientInfo({ fullName: p.fullName, mrn: p.mrn });
+    setPatientSearch('');
+    setPatientSearchResults([]);
+    setShowPatientResults(false);
+  };
+
+  const clearSelectedPatient = () => {
+    setSelectedPatientId('');
+    setSelectedPatientInfo(null);
+    setPatientSearch('');
+  };
+
   const handleCreateCare = async () => {
-    if (!patientId || !lmpDate) return toast.error(t('obgyn.anc.toast.lmpDateRequired', 'يرجى تحديد تاريخ آخر دورة'));
+    const effectivePatientId = patientId ? Number(patientId) : selectedPatientId;
+    if (!effectivePatientId) {
+      return toast.error(t('obgyn.anc.toast.patientRequired', 'يرجى اختيار المريضة أولاً'));
+    }
+    if (!lmpDate) return toast.error(t('obgyn.anc.toast.lmpDateRequired', 'يرجى تحديد تاريخ آخر دورة'));
     try {
       const res = await apiClient.post('/obgyn/anc', {
-        patientId: Number(patientId),
+        patientId: effectivePatientId,
         lmpDate: new Date(lmpDate).toISOString(),
         gravida, para, bloodGroup, rhFactor, partnerRhFactor: partnerRhFactor || undefined,
         riskLevel, riskFactors,
       });
       toast.success(t('obgyn.anc.toast.createCareSuccess', 'تم تسجيل الحمل بنجاح'));
       setShowNewCareForm(false);
+      clearSelectedPatient();
       navigate(`/obgyn/anc?careId=${res.data.id}`, { replace: true });
      
     } catch (err: any) {
@@ -228,10 +288,8 @@ export default function AntenatalCarePage() {
           <Button variant="secondary" onClick={() => {
             if (patientId) {
               navigate(`/obgyn/anc?patientId=${patientId}`, { replace: true });
-            } else if (care?.patientId) {
-              navigate(`/obgyn/anc?patientId=${care.patientId}`, { replace: true });
             } else {
-              navigate(-1);
+              navigate('/obgyn/anc', { replace: true });
             }
           }} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.anc.btn.back', 'رجوع')}</Button>
         </div>
@@ -502,11 +560,9 @@ export default function AntenatalCarePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">{t('obgyn.anc.list.title', 'سجلات الحمل')}</h1>
         <div className="flex gap-2">
-          {patientId && (
-            <Button onClick={() => setShowNewCareForm(!showNewCareForm)} className="bg-pink-600 hover:bg-pink-500 text-white">
-              {showNewCareForm ? t('obgyn.anc.btn.cancel', 'إلغاء') : t('obgyn.anc.btn.newCare', '+ تسجيل حمل جديد')}
-            </Button>
-          )}
+          <Button onClick={() => setShowNewCareForm(!showNewCareForm)} className="bg-pink-600 hover:bg-pink-500 text-white">
+            {showNewCareForm ? t('obgyn.anc.btn.cancel', 'إلغاء') : t('obgyn.anc.btn.newCare', '+ تسجيل حمل جديد')}
+          </Button>
           <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.anc.btn.back', 'رجوع')}</Button>
         </div>
       </div>
@@ -516,6 +572,41 @@ export default function AntenatalCarePage() {
         <Card className="bg-transparent border border-pink-500/30 text-slate-100">
           <CardHeader><CardTitle className="text-pink-400">{t('obgyn.anc.create.title', 'تسجيل حمل جديد')}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {!patientId && (
+              <div className="space-y-1 relative">
+                <Label className="text-slate-400">{t('obgyn.anc.create.patientSearchLabel', 'المريضة * — ابحث بالاسم أو رقم الملف')}</Label>
+                {selectedPatientInfo ? (
+                  <div className="flex items-center gap-2 bg-slate-900 border border-pink-500/30 rounded-lg px-3 py-2">
+                    <span className="text-white font-bold text-sm flex-1">{selectedPatientInfo.fullName}</span>
+                    <span className="text-xs text-slate-400 font-mono">MRN: {selectedPatientInfo.mrn}</span>
+                    <button type="button" onClick={clearSelectedPatient} className="text-rose-400 hover:text-rose-300 text-xs bg-slate-800 px-2 py-1 rounded">✕</button>
+                  </div>
+                ) : (
+                  <Input
+                    value={patientSearch}
+                    onChange={(e) => searchPatients(e.target.value)}
+                    placeholder={t('obgyn.anc.create.patientSearchPlaceholder', 'ابحث عن المريضة بالاسم أو رقم الملف أو الهاتف...')}
+                    className="bg-slate-900 border-slate-700 text-white"
+                    autoComplete="off"
+                  />
+                )}
+                {showPatientResults && patientSearchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
+                    {patientSearchResults.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => selectPatient(p)}
+                        className="w-full text-right px-3 py-2.5 hover:bg-pink-900/20 border-b border-slate-800/50 last:border-0 flex items-center justify-between gap-2 transition-colors text-sm"
+                      >
+                        <span className="text-white font-bold truncate">{p.fullName}</span>
+                        <span className="text-[11px] text-slate-400 font-mono">{p.mrn}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-1">
                 <Label className="text-slate-400">{t('obgyn.anc.create.lmpDate', 'تاريخ آخر دورة (LMP) *')}</Label>
@@ -604,9 +695,11 @@ export default function AntenatalCarePage() {
                     {statusLabels[c.status] || c.status}
                   </div>
                   <div>
-                    <div className="text-white font-bold">
-                      G{c.gravida} P{c.para}
-                      {c.rhFactor === 'Negative' && <span className="text-red-400 mr-2 text-xs">{t('obgyn.anc.list.rhNegativeLabel', '🔴 Rh-')}</span>}
+                    <div className="text-white font-bold flex items-center gap-2 flex-wrap">
+                      {c.patient?.fullName && <span>{c.patient.fullName}</span>}
+                      {c.patient?.mrn && <span className="text-xs text-slate-400 font-mono">({c.patient.mrn})</span>}
+                      <span className="text-pink-400 font-mono text-sm">G{c.gravida} P{c.para}</span>
+                      {c.rhFactor === 'Negative' && <span className="text-red-400 text-xs">{t('obgyn.anc.list.rhNegativeLabel', '🔴 Rh-')}</span>}
                     </div>
                     <div className="text-xs text-slate-400">LMP: {new Date(c.lmpDate).toLocaleDateString(i18n.language)} — EDD: {new Date(c.eddDate).toLocaleDateString(i18n.language)}</div>
                   </div>
@@ -618,8 +711,12 @@ export default function AntenatalCarePage() {
         </div>
       ) : !showNewCareForm ? (
         <div className="text-center py-12 text-slate-500">
-          <p className="text-lg mb-2">{t('obgyn.anc.list.emptyState', 'لا توجد سجلات حمل لهذه المريضة.')}</p>
-          {patientId && <Button onClick={() => setShowNewCareForm(true)} className="bg-pink-600 hover:bg-pink-500 text-white">{t('obgyn.anc.btn.newCare', 'تسجيل حمل جديد')}</Button>}
+          <p className="text-lg mb-2">
+            {patientId
+              ? t('obgyn.anc.list.emptyState', 'لا توجد سجلات حمل لهذه المريضة.')
+              : t('obgyn.anc.list.activeEmptyState', 'لا توجد حالات حمل نشطة مسجلة حالياً.')}
+          </p>
+          <Button onClick={() => setShowNewCareForm(true)} className="bg-pink-600 hover:bg-pink-500 text-white">{t('obgyn.anc.btn.newCare', 'تسجيل حمل جديد')}</Button>
         </div>
       ) : null}
     </div>

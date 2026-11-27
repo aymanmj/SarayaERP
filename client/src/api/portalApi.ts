@@ -9,6 +9,7 @@ import axios from 'axios';
 
 export const portalApi = axios.create({
   baseURL: '/api/patient-portal/v1',
+  timeout: 30000,
 });
 
 // Request interceptor: attach patient's JWT and Accept-Language header

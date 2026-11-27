@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -80,9 +81,21 @@ export class TelehealthService {
     const jitsiAppId =
       (await this.vaultService.getOptionalSecret('JITSI_APP_ID')) ||
       'saraya-jitsi-app';
+    const vaultSecret =
+      await this.vaultService.getOptionalSecret('JITSI_APP_SECRET');
+    const envSecret = this.configService.get<string>('JITSI_APP_SECRET');
     const jitsiSecret =
-      (await this.vaultService.getOptionalSecret('JITSI_APP_SECRET')) ||
-      'default-jitsi-secret-override-in-vault';
+      vaultSecret ||
+      envSecret ||
+      (process.env.NODE_ENV === 'production'
+        ? undefined
+        : 'default-jitsi-secret-override-in-vault');
+
+    if (!jitsiSecret) {
+      throw new ServiceUnavailableException(
+        'Telehealth signing secret is not configured',
+      );
+    }
 
     const payload = {
       context: {

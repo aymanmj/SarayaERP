@@ -16,17 +16,39 @@ export class BookingsService {
   /**
    * Creates a booking ensuring no overlap with existing confirmed bookings.
    */
-  async createBooking(data: {
-    resourceId: number;
-    encounterId?: number;
-    title: string;
-    scheduledStart: Date;
-    scheduledEnd: Date;
-  }) {
+  async createBooking(
+    hospitalId: number,
+    data: {
+      resourceId: number;
+      encounterId?: number;
+      title: string;
+      scheduledStart: Date;
+      scheduledEnd: Date;
+    },
+  ) {
+    const resource = await this.prisma.resource.findFirst({
+      where: { id: data.resourceId, hospitalId },
+      select: { id: true },
+    });
+    if (!resource) {
+      throw new NotFoundException(`Resource ${data.resourceId} not found`);
+    }
+
+    if (data.encounterId) {
+      const encounter = await this.prisma.encounter.findFirst({
+        where: { id: data.encounterId, hospitalId },
+        select: { id: true },
+      });
+      if (!encounter) {
+        throw new NotFoundException(`Encounter ${data.encounterId} not found`);
+      }
+    }
+
     // Conflict Detection Logic
     const overlappingBooking = await this.prisma.resourceBooking.findFirst({
       where: {
         resourceId: data.resourceId,
+        resource: { hospitalId },
         status: 'CONFIRMED',
         AND: [
           {
@@ -55,10 +77,24 @@ export class BookingsService {
     return booking;
   }
 
-  async getResourceBookings(resourceId: number, from: Date, to: Date) {
+  async getResourceBookings(
+    hospitalId: number,
+    resourceId: number,
+    from: Date,
+    to: Date,
+  ) {
+    const resource = await this.prisma.resource.findFirst({
+      where: { id: resourceId, hospitalId },
+      select: { id: true },
+    });
+    if (!resource) {
+      throw new NotFoundException(`Resource ${resourceId} not found`);
+    }
+
     return this.prisma.resourceBooking.findMany({
       where: {
         resourceId,
+        resource: { hospitalId },
         status: 'CONFIRMED',
         scheduledStart: { gte: from },
         scheduledEnd: { lte: to },
@@ -67,9 +103,9 @@ export class BookingsService {
     });
   }
 
-  async cancelBooking(bookingId: number) {
-    const booking = await this.prisma.resourceBooking.findUnique({
-      where: { id: bookingId },
+  async cancelBooking(hospitalId: number, bookingId: number) {
+    const booking = await this.prisma.resourceBooking.findFirst({
+      where: { id: bookingId, resource: { hospitalId } },
       include: { resource: true },
     });
 

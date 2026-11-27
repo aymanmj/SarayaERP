@@ -40,9 +40,9 @@ docker exec saraya_demo_redis redis-cli -a "$REDIS_PASSWORD" FLUSHALL >/dev/null
 echo "🚀 Restarting demo backend (applies migrations + seed.js + seed-demo.js)..."
 docker compose -f docker-compose.demo.yml --env-file .env.demo start backend
 
-echo "⏳ Waiting for backend to finish seeding and pass healthcheck..."
+echo "⏳ Waiting for backend to finish seeding and pass readiness check..."
 for i in $(seq 1 60); do
-  if docker exec saraya_demo_backend curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+  if docker exec saraya_demo_backend curl -sf http://localhost:3000/api/health/ready >/dev/null 2>&1; then
     echo "✅ Demo database reset complete! License at ${INSTALL_DIR}/data/license/ was preserved."
     exit 0
   fi

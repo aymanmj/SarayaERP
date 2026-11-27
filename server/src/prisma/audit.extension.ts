@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { appendChainedAudit, sanitizeAuditData } from '../audit/audit-chain';
-import { Prisma } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 import { siemLogger } from '../audit/siem.logger';
-import { applyTenantPolicy } from './prisma.extension';
+import { applyTenantPolicy, type TenantQueryArgs } from './prisma.extension';
 
 export interface DeferredAuditItem {
   level: 'info' | 'warn';
@@ -17,8 +17,40 @@ export interface ActiveAuditTxContext {
 export const activeAuditTxStorage =
   new AsyncLocalStorage<ActiveAuditTxContext>();
 
+interface AuditLookupDelegate {
+  findUnique?: (
+    args: Record<string, unknown>,
+  ) => Promise<Record<string, unknown> | null>;
+}
+
+function getClsAuditContext(cls: ClsService): {
+  userId: number | null;
+  hospitalId: number | null;
+  ipAddress: string | null;
+} {
+  if (!cls.isActive()) {
+    return { userId: null, hospitalId: null, ipAddress: null };
+  }
+  const rawUserId = cls.get<unknown>('userId');
+  const rawHospitalId = cls.get<unknown>('hospitalId');
+  const rawIpAddress = cls.get<unknown>('ipAddress');
+  return {
+    userId: typeof rawUserId === 'number' ? rawUserId : null,
+    hospitalId: typeof rawHospitalId === 'number' ? rawHospitalId : null,
+    ipAddress: typeof rawIpAddress === 'string' ? rawIpAddress : null,
+  };
+}
+
+function extractEntityId(result: unknown): number | null {
+  if (result && typeof result === 'object' && 'id' in result) {
+    const id = (result as { id: unknown }).id;
+    return typeof id === 'number' ? id : null;
+  }
+  return null;
+}
+
 function emitOrDeferAudit(
-  rootPrisma: any,
+  rootPrisma: PrismaClient,
   level: 'info' | 'warn',
   payload: Prisma.AuditLogUncheckedCreateInput,
 ) {
@@ -49,7 +81,25 @@ const SKIP_MODELS = [
   'InventoryRecallDisposalInvestigation',
 ];
 
-export const auditExtension = (cls: ClsService, rootPrisma: any) => {
+export const auditExtension = (cls: ClsService, rootPrisma: PrismaClient) => {
+  const dynamicDelegates = rootPrisma as unknown as Record<
+    string,
+    AuditLookupDelegate | undefined
+  >;
+
+  const findOriginal = async (
+    model: string,
+    where: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | null> => {
+    const delegateKey = model[0].toLowerCase() + model.slice(1);
+    const delegate = dynamicDelegates[delegateKey];
+    if (!delegate?.findUnique) return null;
+    const lookupArgs = applyTenantPolicy(model, 'findUnique', {
+      where: { ...where },
+    } as TenantQueryArgs);
+    return delegate.findUnique(lookupArgs);
+  };
+
   return Prisma.defineExtension({
     name: 'AuditExtension',
     query: {
@@ -72,11 +122,8 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           )
             return query(args);
 
-          const result = await query(args);
-
-          const userId = cls.isActive() ? cls.get('userId') : null;
-          const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
-          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
+          const result: unknown = await query(args);
+          const { userId, hospitalId, ipAddress } = getClsAuditContext(cls);
 
           if (userId) {
             const auditPayload: Prisma.AuditLogUncheckedCreateInput = {
@@ -84,10 +131,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'CREATE',
               entity: model,
-              entityId:
-                'id' in result && typeof result.id === 'number'
-                  ? result.id
-                  : null,
+              entityId: extractEntityId(result),
               ipAddress,
               newValues: sanitizeAuditData(args.data) as Prisma.InputJsonObject,
             };
@@ -105,33 +149,25 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
 
           // Never acquire a second pool connection while inside an interactive
           // transaction (prevents connection-pool starvation deadlocks on small pools).
-          let originalRecord = null;
+          let originalRecord: Record<string, unknown> | null = null;
           if (!inInteractiveTx) {
             try {
-              if (args.where && 'id' in args.where && args.where.id) {
-                const lookupArgs = applyTenantPolicy(model, 'findUnique', {
-                  where: { ...args.where },
-                });
-                originalRecord =
-                  await rootPrisma[
-                    model[0].toLowerCase() + model.slice(1)
-                  ].findUnique(lookupArgs);
+              const where = args.where as Record<string, unknown> | undefined;
+              if (where && 'id' in where && where.id) {
+                originalRecord = await findOriginal(model, where);
               }
-            } catch (e) {
+            } catch {
               // Safe fallback
             }
           }
 
-          const result = await query(args);
-
-          const userId = cls.isActive() ? cls.get('userId') : null;
-          const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
-          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
+          const result: unknown = await query(args);
+          const { userId, hospitalId, ipAddress } = getClsAuditContext(cls);
 
           if (userId && (originalRecord || inInteractiveTx)) {
-            const changedValues: any = {};
-            const oldValues: any = {};
-            const newData: any = args.data;
+            const changedValues: Record<string, unknown> = {};
+            const oldValues: Record<string, unknown> = {};
+            const newData = args.data as Record<string, unknown>;
 
             if (originalRecord) {
               for (const key in newData) {
@@ -147,10 +183,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'UPDATE',
               entity: model,
-              entityId:
-                'id' in result && typeof result.id === 'number'
-                  ? result.id
-                  : null,
+              entityId: extractEntityId(result),
               ipAddress,
               ...(originalRecord
                 ? {
@@ -178,24 +211,20 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
           if (SKIP_MODELS.includes(model)) return query(args);
 
           const inInteractiveTx = Boolean(activeAuditTxStorage.getStore());
-          let originalRecord = null;
+          let originalRecord: Record<string, unknown> | null = null;
           if (!inInteractiveTx) {
             try {
-              const lookupArgs = applyTenantPolicy(model, 'findUnique', {
-                where: { ...args.where },
-              });
-              originalRecord =
-                await rootPrisma[
-                  model[0].toLowerCase() + model.slice(1)
-                ].findUnique(lookupArgs);
-            } catch (e) {}
+              const where = args.where as Record<string, unknown> | undefined;
+              if (where) {
+                originalRecord = await findOriginal(model, where);
+              }
+            } catch {
+              // Safe fallback
+            }
           }
 
-          const result = await query(args);
-
-          const userId = cls.isActive() ? cls.get('userId') : null;
-          const hospitalId = cls.isActive() ? cls.get('hospitalId') : null;
-          const ipAddress = cls.isActive() ? cls.get('ipAddress') : null;
+          const result: unknown = await query(args);
+          const { userId, hospitalId, ipAddress } = getClsAuditContext(cls);
 
           const deletedSnapshot = originalRecord ?? result;
           if (userId && deletedSnapshot) {
@@ -204,10 +233,7 @@ export const auditExtension = (cls: ClsService, rootPrisma: any) => {
               hospitalId,
               action: 'DELETE',
               entity: model,
-              entityId:
-                'id' in result && typeof result.id === 'number'
-                  ? result.id
-                  : null,
+              entityId: extractEntityId(result),
               ipAddress,
               oldValues: sanitizeAuditData(
                 deletedSnapshot,

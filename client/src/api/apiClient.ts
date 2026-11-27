@@ -3,6 +3,7 @@ import { useAuthStore } from "../stores/authStore";
 
 export const apiClient = axios.create({
   baseURL: "/api",
+  timeout: 30000,
   withCredentials: true, // ✅ Important for Cookies
   headers: { "X-Client-Name": "saraya-web" },
 });

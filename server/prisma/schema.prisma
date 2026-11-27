@@ -712,6 +712,9 @@ model User {
   isTaxExempt               Boolean                    @default(false)
   isSocialInsuranceExempt   Boolean                    @default(false)
   biometricId               String?                    @db.VarChar(64)
+  mfaEnabled                Boolean                    @default(false)
+  mfaSecret                 String?
+  mfaVerifiedAt             DateTime?
   // hashedRefreshToken Removed
   jobRank                   JobRank?                   @default(GENERAL_PRACTITIONER)
   appointmentsAsDoctor      Appointment[]              @relation("DoctorAppointments")

@@ -1,22 +1,43 @@
-// Live HTTP smoke test against http://localhost:5173 (Vite proxy -> Backend port 3000)
+// Live HTTP/HTTPS smoke test against local dev (http://localhost:5173) or Ubuntu VM production demo
+// Usage:
+//   node scripts/smoke-demo.cjs
+//   node scripts/smoke-demo.cjs https://demo.example.com
+//   node scripts/smoke-demo.cjs --base-url=http://192.168.1.50 [--skip-license]
 const http = require('node:http');
+const https = require('node:https');
+
+const args = process.argv.slice(2);
+const baseUrlFlag = args.find((a) => a.startsWith('--base-url='))?.slice('--base-url='.length);
+const positionalUrl = args.find((a) => !a.startsWith('-'));
+const SKIP_LICENSE = args.includes('--skip-license');
+
+const BASE_URL = (baseUrlFlag || positionalUrl || process.env.DEMO_BASE_URL || 'http://localhost:5173').replace(/\/+$/, '');
+const BASE_ORIGIN = new URL(BASE_URL).origin;
 
 function request(urlStr, options = {}) {
   return new Promise((resolve, reject) => {
     const u = new URL(urlStr);
+    const transport = u.protocol === 'https:' ? https : http;
+    const method = options.method || 'GET';
     const bodyStr = options.body ? JSON.stringify(options.body) : null;
-    const req = http.request(
+    const headers = {
+      ...(bodyStr ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+      ...(options.cookie ? { Cookie: options.cookie } : {}),
+      ...(!options.omitOrigin && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase())
+        ? { Origin: BASE_ORIGIN }
+        : {}),
+      'X-Client-Name': 'saraya-demo-smoke',
+      ...(options.headers || {}),
+    };
+
+    const req = transport.request(
       {
         hostname: u.hostname,
-        port: u.port,
+        port: u.port ? Number(u.port) : undefined,
         path: u.pathname + u.search,
-        method: options.method || 'GET',
-        headers: {
-          ...(bodyStr ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
-          ...(options.cookie ? { Cookie: options.cookie } : {}),
-          'X-Client-Name': 'saraya-demo-smoke',
-        },
-        timeout: 10000,
+        method,
+        headers,
+        timeout: 15000,
       },
       (res) => {
         const chunks = [];
@@ -89,7 +110,7 @@ function assertSetCookieSize(res, context) {
 }
 
 async function login(username, password) {
-  const res = await request('http://localhost:5173/api/auth/login', {
+  const res = await request(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     body: { username, password },
   });
@@ -102,6 +123,7 @@ async function login(username, password) {
 }
 
 async function main() {
+  console.log(`Target Demo URL: ${BASE_URL}\n`);
   const results = [];
   const check = async (name, fn) => {
     try {
@@ -114,8 +136,8 @@ async function main() {
     }
   };
 
-  await check('Frontend HTML (http://localhost:5173/)', async () => {
-    const res = await request('http://localhost:5173/');
+  await check(`Frontend HTML (${BASE_URL}/)`, async () => {
+    const res = await request(`${BASE_URL}/`);
     if (res.status !== 200 || !res.text.includes('<!doctype html')) {
       throw new Error(`Expected 200 HTML, got ${res.status}`);
     }
@@ -123,31 +145,39 @@ async function main() {
   });
 
   await check('Backend Health (/api/health)', async () => {
-    const res = await request('http://localhost:5173/api/health');
+    const res = await request(`${BASE_URL}/api/health`);
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+    return `HTTP ${res.status}`;
+  });
+
+  await check('Backend Readiness (/api/health/ready — DB + Redis)', async () => {
+    const res = await request(`${BASE_URL}/api/health/ready`);
+    if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
     return `HTTP ${res.status}`;
   });
 
   const adminSession = await login('admin', 'admin123');
   const adminCookie = adminSession.cookie;
 
-  await check('License Status (ENTERPRISE bypass & full modules)', async () => {
-    const res = await request('http://localhost:5173/api/license/status', { cookie: adminCookie });
-    if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-    const data = unwrap(res.json);
-    if (!data?.isValid) throw new Error(`License not valid: ${JSON.stringify(data)}`);
-    const requiredModules = ['ACCOUNTS', 'HR', 'ASSETS', 'LAB', 'RADIOLOGY', 'PHARMACY', 'OBGYN', 'INSURANCE_INTEGRATION'];
-    const mods = Array.isArray(data.modules) ? data.modules : [];
-    const missingMods = requiredModules.filter((m) => !mods.includes(m));
-    if (missingMods.length > 0) {
-      throw new Error(`Missing modules in license status: ${missingMods.join(', ')}`);
-    }
-    return `${data.plan} / modules=${mods.length}`;
-  });
+  if (!SKIP_LICENSE) {
+    await check('License Status (ENTERPRISE & full modules)', async () => {
+      const res = await request(`${BASE_URL}/api/license/status`, { cookie: adminCookie });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      const data = unwrap(res.json);
+      if (!data?.isValid) throw new Error(`License not valid: ${JSON.stringify(data)}`);
+      const requiredModules = ['ACCOUNTS', 'HR', 'ASSETS', 'LAB', 'RADIOLOGY', 'PHARMACY', 'OBGYN', 'INSURANCE_INTEGRATION'];
+      const mods = Array.isArray(data.modules) ? data.modules : [];
+      const missingMods = requiredModules.filter((m) => !mods.includes(m));
+      if (missingMods.length > 0) {
+        throw new Error(`Missing modules in license status: ${missingMods.join(', ')}`);
+      }
+      return `${data.plan} / modules=${mods.length}`;
+    });
+  }
 
   await check('Admin Cookie Size (< 3800 bytes) & Refresh', async () => {
     assertSetCookieSize({ headers: { 'set-cookie': adminSession.setCookieHeaders } }, 'admin login');
-    const rf = await request('http://localhost:5173/api/auth/refresh', {
+    const rf = await request(`${BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       cookie: adminCookie,
     });
@@ -159,10 +189,42 @@ async function main() {
     return 'All Set-Cookie headers < 3800 bytes';
   });
 
+  await check('Staff MFA Status & Sessions Endpoint (/api/auth/mfa/status & /sessions)', async () => {
+    const mfaRes = await request(`${BASE_URL}/api/auth/mfa/status`, { cookie: adminSession.cookie });
+    if (mfaRes.status !== 200) throw new Error(`/auth/mfa/status HTTP ${mfaRes.status}`);
+    const mfaData = unwrap(mfaRes.json);
+    if (typeof mfaData?.mfaEnabled !== 'boolean') {
+      throw new Error(`Expected boolean mfaEnabled, got ${JSON.stringify(mfaData)}`);
+    }
+
+    const sessRes = await request(`${BASE_URL}/api/auth/sessions`, { cookie: adminSession.cookie });
+    if (sessRes.status !== 200) throw new Error(`/auth/sessions HTTP ${sessRes.status}`);
+    const sessData = unwrap(sessRes.json);
+    if (typeof sessData?.mfaEnabled !== 'boolean' || !Array.isArray(sessData?.sessions)) {
+      throw new Error(`Invalid sessions contract: ${JSON.stringify(sessData)}`);
+    }
+    return `mfaEnabled=${mfaData.mfaEnabled}, sessions=${sessData.sessions.length}`;
+  });
+
+  await check('CSRF Origin Guard (rejects Sec-Fetch-Site: cross-site cookie mutation)', async () => {
+    const csrfRes = await request(`${BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      cookie: adminSession.cookie,
+      omitOrigin: true,
+      headers: {
+        'Sec-Fetch-Site': 'cross-site',
+      },
+    });
+    if (csrfRes.status !== 403) {
+      throw new Error(`Expected HTTP 403 from CsrfOriginGuard, got ${csrfRes.status}: ${csrfRes.text}`);
+    }
+    return 'Cross-site cookie mutation blocked with 403';
+  });
+
   const activeAdminCookie = adminSession.cookie;
 
   await check('Organization Settings (/api/settings/organization)', async () => {
-    const res = await request('http://localhost:5173/api/settings/organization', { cookie: activeAdminCookie });
+    const res = await request(`${BASE_URL}/api/settings/organization`, { cookie: activeAdminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
     const data = unwrap(res.json);
     if (!data?.displayName) throw new Error(`Missing displayName: ${JSON.stringify(data)}`);
@@ -170,7 +232,7 @@ async function main() {
   });
 
   await check('Admin Notifications (/api/notifications)', async () => {
-    const res = await request('http://localhost:5173/api/notifications', { cookie: activeAdminCookie });
+    const res = await request(`${BASE_URL}/api/notifications`, { cookie: activeAdminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
     const data = unwrap(res.json);
     if (!Array.isArray(data) || data.length < 1) {
@@ -189,6 +251,8 @@ async function main() {
     ['Blood Bank Inventory', '/api/blood-bank/inventory'],
     ['Radiology Worklist', '/api/radiology/worklist'],
     ['Pharmacy Worklist', '/api/pharmacy/worklist'],
+    ['OB-GYN Antenatal Care List', '/api/obgyn/anc'],
+    ['Fertility Cases List', '/api/fertility/cases'],
     ['Surgery Cases', '/api/surgery/cases'],
     ['Surgical Packages', '/api/surgery/packages'],
     ['Billing Invoices', '/api/billing/invoices'],
@@ -201,7 +265,7 @@ async function main() {
 
   for (const [label, path] of endpoints) {
     await check(label, async () => {
-      const res = await request(`http://localhost:5173${path}`, { cookie: activeAdminCookie });
+      const res = await request(`${BASE_URL}${path}`, { cookie: activeAdminCookie });
       if (res.status !== 200) {
         throw new Error(`HTTP ${res.status}: ${res.text.slice(0, 200)}`);
       }
@@ -216,7 +280,7 @@ async function main() {
   }
 
   await check('Audit Integrity Chain (/api/audit/integrity-check)', async () => {
-    const res = await request('http://localhost:5173/api/audit/integrity-check', { cookie: activeAdminCookie });
+    const res = await request(`${BASE_URL}/api/audit/integrity-check`, { cookie: activeAdminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
     const data = unwrap(res.json);
     if (!data?.valid) throw new Error(`Audit chain invalid: ${JSON.stringify(data)}`);
@@ -230,7 +294,7 @@ async function main() {
     const main = branches.find((b) => b.code === 'MAIN');
     if (!ben || !main) throw new Error(`Branches missing: ${JSON.stringify(branches)}`);
 
-    const sw1 = await request('http://localhost:5173/api/auth/switch-branch', {
+    const sw1 = await request(`${BASE_URL}/api/auth/switch-branch`, {
       method: 'POST',
       cookie: activeAdminCookie,
       body: { targetHospitalId: ben.id },
@@ -241,7 +305,7 @@ async function main() {
     assertSetCookieSize(sw1, 'switch-branch -> BEN-01');
     const c2 = mergeCookies(activeAdminCookie, sw1.headers['set-cookie']);
 
-    const sw2 = await request('http://localhost:5173/api/auth/switch-branch', {
+    const sw2 = await request(`${BASE_URL}/api/auth/switch-branch`, {
       method: 'POST',
       cookie: c2,
       body: { targetHospitalId: main.id },
@@ -257,7 +321,7 @@ async function main() {
   await check('Doctor Functional Flow (dr_ahmed dashboard, notifications, patients)', async () => {
     const doc = await login('dr_ahmed', '123456');
     for (const p of ['/api/dashboard/stats?period=month', '/api/notifications', '/api/patients']) {
-      const r = await request(`http://localhost:5173${p}`, { cookie: doc.cookie });
+      const r = await request(`${BASE_URL}${p}`, { cookie: doc.cookie });
       if (r.status !== 200) {
         throw new Error(`dr_ahmed GET ${p} failed: HTTP ${r.status} ${r.text.slice(0, 200)}`);
       }

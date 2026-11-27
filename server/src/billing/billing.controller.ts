@@ -24,6 +24,7 @@ import { PdfService } from '../pdf/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PatientDepositService } from './patient-deposit.service';
 import { AuditInTransaction } from '../audit/audit.decorator';
+import { Money } from '../common/utils/money.util';
 import {
   CreatePatientDepositDto,
   ApplyDepositDto,
@@ -244,7 +245,22 @@ export class BillingController {
       printHeaderFooter: hospital?.printHeaderFooter ?? true, // ✅
     };
 
-    const insuranceShare = Number(invoiceData.invoice.insuranceShare || 0);
+    const insuranceShareDec = Money.decimal(
+      invoiceData.invoice.insuranceShare ?? 0,
+    );
+    const totalAmountDec = Money.decimal(invoiceData.invoice.totalAmount ?? 0);
+    const discountAmountDec = Money.decimal(
+      invoiceData.invoice.discountAmount ?? 0,
+    );
+    const paidAmountDec = Money.decimal(invoiceData.invoice.paidAmount ?? 0);
+    const netAmountDec = Money.subtractDecimal(
+      totalAmountDec,
+      discountAmountDec,
+    );
+    const remainingAmountDec = Money.subtractDecimal(
+      netAmountDec,
+      paidAmountDec,
+    );
 
     // 3. Prepare Data for Template
     const pdfData = {
@@ -265,28 +281,23 @@ export class BillingController {
       // Patient data (flat structure for template)
       patientName: String(invoiceData.patient.fullName || ''),
       mrn: String(invoiceData.patient.mrn || ''),
-      insuranceProvider: insuranceShare > 0 ? 'تأمين' : 'نقدي (مريض)',
+      insuranceProvider: insuranceShareDec.gt(0) ? 'تأمين' : 'نقدي (مريض)',
 
       // Items data
       items: invoiceData.charges.map((c) => ({
         serviceName: String(c.serviceItem.name || ''),
         code: c.serviceItem.code ? String(c.serviceItem.code) : null,
         quantity: Number(c.quantity || 0),
-        unitPrice: Number(c.unitPrice || 0),
-        totalAmount: Number(c.totalAmount || 0),
+        unitPrice: Money.toUnitDb(c.unitPrice ?? 0),
+        totalAmount: Money.toDb(c.totalAmount ?? 0),
       })),
 
       // Totals
-      totalAmount: Number(invoiceData.invoice.totalAmount || 0),
-      discountAmount: Number(invoiceData.invoice.discountAmount || 0),
-      netAmount:
-        Number(invoiceData.invoice.totalAmount || 0) -
-        Number(invoiceData.invoice.discountAmount || 0),
-      paidAmount: Number(invoiceData.invoice.paidAmount || 0),
-      remainingAmount:
-        Number(invoiceData.invoice.totalAmount || 0) -
-        Number(invoiceData.invoice.discountAmount || 0) -
-        Number(invoiceData.invoice.paidAmount || 0),
+      totalAmount: Money.toDb(totalAmountDec),
+      discountAmount: Money.toDb(discountAmountDec),
+      netAmount: Money.toDb(netAmountDec),
+      paidAmount: Money.toDb(paidAmountDec),
+      remainingAmount: Money.toDb(remainingAmountDec),
 
       currentDateTime: new Date(),
     };

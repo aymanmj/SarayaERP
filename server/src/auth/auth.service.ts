@@ -3,6 +3,7 @@ import {
   Injectable,
   ConflictException,
   ForbiddenException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -11,6 +12,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { VaultService } from '../common/vault/vault.service';
+import { EncryptionService } from '../common/encryption/encryption.service';
+import { LoginLockoutStore } from '../common/security/redis-throttler.storage';
 import type { Prisma } from '@prisma/client';
 import type { JwtPayload } from './jwt-payload.type';
 import {
@@ -21,21 +24,108 @@ import {
   revokeStaffDevice,
   staffSessionFilter,
 } from './staff-session-lock';
+import {
+  buildOtpAuthUri,
+  generateBase32Secret,
+  verifyTotpCode,
+} from './totp.util';
+
+type FailedLoginAttempt = {
+  count: number;
+  firstFailedAt: number;
+  lockedUntil: number;
+};
+
+const LOGIN_LOCKOUT_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly failedAttempts = new Map<string, FailedLoginAttempt>();
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private vaultService: VaultService,
     private readonly events: EventEmitter2,
+    @Optional() private readonly encryptionService?: EncryptionService,
+    @Optional() private readonly lockoutStore?: LoginLockoutStore,
   ) {}
 
+  private isLockoutDisabled(): boolean {
+    return (
+      process.env.DISABLE_THROTTLER === 'true' &&
+      process.env.NODE_ENV !== 'production'
+    );
+  }
+
+  private async assertNotLockedOut(usernameKey: string): Promise<void> {
+    if (this.isLockoutDisabled()) return;
+    if (this.lockoutStore) {
+      if (await this.lockoutStore.isLockedOut(usernameKey)) {
+        throw new UnauthorizedException(
+          'تم قفل الحساب مؤقتاً بعد عدة محاولات دخول فاشلة. يرجى المحاولة لاحقاً.',
+        );
+      }
+      return;
+    }
+    const entry = this.failedAttempts.get(usernameKey);
+    if (!entry) return;
+    const now = Date.now();
+    if (entry.lockedUntil > now) {
+      throw new UnauthorizedException(
+        'تم قفل الحساب مؤقتاً بعد عدة محاولات دخول فاشلة. يرجى المحاولة لاحقاً.',
+      );
+    }
+    if (now - entry.firstFailedAt > LOGIN_LOCKOUT_WINDOW_MS) {
+      this.failedAttempts.delete(usernameKey);
+    }
+  }
+
+  private async recordFailedLogin(usernameKey: string): Promise<void> {
+    if (this.isLockoutDisabled()) return;
+    if (this.lockoutStore) {
+      await this.lockoutStore.recordFailure(usernameKey);
+      return;
+    }
+    const now = Date.now();
+    const prev = this.failedAttempts.get(usernameKey);
+    if (!prev || now - prev.firstFailedAt > LOGIN_LOCKOUT_WINDOW_MS) {
+      this.failedAttempts.set(usernameKey, {
+        count: 1,
+        firstFailedAt: now,
+        lockedUntil: 0,
+      });
+      return;
+    }
+    const nextCount = prev.count + 1;
+    this.failedAttempts.set(usernameKey, {
+      count: nextCount,
+      firstFailedAt: prev.firstFailedAt,
+      lockedUntil:
+        nextCount >= LOGIN_LOCKOUT_MAX_ATTEMPTS
+          ? now + LOGIN_LOCKOUT_DURATION_MS
+          : 0,
+    });
+  }
+
+  private async clearFailedLogin(usernameKey: string): Promise<void> {
+    if (this.lockoutStore) {
+      await this.lockoutStore.clear(usernameKey);
+    }
+    this.failedAttempts.delete(usernameKey);
+  }
+
   // التحقق من المستخدم (تسجيل الدخول)
-  async validateUser(username: string, password: string) {
+  async validateUser(username: string, password: string, mfaCode?: string) {
+    const usernameKey = username.trim().toLowerCase();
+    await this.assertNotLockedOut(usernameKey);
+
     const user = await this.prisma.user.findUnique({
       where: { username },
+      omit: { passwordHash: false, mfaSecret: false },
       include: {
         hospital: {
           include: {
@@ -67,13 +157,35 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive || user.isDeleted)
+    if (!user || !user.isActive || user.isDeleted) {
+      await this.recordFailedLogin(usernameKey);
       throw new UnauthorizedException('بيانات غير صحيحة');
-    if (!user.hospital?.isActive)
+    }
+    if (!user.hospital?.isActive) {
+      await this.recordFailedLogin(usernameKey);
       throw new UnauthorizedException('المنشأة غير مفعلة');
+    }
 
     const passwordOk = await bcrypt.compare(password, user.passwordHash);
-    if (!passwordOk) throw new UnauthorizedException('بيانات غير صحيحة');
+    if (!passwordOk) {
+      await this.recordFailedLogin(usernameKey);
+      throw new UnauthorizedException('بيانات غير صحيحة');
+    }
+
+    if (user.mfaEnabled) {
+      if (!mfaCode || !mfaCode.trim()) {
+        throw new UnauthorizedException('MFA_REQUIRED');
+      }
+      const decryptedSecret = user.mfaSecret
+        ? this.encryptionService?.decrypt(user.mfaSecret) || user.mfaSecret
+        : '';
+      if (!decryptedSecret || !verifyTotpCode(decryptedSecret, mfaCode)) {
+        await this.recordFailedLogin(usernameKey);
+        throw new UnauthorizedException('رمز التحقق الثنائي (2FA) غير صحيح');
+      }
+    }
+
+    await this.clearFailedLogin(usernameKey);
 
     const roles = user.userRoles.map((ur) => ur.role.name);
     const permissions = Array.from(
@@ -218,8 +330,8 @@ export class AuthService {
     return `${record.id}.${prepared.token}`;
   }
 
-  async login(username: string, password: string) {
-    const user = await this.validateUser(username, password);
+  async login(username: string, password: string, mfaCode?: string) {
+    const user = await this.validateUser(username, password, mfaCode);
     const prepared = await this.prepareRefreshToken();
     const tokens = await this.prisma.$transaction(async (tx) => {
       const current = await lockStaffUser(tx, user.id);
@@ -265,13 +377,110 @@ export class AuthService {
         ),
       };
     });
-    const { passwordHash: credentialHash, ...safeUser } = user;
+    const {
+      passwordHash: credentialHash,
+      mfaSecret: storedMfaSecret,
+      ...safeUser
+    } = user;
     void credentialHash;
+    void storedMfaSecret;
     return {
       ...tokens,
       user: safeUser,
       accessibleBranches: user.accessibleBranches,
     };
+  }
+
+  async setupMfa(actor: JwtPayload) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { id: true, username: true, isActive: true, isDeleted: true },
+    });
+    if (!user || !user.isActive || user.isDeleted) {
+      throw new UnauthorizedException('المستخدم غير نشط');
+    }
+
+    const secret = generateBase32Secret();
+    const encryptedSecret = this.encryptionService
+      ? this.encryptionService.encrypt(secret)
+      : secret;
+
+    await this.prisma.user.update({
+      where: { id: actor.sub },
+      data: {
+        mfaSecret: encryptedSecret,
+        mfaEnabled: false,
+      },
+    });
+
+    return {
+      secret,
+      otpauthUrl: buildOtpAuthUri({
+        issuer: 'SarayaERP',
+        accountName: user.username,
+        secret,
+      }),
+    };
+  }
+
+  async enableMfa(actor: JwtPayload, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { id: true, mfaSecret: true, isActive: true, isDeleted: true },
+    });
+    if (!user || !user.isActive || user.isDeleted || !user.mfaSecret) {
+      throw new UnauthorizedException('يرجى بدء إعداد التحقق الثنائي أولاً');
+    }
+
+    const plainSecret = this.encryptionService
+      ? this.encryptionService.decrypt(user.mfaSecret)
+      : user.mfaSecret;
+    if (!plainSecret || !verifyTotpCode(plainSecret, code)) {
+      throw new UnauthorizedException('رمز التحقق الثنائي (2FA) غير صحيح');
+    }
+
+    await this.prisma.user.update({
+      where: { id: actor.sub },
+      data: { mfaEnabled: true, mfaVerifiedAt: new Date() },
+    });
+
+    return { mfaEnabled: true };
+  }
+
+  async disableMfa(actor: JwtPayload, password: string, code: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: {
+        id: true,
+        passwordHash: true,
+        mfaEnabled: true,
+        mfaSecret: true,
+        isActive: true,
+        isDeleted: true,
+      },
+    });
+    if (!user || !user.isActive || user.isDeleted) {
+      throw new UnauthorizedException('المستخدم غير نشط');
+    }
+    const passwordOk = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordOk) {
+      throw new UnauthorizedException('كلمة المرور غير صحيحة');
+    }
+    if (user.mfaEnabled && user.mfaSecret) {
+      const plainSecret = this.encryptionService
+        ? this.encryptionService.decrypt(user.mfaSecret)
+        : user.mfaSecret;
+      if (!plainSecret || !verifyTotpCode(plainSecret, code)) {
+        throw new UnauthorizedException('رمز التحقق الثنائي (2FA) غير صحيح');
+      }
+    }
+
+    await this.prisma.user.update({
+      where: { id: actor.sub },
+      data: { mfaEnabled: false, mfaSecret: null, mfaVerifiedAt: null },
+    });
+
+    return { mfaEnabled: false };
   }
 
   switchBranch(
@@ -300,22 +509,39 @@ export class AuthService {
     return true;
   }
 
-  async listDeviceSessions(actor: JwtPayload) {
-    const sessions = await this.prisma.staffSession.findMany({
-      where: {
-        userId: actor.sub,
-        authVersion: actor.authVersion,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      select: {
-        id: true,
-        activeBranchId: true,
-        createdAt: true,
-        lastRenewedAt: true,
-      },
-      orderBy: [{ lastRenewedAt: 'desc' }, { id: 'asc' }],
+  async getMfaStatus(actor: JwtPayload) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: actor.sub },
+      select: { mfaEnabled: true, mfaVerifiedAt: true },
     });
+    return {
+      mfaEnabled: Boolean(user?.mfaEnabled),
+      mfaVerifiedAt: user?.mfaVerifiedAt ?? null,
+    };
+  }
+
+  async listDeviceSessions(actor: JwtPayload) {
+    const [sessions, userAccount] = await Promise.all([
+      this.prisma.staffSession.findMany({
+        where: {
+          userId: actor.sub,
+          authVersion: actor.authVersion,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        select: {
+          id: true,
+          activeBranchId: true,
+          createdAt: true,
+          lastRenewedAt: true,
+        },
+        orderBy: [{ lastRenewedAt: 'desc' }, { id: 'asc' }],
+      }),
+      this.prisma.user.findUnique({
+        where: { id: actor.sub },
+        select: { mfaEnabled: true },
+      }),
+    ]);
     const branches = await this.prisma.hospital.findMany({
       where: {
         id: {
@@ -334,6 +560,7 @@ export class AuthService {
     );
     return {
       userId: actor.sub,
+      mfaEnabled: Boolean(userAccount?.mfaEnabled),
       sessions: sessions.map(({ activeBranchId, ...session }) => ({
         ...session,
         branchName: names.get(activeBranchId) ?? null,

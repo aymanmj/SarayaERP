@@ -22,6 +22,7 @@ import { SystemSettingsService } from '../system-settings/system-settings.servic
 import { PriceListsService } from '../price-lists/price-lists.service';
 import { AccountingService } from '../accounting/accounting.service';
 import { ServicesService } from '../services/services.service';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class EncountersService {
@@ -123,7 +124,7 @@ export class EncountersService {
                 policyId,
               );
 
-            let totalChargePrice = 0;
+            let totalChargeDec = Money.decimal(0);
             const chargeIds: number[] = [];
 
             for (const expItem of explodedItems) {
@@ -131,6 +132,10 @@ export class EncountersService {
                 hospitalId,
                 expItem.serviceItemId,
                 policyId,
+              );
+              const unitPriceDec = Money.decimal(itemPrice);
+              const lineTotalDec = Money.roundDecimal(
+                unitPriceDec.mul(expItem.quantity),
               );
 
               const charge = await tx.encounterCharge.create({
@@ -140,28 +145,32 @@ export class EncountersService {
                   serviceItemId: expItem.serviceItemId,
                   sourceType: ChargeSource.MANUAL,
                   quantity: expItem.quantity,
-                  unitPrice: itemPrice,
-                  totalAmount: itemPrice * expItem.quantity,
+                  unitPrice: Money.toUnitDbString(unitPriceDec),
+                  totalAmount: Money.toDbString(lineTotalDec),
                   performerId: doctorId ?? null,
                 },
               });
 
               chargeIds.push(charge.id);
-              totalChargePrice += itemPrice * expItem.quantity;
+              totalChargeDec = Money.addDecimal(totalChargeDec, lineTotalDec);
             }
 
-            // حساب حصص الدفع (مريض / تأمين) على إجمالي البنود
-            let patientShare = totalChargePrice;
-            let insuranceShare = 0;
+            // حساب حصص الدفع (مريض / تأمين) بدقة 3 خانات عشرية
+            let patientShareDec = totalChargeDec;
+            let insuranceShareDec = Money.decimal(0);
             let insuranceProviderId: number | null = null;
 
             if (patient.insurancePolicy?.isActive) {
-              const copayRate =
-                Number(patient.insurancePolicy.patientCopayRate || 0) / 100;
-              patientShare =
-                Math.round(totalChargePrice * copayRate * 100) / 100;
-              insuranceShare =
-                Math.round((totalChargePrice - patientShare) * 100) / 100;
+              const copayRateDec = Money.decimal(
+                patient.insurancePolicy.patientCopayRate || 0,
+              ).div(100);
+              patientShareDec = Money.roundDecimal(
+                totalChargeDec.mul(copayRateDec),
+              );
+              insuranceShareDec = Money.subtractDecimal(
+                totalChargeDec,
+                patientShareDec,
+              );
               insuranceProviderId = patient.insurancePolicy.insuranceProviderId;
             }
 
@@ -179,12 +188,12 @@ export class EncountersService {
                   patientId,
                   encounterId: encounter.id,
                   status: InvoiceStatus.ISSUED,
-                  totalAmount: totalChargePrice,
-                  discountAmount: 0,
-                  paidAmount: 0,
+                  totalAmount: Money.toDbString(totalChargeDec),
+                  discountAmount: Money.toDbString(Money.decimal(0)),
+                  paidAmount: Money.toDbString(Money.decimal(0)),
                   currency: 'LYD',
-                  patientShare,
-                  insuranceShare,
+                  patientShare: Money.toDbString(patientShareDec),
+                  insuranceShare: Money.toDbString(insuranceShareDec),
                   insuranceProviderId,
                   financialYearId: financialYear.id,
                   financialPeriodId: period.id,
@@ -198,12 +207,16 @@ export class EncountersService {
               });
 
               this.logger.log(
-                `✅ ER Auto-Billing: Invoice #${invoice.id} created for encounter #${encounter.id} (${totalChargePrice} LYD)`,
+                `✅ ER Auto-Billing: Invoice #${invoice.id} created for encounter #${encounter.id} (${Money.toDbString(totalChargeDec)} LYD)`,
               );
-            } catch (invoiceErr) {
+            } catch (invoiceErr: unknown) {
               // الفاتورة فشلت (فترة مالية مغلقة مثلاً) — البند يبقى بدون فاتورة
+              const errMsg =
+                invoiceErr instanceof Error
+                  ? invoiceErr.message
+                  : String(invoiceErr);
               this.logger.warn(
-                `⚠️ ER charge created but invoice failed for encounter #${encounter.id}: ${invoiceErr.message}`,
+                `⚠️ ER charge created but invoice failed for encounter #${encounter.id}: ${errMsg}`,
               );
             }
           } else {
@@ -211,10 +224,14 @@ export class EncountersService {
               `⚠️ ER-VISIT service item not found. Skipping auto-billing for encounter #${encounter.id}.`,
             );
           }
-        } catch (billingErr) {
+        } catch (billingErr: unknown) {
           // لا نمنع فتح حالة الطوارئ بسبب فشل الفوترة
+          const errMsg =
+            billingErr instanceof Error
+              ? billingErr.message
+              : String(billingErr);
           this.logger.error(
-            `❌ ER Auto-Billing failed for encounter #${encounter.id}: ${billingErr.message}`,
+            `❌ ER Auto-Billing failed for encounter #${encounter.id}: ${errMsg}`,
           );
         }
       }
@@ -354,26 +371,24 @@ export class EncountersService {
 
       // 2. التحقق المالي (Financial Clearance)
       // يجب أن يكون المريض قد دفع حصته بالكامل في كل الفواتير الصادرة
-      let totalPatientDebt = 0;
+      let totalPatientDebt = Money.decimal(0);
+      const debtLimitDec = Money.decimal(debtLimit);
 
       for (const inv of encounter.invoices) {
         if (inv.status === 'CANCELLED') continue;
 
-        // المبلغ المطلوب من المريض = حصته - ما دفعه
-        // (إذا كانت الفاتورة نقدي، patientShare سيكون يساوي totalAmount كما ضبطنا سابقاً)
-        const patientShare = Number(inv.patientShare);
-        const paid = Number(inv.paidAmount);
-
-        const remaining = patientShare - paid;
-        if (remaining > debtLimit) {
-          // سماحية بسيطة للكسور
-          totalPatientDebt += remaining;
+        const remaining = Money.subtractDecimal(
+          inv.patientShare,
+          inv.paidAmount,
+        );
+        if (remaining.gt(debtLimitDec)) {
+          totalPatientDebt = Money.addDecimal(totalPatientDebt, remaining);
         }
       }
 
-      if (totalPatientDebt > debtLimit) {
+      if (totalPatientDebt.gt(debtLimitDec)) {
         throw new BadRequestException(
-          `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${totalPatientDebt.toFixed(3)} دينار. يرجى السداد أولاً (الحد المسموح به: ${debtLimit}).`,
+          `لا يمكن إجراء الخروج. يوجد مستحقات مالية على المريض بقيمة ${Money.toDbString(totalPatientDebt)} دينار. يرجى السداد أولاً (الحد المسموح به: ${debtLimit}).`,
         );
       }
 

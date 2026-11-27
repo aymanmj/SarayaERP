@@ -11,6 +11,8 @@ describe('AuthController', () => {
     login: jest.Mock;
     logout: jest.Mock;
     refreshTokens: jest.Mock;
+    getMfaStatus: jest.Mock;
+    enableMfa: jest.Mock;
   };
   const originalNodeEnv = process.env.NODE_ENV;
   const originalCookieSecure = process.env.COOKIE_SECURE;
@@ -20,6 +22,11 @@ describe('AuthController', () => {
       login: jest.fn(),
       logout: jest.fn(),
       refreshTokens: jest.fn(),
+      getMfaStatus: jest.fn().mockResolvedValue({
+        mfaEnabled: true,
+        mfaVerifiedAt: null,
+      }),
+      enableMfa: jest.fn().mockResolvedValue({ mfaEnabled: true }),
     };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
@@ -94,5 +101,23 @@ describe('AuthController', () => {
       sameSite: 'lax',
       path: '/',
     });
+  });
+
+  it('returns MFA status and forwards valid MFA enable requests', async () => {
+    const user: JwtPayload = {
+      sub: 42,
+      username: 'doctor1',
+      hospitalId: 1,
+      roles: ['DOCTOR'],
+      permissions: [],
+    };
+    await expect(controller.mfaStatus(user)).resolves.toEqual({
+      mfaEnabled: true,
+      mfaVerifiedAt: null,
+    });
+    await expect(
+      controller.enableMfa(user, { code: '123456' }),
+    ).resolves.toEqual({ mfaEnabled: true });
+    expect(authService.enableMfa).toHaveBeenCalledWith(user, '123456');
   });
 });

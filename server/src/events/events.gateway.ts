@@ -191,6 +191,7 @@ export class EventsGateway
         {
           secret,
           issuer: 'saraya-staff',
+          algorithms: ['HS256'],
         },
       );
 

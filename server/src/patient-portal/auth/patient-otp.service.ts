@@ -51,6 +51,10 @@ export interface OtpChannel {
   send(recipient: OtpRecipientInfo, code: string): Promise<boolean>;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // ===========================================
 // Console Channel (Development)
 // ===========================================
@@ -58,9 +62,9 @@ class ConsoleOtpChannel implements OtpChannel {
   readonly name = 'console';
   private readonly logger = new Logger('OTP-Console');
 
-  async send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
+  send(recipient: OtpRecipientInfo, code: string): Promise<boolean> {
     if (!['development', 'test'].includes(process.env.NODE_ENV || '')) {
-      return false;
+      return Promise.resolve(false);
     }
     this.logger.warn(
       `\n` +
@@ -73,7 +77,7 @@ class ConsoleOtpChannel implements OtpChannel {
         `║  Expires: 5 minutes                        ║\n` +
         `╚════════════════════════════════════════════╝`,
     );
-    return true;
+    return Promise.resolve(true);
   }
 }
 
@@ -120,9 +124,9 @@ class TelegramOtpChannel implements OtpChannel {
         return true;
       }
       return false;
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.logger.error(
-        `❌ Failed to send Telegram OTP. Error: ${error.message}`,
+        `❌ Failed to send Telegram OTP. Error: ${getErrorMessage(error)}`,
       );
       return false;
     }
@@ -145,7 +149,7 @@ class EmailOtpChannel implements OtpChannel {
     const host = process.env.SMTP_HOST;
     const port = parseInt(process.env.SMTP_PORT || '587', 10);
     const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+    const pass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
     const from = process.env.SMTP_FROM || 'noreply@sarayaerp.com';
 
     if (!host || !user || !pass) {
@@ -156,7 +160,8 @@ class EmailOtpChannel implements OtpChannel {
     }
 
     try {
-      this.logger.log(`📨 Sending Email OTP to: ${recipient.email}`);
+      const maskedEmail = recipient.email.replace(/(^.).*(@.*$)/, '$1***$2');
+      this.logger.log(`📨 Sending Email OTP to: ${maskedEmail}`);
 
       const transporter = nodemailer.createTransport({
         host,
@@ -181,8 +186,10 @@ class EmailOtpChannel implements OtpChannel {
 
       this.logger.log(`✅ Email OTP successfully dispatched.`);
       return true;
-    } catch (error: any) {
-      this.logger.error(`❌ Failed to send Email OTP. Error: ${error.message}`);
+    } catch (error: unknown) {
+      this.logger.error(
+        `❌ Failed to send Email OTP. Error: ${getErrorMessage(error)}`,
+      );
       return false;
     }
   }
@@ -230,7 +237,7 @@ export class PatientOtpService implements OnModuleInit {
           `⚠️ TELEGRAM_BOT_TOKEN not configured — Telegram OTP channel disabled`,
         );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Vault failed — try process.env as last resort
       const fallback = process.env.TELEGRAM_BOT_TOKEN;
       if (fallback) {
@@ -240,7 +247,7 @@ export class PatientOtpService implements OnModuleInit {
         );
       } else {
         this.logger.warn(
-          `⚠️ Failed to load Telegram Bot Token: ${err.message}`,
+          `⚠️ Failed to load Telegram Bot Token: ${getErrorMessage(err)}`,
         );
       }
     }
@@ -260,9 +267,7 @@ export class PatientOtpService implements OnModuleInit {
     const cleanMrn = mrn?.trim() || '';
     const cleanPhone = phone?.trim().replace(/\s+/g, '') || '';
 
-    this.logger.debug(
-      `Searching for patient - MRN: '${cleanMrn}', Phone: '${cleanPhone}'`,
-    );
+    this.logger.debug(`Processing patient OTP lookup request`);
 
     // 1. Find patient by MRN (case-insensitive)
     const patient = await this.prisma.patient.findFirst({
@@ -284,7 +289,7 @@ export class PatientOtpService implements OnModuleInit {
 
     if (!patient) {
       this.logger.warn(
-        `Failed login attempt - MRN: '${cleanMrn}' not found or inactive.`,
+        `Failed OTP login attempt: patient record not found or inactive.`,
       );
       throw new UnauthorizedException(
         'بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.',
@@ -299,7 +304,7 @@ export class PatientOtpService implements OnModuleInit {
 
     if (!dbPhone.endsWith(inputPhone) || inputPhone.length < 6) {
       this.logger.warn(
-        `Failed login attempt - MRN: '${cleanMrn}' exists, but phone mismatch. DB Phone (digits only): '${dbPhone}', Input: '${inputPhone}'`,
+        `Failed OTP login attempt: phone mismatch for patientId=${patient.id}.`,
       );
       throw new UnauthorizedException(
         'بيانات غير صحيحة. تأكد من رقم الملف ورقم الهاتف.',

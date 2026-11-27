@@ -1,0 +1,26 @@
+# ==============================================================================
+# SarayaERP — PostgreSQL Point-in-Time Recovery (PITR / WAL Archiving) Template
+# Mount/include inside postgresql.conf or pass via -c flags in production when
+# enabling continuous WAL archiving to off-box immutable backup storage.
+# ==============================================================================
+
+# Enable streaming/archive-capable WAL level
+wal_level = replica
+
+# Turn on continuous WAL archiving
+archive_mode = on
+
+# Atomic write to mounted archive volume (never overwrite existing WAL segments)
+archive_command = 'test ! -f /backups/wal/%f && cp %p /backups/wal/%f'
+
+# Force WAL switch every 5 minutes on quiet hospitals so RPO <= 5 minutes
+archive_timeout = 300
+
+# Allow standby replicas / pg_basebackup streams
+max_wal_senders = 5
+max_replication_slots = 5
+wal_keep_size = '512MB'
+
+# Checksums & crash safety
+full_page_writes = on
+synchronous_commit = on

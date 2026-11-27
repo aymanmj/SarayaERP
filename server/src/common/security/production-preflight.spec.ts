@@ -114,4 +114,14 @@ describe('Production Go-Live Preflight Gate (OPS06 / OPS07 / OPS08 / CAP11)', ()
     expect(weak.errors.some((e) => e.includes('CORS_ORIGINS'))).toBe(true);
     expect(weak.errors.some((e) => e.includes('AV_SCANNER_MODE'))).toBe(true);
   });
+
+  it('fails closed if production compose introduces runtime apk add package downloads', () => {
+    const onlineDependentCompose = `${realCompose}\n      apk add --no-cache curl jq\n`;
+    const res = preflight.runProductionPreflight({
+      composeText: onlineDependentCompose,
+      nginxText: realNginx,
+    });
+    expect(res.passed).toBe(false);
+    expect(res.errors.some((e) => e.includes('apk add'))).toBe(true);
+  });
 });

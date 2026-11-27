@@ -35,7 +35,25 @@
     "cancel": "Cancel",
     "ending": "Ending session",
     "ended": "Session ended.",
-    "endError": "Could not confirm that the session ended. You can try again."
+    "endError": "Could not confirm that the session ended. You can try again.",
+    "mfa": {
+      "title": "Two-Factor Authentication (TOTP 2FA)",
+      "subtitle": "Protect staff access with a rotating 6-digit authenticator code.",
+      "enabledBadge": "Enabled",
+      "disabledBadge": "Disabled",
+      "enableStart": "Set up 2FA",
+      "secretLabel": "Add this secret key to your authenticator app (Google Authenticator / Authy):",
+      "codeLabel": "6-digit verification code",
+      "confirmEnable": "Enable 2FA",
+      "disableStart": "Disable 2FA",
+      "passwordLabel": "Current password",
+      "confirmDisable": "Confirm disable",
+      "enabledSuccess": "Two-factor authentication has been enabled.",
+      "disabledSuccess": "Two-factor authentication has been disabled.",
+      "invalidCode": "Verification code is invalid or expired.",
+      "disableError": "Could not disable 2FA; check your password and code.",
+      "actionError": "Could not process the 2FA request."
+    }
   },
   "common": {
     "about": "About",
@@ -223,7 +241,14 @@
     "cancelAndEdit": "Cancel & Edit Medications",
     "overrideAndApprove": "Override & Approve Prescription"
   },
+  "theme": {
+    "label": "Clinical Theme",
+    "clinicalLight": "Clinical Daylight",
+    "clinicalDark": "Night Shift Slate",
+    "clinicalEmerald": "Saraya Clinical Teal"
+  },
   "menu": {
+    "obgynSection": "OB/GYN & Fertility",
     "about": "About System",
     "accounting": "General Ledger",
     "activeInpatients": "Active Inpatients",
@@ -367,7 +392,12 @@
     "brandDesc": "A comprehensive system for patient charts, appointments, admissions, surgeries, laboratory, radiology, pharmacy, and accounting with a complete audit trail.",
     "errNetwork": "Could not connect to server, make sure the API is running.",
     "errUnauthorized": "Incorrect login credentials.",
-    "errUnexpected": "Login failed, an unexpected error occurred."
+    "errTooManyAttempts": "Too many failed attempts. Please wait and try again.",
+    "errUnexpected": "Login failed, an unexpected error occurred.",
+    "mfaTitle": "Two-Factor Code (2FA)",
+    "mfaPrompt": "Enter the 6-digit code from your authenticator app.",
+    "mfaPlaceholder": "000000",
+    "mfaBack": "Use another account"
   },
   "dashboard": {
     "welcome": "Welcome {{name}} 👋",
@@ -1974,6 +2004,8 @@
         "submitCare": "Register Pregnancy"
       },
       "create": {
+        "patientSearchLabel": "Patient * — Search by name or MRN",
+        "patientSearchPlaceholder": "Search for patient by name, MRN, or phone...",
         "bloodGroup": "Blood group",
         "gravida": "Gravida count",
         "lmpDate": "Last Menstrual Period (LMP) *",
@@ -1996,6 +2028,7 @@
         }
       },
       "list": {
+        "activeEmptyState": "No active pregnancy records found currently.",
         "emptyState": "No pregnancy records exist for this patient.",
         "rhNegativeLabel": "🔴 Rh-",
         "title": "Pregnancy Records",
@@ -2054,6 +2087,7 @@
       },
       "title": "Antenatal Care Monitoring",
       "toast": {
+        "patientRequired": "Please select a patient first",
         "addVisitError": "Failed to add visit",
         "addVisitSuccess": "Follow-up visit added successfully",
         "createCareError": "Failed to register pregnancy",
@@ -2158,7 +2192,11 @@
         "degree4": "4th Degree",
         "none": "None"
       },
-      "title": "Register new delivery via Saraya",
+      "selectEncounterHint": "Select an active encounter for the mother to proceed with delivery registration.",
+      "selectEncounterTitle": "Register New Delivery",
+      "searchEncounterPlaceholder": "Search by patient name, MRN, or encounter ID...",
+      "noOpenEncounters": "No matching open encounters found currently.",
+      "title": "Register New Delivery",
       "toast": {
         "encounterIdMissing": "Encounter ID is missing",
         "error": "Failed to register delivery",
@@ -2196,6 +2234,8 @@
         "submitCase": "Open File"
       },
       "create": {
+        "wifeSearchLabel": "Wife File (Patient) * — Search by name or MRN",
+        "wifeSearchPlaceholder": "Search for female patient by name, MRN, or phone...",
         "amh": "AMH (ng/mL)",
         "diagnosis": "Diagnosis",
         "diagnosisPlaceholder": "Detailed diagnosis...",

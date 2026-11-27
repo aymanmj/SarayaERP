@@ -94,8 +94,14 @@ export class ComplianceService {
     // 3. Admin Account Security (ISO 27001: A.9.2)
     const vulnerableAdmins = await this.prisma.user.count({
       where: {
-        userRoles: { some: { role: { name: 'SYSTEM_ADMIN' } } },
-        phone: null,
+        isActive: true,
+        isDeleted: false,
+        userRoles: {
+          some: {
+            role: { name: { in: ['SUPER_ADMIN', 'SYSTEM_ADMIN', 'ADMIN'] } },
+          },
+        },
+        mfaEnabled: false,
       },
     });
 
@@ -105,7 +111,7 @@ export class ComplianceService {
         controlId: 'ISO-27001-A.9.2',
         name: 'Privileged Access Management',
         status: 'FAIL',
-        details: `Found ${vulnerableAdmins} SYSTEM_ADMIN accounts without registered phone numbers for 2FA.`,
+        details: `Found ${vulnerableAdmins} privileged admin accounts without TOTP 2FA enabled.`,
         owner: 'IT Management',
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       });
@@ -114,7 +120,7 @@ export class ComplianceService {
         controlId: 'ISO-27001-A.9.2',
         name: 'Privileged Access Management',
         status: 'PASS',
-        details: 'All privileged accounts meet basic 2FA requirements.',
+        details: 'All privileged admin accounts have TOTP 2FA enabled.',
         owner: 'IT Management',
       });
     }

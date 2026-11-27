@@ -93,6 +93,7 @@ describe('PharmacyService', () => {
       },
       dispenseRecord: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
       },
       dispenseItem: {
@@ -745,6 +746,56 @@ describe('PharmacyService', () => {
           quantity: 2,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getEncounterDispensesSummary', () => {
+    it('uses exact Money decimal summation without floating-point drift and preserves 4dp unitPrice', async () => {
+      prisma.dispenseRecord.findMany.mockResolvedValue([
+        {
+          id: 901,
+          dispensedAt: new Date('2026-11-27T08:00:00.000Z'),
+          notes: null,
+          prescription: { doctor: { id: 12, fullName: 'Dr. Test' } },
+          items: [
+            {
+              id: 1,
+              productId: 10,
+              quantity: '1.000',
+              unitPrice: '0.1000',
+              totalAmount: '0.100',
+              batchNumber: 'B1',
+              expiryDate: null,
+              product: { id: 10, code: 'D1', name: 'Drug 1' },
+              prescriptionItem: {
+                productId: 10,
+                product: { id: 10, code: 'D1', name: 'Drug 1' },
+              },
+            },
+            {
+              id: 2,
+              productId: 11,
+              quantity: '1.000',
+              unitPrice: '0.2005',
+              totalAmount: '0.200',
+              batchNumber: 'B2',
+              expiryDate: null,
+              product: { id: 11, code: 'D2', name: 'Drug 2' },
+              prescriptionItem: {
+                productId: 11,
+                product: { id: 11, code: 'D2', name: 'Drug 2' },
+              },
+            },
+          ],
+        },
+      ]);
+
+      const result = await service.getEncounterDispensesSummary(1, 55);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].totalAmount).toBe(0.3);
+      expect(result[0].items[1].unitPrice).toBe(0.2005);
+      expect(result[0].items[1].totalAmount).toBe(0.2);
     });
   });
 });

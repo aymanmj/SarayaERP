@@ -11,7 +11,7 @@ export async function drainPendingAuditWrites(): Promise<void> {
 }
 
 const SENSITIVE_KEY =
-  /password|secret|token|authorization|cookie|nationalId|phone|email|address/i;
+  /password|secret|token|authorization|cookie|nationalId|phone|email|address|mfaSecret|motherName|familyBooklet|familySheet|registryNumber|identityNumber|clinicalNotes|symptoms/i;
 
 export function sanitizeAuditData(value: unknown): unknown {
   if (value === null || value === undefined) return null;
@@ -72,8 +72,9 @@ export async function appendChainedAuditInTransaction(
   tx: Prisma.TransactionClient,
   data: Prisma.AuditLogUncheckedCreateInput,
 ) {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(27001)`;
   const hospitalId = data.hospitalId ?? null;
+  const hospitalKey = Number.isInteger(hospitalId) ? Number(hospitalId) : 0;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(27001, CAST(${hospitalKey} AS INTEGER))`;
   const last = await tx.auditLog.findFirst({
     where: { hospitalId, hash: { not: null } },
     orderBy: { id: 'desc' },

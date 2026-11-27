@@ -36,7 +36,10 @@ export class PrismaService
     private readonly encryptionService: EncryptionService,
   ) {
     super({
-      omit: { vitalSign: { requestKey: true, requestFingerprint: true } },
+      omit: {
+        vitalSign: { requestKey: true, requestFingerprint: true },
+        user: { passwordHash: true, mfaSecret: true },
+      },
       datasources: {
         db: {
           url: config.get<string>('DATABASE_URL'),
@@ -56,10 +59,9 @@ export class PrismaService
       arg: unknown,
       options?: unknown,
     ) => Promise<unknown>;
-    (client as Record<string, unknown>).$transaction = (
-      arg: unknown,
-      options?: unknown,
-    ) => {
+    (
+      client as unknown as { $transaction: typeof rawTransaction }
+    ).$transaction = (arg: unknown, options?: unknown) => {
       if (typeof arg !== 'function') {
         return options !== undefined
           ? rawTransaction(arg, options)
@@ -84,11 +86,12 @@ export class PrismaService
     };
 
     // Attach lifecycle hooks to the proxy so NestJS can call them
-    (client as any).onModuleInit = this.onModuleInit.bind(this);
-    (client as any).onModuleDestroy = this.onModuleDestroy.bind(this);
+    const hostClient = client as unknown as PrismaService;
+    hostClient.onModuleInit = () => this.onModuleInit();
+    hostClient.onModuleDestroy = () => this.onModuleDestroy();
 
     // Return the proxy so it gets injected everywhere instead of the raw client
-    return client as any;
+    return hostClient;
   }
 
   // تايمر للـ keep-alive
@@ -96,8 +99,8 @@ export class PrismaService
 
   // Since constructor returns the extended proxy, 'this' is already extended.
   // We keep this getter for backwards compatibility with existing usage like `this.prisma.extended.patient.create`.
-  get extended(): any {
-    return this as any;
+  get extended(): this {
+    return this;
   }
 
   async onModuleInit() {
@@ -107,15 +110,15 @@ export class PrismaService
 
     // 🔁 Ping للـ DB كل 5 دقائق حتى لا ينام الـ connection
     this.keepAliveTimer = setInterval(
-      async () => {
-        try {
-          // أبسط استعلام ممكن كـ ping
-          await this.$queryRaw`SELECT 1`;
-          // لو تحب تشوف لوق كل مرة شيل التعليق:
-          // this.logger.debug('DB keep-alive ping OK');
-        } catch (error) {
-          this.logger.error('DB keep-alive ping failed', error);
-        }
+      () => {
+        void (async () => {
+          try {
+            // أبسط استعلام ممكن كـ ping
+            await this.$queryRaw`SELECT 1`;
+          } catch (error) {
+            this.logger.error('DB keep-alive ping failed', error);
+          }
+        })();
       },
       5 * 60 * 1000,
     ); // 5 دقائق

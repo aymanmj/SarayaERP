@@ -12,6 +12,7 @@ import { toast } from "sonner";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { formatDate } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Money, formatMoney as formatMoneyUtil } from "../utils/money";
 
 type InvoiceStatus =
   | "DRAFT"
@@ -122,11 +123,7 @@ function formatDateTime(iso?: string | null) {
 }
 
 function formatMoney(val: number | string | null | undefined) {
-  const num = Number(val ?? 0);
-  return num.toLocaleString("en-US", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  return formatMoneyUtil(val, false);
 }
 
 function statusLabel(status: InvoiceStatus) {
@@ -211,11 +208,13 @@ export default function InvoiceDetailsPage() {
   });
 
   const outstanding = useMemo(() => {
-    if (!data) return 0;
-    if (data.invoice.amountDue !== undefined) return Number(data.invoice.amountDue);
-    const total = Number(data.invoice.totalAmount ?? 0);
-    const paid = Number(data.invoice.paidAmount ?? 0);
-    return total - paid;
+    if (!data) return "0.000";
+    if (data.invoice.amountDue !== undefined) {
+      return Money.toFixed(data.invoice.amountDue, 3);
+    }
+    return Money.decimal(data.invoice.totalAmount ?? 0)
+      .minus(Money.decimal(data.invoice.paidAmount ?? 0))
+      .toFixed(3);
   }, [data]);
   
   const handleCreateReturn = () => {
@@ -704,7 +703,7 @@ export default function InvoiceDetailsPage() {
               <span className="text-slate-400">{t("treasury.invoiceDetails.remaining", "المتبقي:")}</span>
               <span
                 className={`font-semibold ${
-                  outstanding > 0 ? "text-amber-300" : "text-emerald-300"
+                  outstanding && Money.decimal(outstanding).gt(0) ? "text-amber-300" : "text-emerald-300"
                 }`}
               >
                 {formatMoney(outstanding)} {invoice.currency}

@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiClient } from "../api/apiClient";
 import { formatDate } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Money } from "../utils/money";
 
 type SupplierLite = {
   id: number;
@@ -16,9 +17,9 @@ type StatementRow = {
   kind: "INVOICE" | "PAYMENT" | "RETURN";
   ref: string;
   description: string;
-  debit: number;
-  credit: number;
-  balance: number;
+  debit: number | string;
+  credit: number | string;
+  balance: number | string;
 
   sourceType?: "PURCHASE_INVOICE" | "SUPPLIER_PAYMENT" | "PURCHASE_RETURN";
   sourceId?: number;
@@ -38,8 +39,8 @@ type SupplierStatementResponse = {
   unreconciledReturns?: { id:number; purchaseInvoiceId:number }[];
 };
 
-function formatMoney(v: number) {
-  return (v ?? 0).toFixed(3);
+function formatMoney(v: string | number | null | undefined) {
+  return Money.toDbString(v ?? 0);
 }
 
 function buildSupplierStatementCsv(data: SupplierStatementResponse, t: any): string {
@@ -72,7 +73,7 @@ function buildSupplierStatementCsv(data: SupplierStatementResponse, t: any): str
       `"${t("inventory.supplierStatement.kinds.openingDesc", "الرصيد الافتتاحي")}"`,
       `0.000`,
       `0.000`,
-      (data.openingBalance ?? 0).toFixed(3),
+      formatMoney(data.openingBalance),
     ].join(",")
   );
 
@@ -90,21 +91,19 @@ function buildSupplierStatementCsv(data: SupplierStatementResponse, t: any): str
         esc(kindLabel),
         esc(r.ref),
         esc(r.description),
-        (r.debit ?? 0).toFixed(3),
-        (r.credit ?? 0).toFixed(3),
-        (r.balance ?? 0).toFixed(3),
+        formatMoney(r.debit),
+        formatMoney(r.credit),
+        formatMoney(r.balance),
       ].join(",")
     );
   }
 
   lines.push("");
   lines.push(
-    `,,,${t("inventory.supplierStatement.csv.totalInvoices", "إجمالي الفواتير")},${data.totalDebit.toFixed(
-      3
-    )},${t("inventory.supplierStatement.csv.totalPayments", "إجمالي الدفعات")},${data.totalCredit.toFixed(3)}`
+    `,,,${t("inventory.supplierStatement.csv.totalInvoices", "إجمالي الفواتير")},${formatMoney(data.totalDebit)},${t("inventory.supplierStatement.csv.totalPayments", "إجمالي الدفعات")},${formatMoney(data.totalCredit)}`
   );
   lines.push(
-    `,,,${t("inventory.supplierStatement.csv.closingBalance", "الرصيد النهائي (لصالح المورد)")},${data.closingBalance.toFixed(3)}`
+    `,,,${t("inventory.supplierStatement.csv.closingBalance", "الرصيد النهائي (لصالح المورد)")},${formatMoney(data.closingBalance)}`
   );
 
   return "\uFEFF" + lines.join("\r\n");
@@ -174,9 +173,9 @@ export default function SupplierStatementPage() {
     const rows = data?.rows ?? [];
     return rows.map((r) => ({
       ...r,
-      debit: Number(r.debit ?? 0),
-      credit: Number(r.credit ?? 0),
-      balance: Number(r.balance ?? 0),
+      debit: Money.toDbString(r.debit ?? 0),
+      credit: Money.toDbString(r.credit ?? 0),
+      balance: Money.toDbString(r.balance ?? 0),
     }));
   }, [data]);
 

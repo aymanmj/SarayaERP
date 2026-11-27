@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranslation } from 'react-i18next';
+import { Dna } from 'lucide-react';
 
 // ============ Types ============
 
@@ -125,6 +126,12 @@ export default function FertilityDashboardPage() {
   const [selectedCycle, setSelectedCycle] = useState<IVFCycle | null>(null);
 
   // Case Form
+  const [selectedFemaleId, setSelectedFemaleId] = useState<number | ''>('');
+  const [femalePatientInfo, setFemalePatientInfo] = useState<{ fullName: string; mrn: string } | null>(null);
+  const [femaleSearch, setFemaleSearch] = useState('');
+  const [femaleSearchResults, setFemaleSearchResults] = useState<Array<{ id: number; fullName: string; mrn: string; phone?: string }>>([]);
+  const [showFemaleResults, setShowFemaleResults] = useState(false);
+
   const [malePatientId, setMalePatientId] = useState<number | ''>('');
   const [malePatientInfo, setMalePatientInfo] = useState<{ fullName: string; mrn: string } | null>(null);
   const [maleSearch, setMaleSearch] = useState('');
@@ -143,9 +150,16 @@ export default function FertilityDashboardPage() {
   const [startDate, setStartDate] = useState('');
 
   useEffect(() => {
-    if (caseId) loadCase(Number(caseId));
-    else if (patientId) loadPatientCases(Number(patientId));
-    else loadActiveCases();
+    if (caseId) {
+      loadCase(Number(caseId));
+    } else if (patientId) {
+      setFertCase(null);
+      loadPatientCases(Number(patientId));
+    } else {
+      setFertCase(null);
+      loadActiveCases();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId, patientId]);
 
   const loadCase = async (id: number) => {
@@ -164,6 +178,35 @@ export default function FertilityDashboardPage() {
     try { setLoading(true); const res = await apiClient.get('/obgyn/fertility/cases'); setCases(res.data); } 
     catch { toast.error(t('obgyn.fertility.toast.loadActiveCasesError', 'فشل تحميل الحالات')); } 
     finally { setLoading(false); }
+  };
+
+  const searchFemalePatient = async (query: string) => {
+    setFemaleSearch(query);
+    if (query.trim().length < 2) {
+      setFemaleSearchResults([]);
+      setShowFemaleResults(false);
+      return;
+    }
+    try {
+      const res = await apiClient.get('/patients', { params: { search: query.trim(), limit: 8 } });
+      const items = res.data?.items || res.data?.data || [];
+      setFemaleSearchResults(items);
+      setShowFemaleResults(items.length > 0);
+    } catch { /* ignore */ }
+  };
+
+  const selectFemalePatient = (p: { id: number; fullName: string; mrn: string }) => {
+    setSelectedFemaleId(p.id);
+    setFemalePatientInfo({ fullName: p.fullName, mrn: p.mrn });
+    setFemaleSearch('');
+    setFemaleSearchResults([]);
+    setShowFemaleResults(false);
+  };
+
+  const clearFemalePatient = () => {
+    setSelectedFemaleId('');
+    setFemalePatientInfo(null);
+    setFemaleSearch('');
   };
 
   const searchMalePatient = async (query: string) => {
@@ -197,16 +240,19 @@ export default function FertilityDashboardPage() {
   };
 
   const handleCreateCase = async () => {
-    if (!patientId) return toast.error(t('obgyn.fertility.toast.patientRequired', 'يرجى تحديد المريضة'));
+    const effectiveFemaleId = patientId ? Number(patientId) : selectedFemaleId;
+    if (!effectiveFemaleId) return toast.error(t('obgyn.fertility.toast.patientRequired', 'يرجى تحديد المريضة'));
     try {
       const res = await apiClient.post('/obgyn/fertility/cases', {
-        femalePatientId: Number(patientId),
+        femalePatientId: effectiveFemaleId,
         malePatientId: malePatientId || undefined,
         infertilityType, diagnosis, durationYears: durationYears || undefined,
         amhLevel: amhLevel || undefined, fshLevel: fshLevel || undefined,
       });
       toast.success(t('obgyn.fertility.toast.createCaseSuccess', 'تم فتح ملف العقم بنجاح'));
       setShowNewCaseForm(false);
+      clearFemalePatient();
+      clearMalePatient();
       navigate(`/obgyn/fertility?caseId=${res.data.id}`);
      
     } catch (err: any) { toast.error(err.response?.data?.message || t('obgyn.fertility.toast.createCaseError', 'فشل إنشاء الملف')); }
@@ -251,7 +297,7 @@ export default function FertilityDashboardPage() {
               {fertCase.malePatient && <>{t('obgyn.fertility.maleIcon', ' — 👨 ')}{fertCase.malePatient.fullName}{t('obgyn.fertility.mrn', ' (MRN: ')}{fertCase.malePatient.mrn})</>}
             </p>
           </div>
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
+          <Button variant="secondary" onClick={() => navigate(patientId ? `/obgyn/fertility?patientId=${patientId}` : '/obgyn/fertility', { replace: true })} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
         </div>
 
         {/* Case Summary */}
@@ -445,14 +491,15 @@ export default function FertilityDashboardPage() {
   return (
     <div className="container mx-auto p-6 space-y-6" dir={isRtl ? "rtl" : "ltr"}>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">🧬 {t('obgyn.fertility.list.title', 'الحقن المجهري وعلاج العقم')}</h1>
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
+          <Dna className="w-6 h-6 text-violet-400" strokeWidth={1.75} />
+          <span>{t('obgyn.fertility.list.title', 'الحقن المجهري وعلاج العقم')}</span>
+        </h1>
         <div className="flex gap-2">
-          {patientId && (
-            <Button onClick={() => setShowNewCaseForm(!showNewCaseForm)} className="bg-violet-600 hover:bg-violet-500 text-white">
-              {showNewCaseForm ? t('common.cancel', 'إلغاء') : t('obgyn.fertility.btn.openNewCase', '+ فتح ملف جديد')}
-            </Button>
-          )}
-          <Button variant="secondary" onClick={() => navigate(-1)} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
+          <Button onClick={() => setShowNewCaseForm(!showNewCaseForm)} className="bg-violet-600 hover:bg-violet-500 text-white">
+            {showNewCaseForm ? t('common.cancel', 'إلغاء') : t('obgyn.fertility.btn.openNewCase', '+ فتح ملف جديد')}
+          </Button>
+          <Button variant="secondary" onClick={() => navigate(patientId ? `/obgyn/fertility?patientId=${patientId}` : '/obgyn/fertility', { replace: true })} className="bg-slate-800 text-slate-200 hover:bg-slate-700">{t('obgyn.fertility.btn.back', 'رجوع')}</Button>
         </div>
       </div>
 
@@ -461,6 +508,41 @@ export default function FertilityDashboardPage() {
           <CardHeader><CardTitle className="text-violet-400">{t('obgyn.fertility.create.title', 'فتح ملف عقم جديد')}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {!patientId && (
+                <div className="space-y-1 relative md:col-span-2">
+                  <Label className="text-slate-400">{t('obgyn.fertility.create.wifeSearchLabel', 'ملف الزوجة (المريضة) * — ابحث بالاسم أو رقم الملف')}</Label>
+                  {femalePatientInfo ? (
+                    <div className="flex items-center gap-2 bg-slate-900 border border-violet-500/30 rounded-lg px-3 py-2">
+                      <span className="text-white font-bold text-sm flex-1">{femalePatientInfo.fullName}</span>
+                      <span className="text-xs text-slate-400 font-mono">MRN: {femalePatientInfo.mrn}</span>
+                      <button type="button" onClick={clearFemalePatient} className="text-red-400 hover:text-red-300 text-xs bg-slate-800 px-2 py-1 rounded">{t('obgyn.fertility.btn.remove', '✕ إزالة')}</button>
+                    </div>
+                  ) : (
+                    <Input
+                      value={femaleSearch}
+                      onChange={e => searchFemalePatient(e.target.value)}
+                      placeholder={t('obgyn.fertility.create.wifeSearchPlaceholder', 'ابحث عن الزوجة بالاسم أو رقم الملف أو الهاتف...')}
+                      className="bg-slate-900 border-slate-700 text-white"
+                      autoComplete="off"
+                    />
+                  )}
+                  {showFemaleResults && femaleSearchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl shadow-2xl z-40 max-h-48 overflow-y-auto">
+                      {femaleSearchResults.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => selectFemalePatient(p)}
+                          className="w-full text-right px-3 py-2.5 hover:bg-violet-900/20 border-b border-slate-800/50 last:border-0 flex items-center justify-between gap-2 transition-colors text-sm"
+                        >
+                          <span className="text-white font-bold truncate">{p.fullName}</span>
+                          <span className="text-[11px] text-slate-400 font-mono">{p.mrn}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-1 relative md:col-span-2">
                 <Label className="text-slate-400">{t('obgyn.fertility.create.husbandSearchLabel', 'ملف الزوج (اختياري) — ابحث بالاسم أو رقم الملف')}</Label>
                 {malePatientInfo ? (
@@ -558,7 +640,7 @@ export default function FertilityDashboardPage() {
       ) : !showNewCaseForm ? (
         <div className="text-center py-12 text-slate-500">
           <p className="text-lg mb-2">{patientId ? t('obgyn.fertility.list.noCases', 'لا توجد ملفات عقم لهذه المريضة.') : t('obgyn.fertility.list.noActiveCases', 'لا توجد حالات نشطة.')}</p>
-          {patientId && <Button onClick={() => setShowNewCaseForm(true)} className="bg-violet-600 hover:bg-violet-500 text-white">{t('obgyn.fertility.btn.openNewCaseSimple', 'فتح ملف عقم جديد')}</Button>}
+          <Button onClick={() => setShowNewCaseForm(true)} className="bg-violet-600 hover:bg-violet-500 text-white">{t('obgyn.fertility.btn.openNewCaseSimple', 'فتح ملف عقم جديد')}</Button>
         </div>
       ) : null}
     </div>

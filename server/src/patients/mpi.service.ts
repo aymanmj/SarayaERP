@@ -7,18 +7,20 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { InMemoryRedis } from '../common/in-memory-redis';
 
 import { OutboundQueueService } from '../integration/outbound-queue.service';
 
 @Injectable()
 export class MpiService implements OnModuleDestroy {
   private readonly logger = new Logger(MpiService.name);
-  private redisClient: Redis;
+  private redisClient: Redis | InMemoryRedis;
 
   onModuleDestroy() {
     this.redisClient?.disconnect();
@@ -40,7 +42,6 @@ export class MpiService implements OnModuleDestroy {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('REDIS_MOCK is not allowed in production.');
       }
-      const { InMemoryRedis } = require('../common/in-memory-redis');
       this.redisClient = new InMemoryRedis();
       return;
     }
@@ -64,7 +65,6 @@ export class MpiService implements OnModuleDestroy {
         this.logger.warn(
           'Redis connection failed in MpiService. Switching to In-Memory Redis fallback.',
         );
-        const { InMemoryRedis } = require('../common/in-memory-redis');
         this.redisClient.disconnect();
         this.redisClient = new InMemoryRedis();
       });
@@ -80,7 +80,6 @@ export class MpiService implements OnModuleDestroy {
         'Failed to initialize Redis in MpiService, using In-Memory fallback:',
         err,
       );
-      const { InMemoryRedis } = require('../common/in-memory-redis');
       this.redisClient = new InMemoryRedis();
     }
   }
@@ -116,7 +115,7 @@ export class MpiService implements OnModuleDestroy {
     const requireOtp = requireOtpSetting?.value === 'true';
 
     // 2. Perform MPI Search
-    const whereClause: any = {};
+    const whereClause: Prisma.GlobalPatientWhereInput = {};
     if (query.nationalId) {
       whereClause.nationalIdHash = crypto
         .createHash('sha256')
@@ -235,22 +234,14 @@ export class MpiService implements OnModuleDestroy {
       },
     });
 
-    // Simulated Telegram Dispatch (Now marked as structured payload for provider integration)
-    const _notificationPayload = {
-      channel: 'telegram',
-      target: patient.phone,
-      patientName: patient.fullName,
-      otp: otpCode, // Only place raw OTP exists in memory
-      message: `Dr. ${doctorName} at ${requestingHospital} is requesting access to your medical records. Provide this code to the doctor: ${otpCode}`,
-      timestamp: new Date().toISOString(),
-    };
-
     // Send the OTP via the Offline-First Outbound Queue
     // This ensures delivery even if the external SMS/Telegram gateway is temporarily unreachable
     await this.outboundQueueService.enqueue({
       type: 'sms',
       payload: {
         patientId,
+        requestedBy: doctorName,
+        hospital: requestingHospital,
         message: `Your Saraya Medical security code is ${otpCode}. It expires in 10 minutes.`,
       },
       createdAt: new Date().toISOString(),

@@ -4,19 +4,19 @@ import { useAuthStore } from "../stores/authStore";
 import { apiClient } from "../api/apiClient";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { 
-  UserGroupIcon, 
-  CalendarIcon, 
-  BanknotesIcon, 
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  BuildingOfficeIcon,
-  ClockIcon,
-  ClipboardDocumentListIcon,
-  CurrencyDollarIcon,
-  BeakerIcon,
-  ArrowTrendingUpIcon
-} from "@heroicons/react/24/outline";
+import {
+  Users,
+  Calendar,
+  Banknote,
+  AlertTriangle,
+  BarChart3,
+  Building2,
+  Clock,
+  ClipboardList,
+  CircleDollarSign,
+  FlaskConical,
+  TrendingUp,
+} from "lucide-react";
 
 // Types
 type DashboardStats = {
@@ -52,7 +52,7 @@ interface StatCardProps {
   value: string | number;
   subtext: string;
   colorClass: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
   loading?: boolean;
 }
 
@@ -67,9 +67,9 @@ const StatCard = ({
   <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 flex flex-col justify-between h-32 hover:bg-slate-900/90 transition-all duration-200 shadow-sm hover:shadow-md">
     <div className="flex items-center justify-between">
       <div className="text-xs text-slate-400 font-medium">{title}</div>
-      <Icon className={`w-4 h-4 ${colorClass}`} />
+      <Icon className={`w-4 h-4 ${colorClass}`} strokeWidth={1.75} />
     </div>
-    <div className={`text-3xl font-bold ${colorClass}`}>
+    <div className={`text-3xl font-bold tabular-nums ${colorClass}`}>
       {loading ? "..." : value}
     </div>
     <div className="text-[11px] text-slate-500">{subtext}</div>
@@ -80,7 +80,7 @@ const StatCard = ({
 interface QuickActionCardProps {
   title: string;
   description: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
   href: string;
   colorClass: string;
   badge?: string;
@@ -99,8 +99,8 @@ const QuickActionCard = ({
     className="group rounded-2xl border border-slate-800 bg-slate-900/40 p-5 hover:bg-slate-900/60 transition-all duration-200 hover:border-slate-700 hover:shadow-lg"
   >
     <div className="flex items-start justify-between mb-3">
-      <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10`}>
-        <Icon className={`w-5 h-5 ${colorClass}`} />
+      <div className="p-2 rounded-lg bg-slate-800/60 border border-slate-700/50">
+        <Icon className={`w-5 h-5 ${colorClass}`} strokeWidth={1.75} />
       </div>
       {badge && (
         <span className="px-2 py-1 text-xs rounded-full bg-sky-900/30 text-sky-300 border border-sky-700/50">
@@ -234,7 +234,7 @@ export function DashboardPage() {
           value={stats?.activeInpatients ?? 0}
           subtext={t("dashboard.inpatientsSub", { rate: stats?.occupancyRate ?? 0 })}
           colorClass="text-sky-400"
-          icon={BuildingOfficeIcon}
+          icon={Building2}
           loading={loading}
         />
 
@@ -243,7 +243,7 @@ export function DashboardPage() {
           value={stats?.appointmentsToday ?? 0}
           subtext={t("dashboard.appointmentsSub", "إجمالي الحجوزات")}
           colorClass="text-amber-400"
-          icon={CalendarIcon}
+          icon={Calendar}
           loading={loading}
         />
 
@@ -257,7 +257,7 @@ export function DashboardPage() {
             value={`${(stats.todayRevenue ?? 0).toLocaleString()} ${isRtl ? 'د.ل' : 'LYD'}`}
             subtext={stats.isPersonalRevenue ? t("dashboard.revenuePersonalSub", "ورديتك") : t("dashboard.revenueSub", "المحصلة")}
             colorClass="text-emerald-400"
-            icon={BanknotesIcon}
+            icon={Banknote}
             loading={loading}
           />
         )}
@@ -267,7 +267,7 @@ export function DashboardPage() {
           value={stats?.lowStockCount ?? 0}
           subtext={t("dashboard.stockSub", "أصناف تحتاج طلب")}
           colorClass={(stats?.lowStockCount ?? 0) > 0 ? "text-rose-400" : "text-slate-200"}
-          icon={ExclamationTriangleIcon}
+          icon={AlertTriangle}
           loading={loading}
         />
       </div>
@@ -277,35 +277,35 @@ export function DashboardPage() {
         {/* Quick Actions */}
         <div className={isRtl ? "text-right" : "text-left"}>
           <h3 className={`text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2 ${isRtl ? 'flex-row' : 'flex-row-reverse'}`}>
-            <ClockIcon className="w-5 h-5 text-slate-400" />
+            <Clock className="w-5 h-5 text-slate-400" strokeWidth={1.75} />
             {t("dashboard.quickAccess", "وصول سريع")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <QuickActionCard
               title={t("dashboard.admissionsTitle", "مكتب الدخول")}
               description={t("dashboard.admissionsDesc", "إدخال المرضى الجدد وإدارة الإيواء")}
-              icon={ClipboardDocumentListIcon}
+              icon={ClipboardList}
               href="/admissions"
               colorClass="text-blue-400"
             />
             <QuickActionCard
               title={t("dashboard.appointmentsTitle", "حجز المواعيد")}
               description={t("dashboard.appointmentsDesc", "جدولة المواعيد للعيادات")}
-              icon={CalendarIcon}
+              icon={Calendar}
               href="/appointments"
               colorClass="text-amber-400"
             />
             <QuickActionCard
               title={t("dashboard.cashierTitle", "الخزينة")}
               description={t("dashboard.cashierDesc", "تحصيل المدفوعات وإدارة الفواتير")}
-              icon={CurrencyDollarIcon}
+              icon={CircleDollarSign}
               href="/cashier"
               colorClass="text-emerald-400"
             />
             <QuickActionCard
               title={t("dashboard.pharmacyTitle", "الصيدلية")}
               description={t("dashboard.pharmacyDesc", "إدارة الأدوية والمخزون الطبي")}
-              icon={BeakerIcon}
+              icon={FlaskConical}
               href="/pharmacy"
               colorClass="text-purple-400"
             />
@@ -315,14 +315,14 @@ export function DashboardPage() {
         {/* Advanced Dashboards */}
         <div className={isRtl ? "text-right" : "text-left"}>
           <h3 className={`text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2 ${isRtl ? 'flex-row' : 'flex-row-reverse'}`}>
-            <ChartBarIcon className="w-5 h-5 text-slate-400" />
+            <BarChart3 className="w-5 h-5 text-slate-400" strokeWidth={1.75} />
             {t("dashboard.advDashboards", "لوحات تحكم متقدمة")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <QuickActionCard
               title={t("dashboard.executiveTitle", "لوحة تنفيذية")}
               description={t("dashboard.executiveDesc", "إحصائيات وتقارير مفصلة للمستشفى")}
-              icon={ArrowTrendingUpIcon}
+              icon={TrendingUp}
               href="/analytics/executive"
               colorClass="text-indigo-400"
               badge={t("dashboard.newBadge", "جديدة")}
@@ -330,7 +330,7 @@ export function DashboardPage() {
             <QuickActionCard
               title={t("dashboard.dischargeTitle", "تخطيط الخروج")}
               description={t("dashboard.dischargeDesc", "إدارة عملية خروج المرضى")}
-              icon={UserGroupIcon}
+              icon={Users}
               href="/discharge-planning"
               colorClass="text-green-400"
               badge={t("dashboard.updatedBadge", "محدثة")}
@@ -338,7 +338,7 @@ export function DashboardPage() {
             <QuickActionCard
               title={t("dashboard.bedsTitle", "إدارة الأسرة")}
               description={t("dashboard.bedsDesc", "مراقبة حالة الأسرة والعنابر")}
-              icon={BuildingOfficeIcon}
+              icon={Building2}
               href="/bed-management"
               colorClass="text-cyan-400"
               badge={t("dashboard.liveBadge", "مباشر")}
@@ -346,7 +346,7 @@ export function DashboardPage() {
             <QuickActionCard
               title={t("dashboard.reportsTitle", "التقارير")}
               description={t("dashboard.reportsDesc", "تقارير مالية وإدارية شاملة")}
-              icon={ChartBarIcon}
+              icon={BarChart3}
               href="/reports"
               colorClass="text-orange-400"
             />

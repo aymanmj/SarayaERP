@@ -10,6 +10,7 @@ import { DailyAssessmentDto } from './dto/icu-assessment.dto';
 import { CreateMedicationDripDto, TitrateDripDto } from './dto/icu-drip.dto';
 import { CreateEquipmentUsageDto } from './dto/icu-equipment.dto';
 import { ChargeSource } from '@prisma/client';
+import { Money } from '../common/utils/money.util';
 
 @Injectable()
 export class IcuService {
@@ -46,8 +47,12 @@ export class IcuService {
         return null;
       }
 
-      const unitPrice = opts.overridePrice ?? Number(serviceItem.defaultPrice);
-      const totalAmount = unitPrice * opts.quantity;
+      const unitPriceDec = Money.decimal(
+        opts.overridePrice ?? serviceItem.defaultPrice,
+      );
+      const totalAmountDec = Money.roundDecimal(
+        unitPriceDec.mul(opts.quantity),
+      );
 
       const charge = await this.prisma.encounterCharge.create({
         data: {
@@ -57,14 +62,14 @@ export class IcuService {
           sourceType: ChargeSource.ICU,
           sourceId: opts.sourceId,
           quantity: opts.quantity,
-          unitPrice,
-          totalAmount,
+          unitPrice: Money.toUnitDbString(unitPriceDec),
+          totalAmount: Money.toDbString(totalAmountDec),
           performerId: opts.performerId,
         },
       });
 
       this.logger.log(
-        `ICU Charge created: ${opts.serviceCode} x${opts.quantity} = ${totalAmount} for encounter #${opts.encounterId}`,
+        `ICU Charge created: ${opts.serviceCode} x${opts.quantity} = ${Money.toDbString(totalAmountDec)} for encounter #${opts.encounterId}`,
       );
       return charge;
     } catch (err) {
@@ -802,13 +807,17 @@ export class IcuService {
     });
 
     if (existingCharge && totalDays > 1) {
-      const unitPrice = Number(existingCharge.unitPrice);
+      const unitPriceDec = Money.decimal(existingCharge.unitPrice);
+      const totalAmountDec = Money.roundDecimal(unitPriceDec.mul(totalDays));
       await this.prisma.encounterCharge.update({
         where: { id: existingCharge.id },
-        data: { quantity: totalDays, totalAmount: unitPrice * totalDays },
+        data: {
+          quantity: totalDays,
+          totalAmount: Money.toDbString(totalAmountDec),
+        },
       });
       this.logger.log(
-        `Updated equipment charge #${existingCharge.id}: ${totalDays} days × ${unitPrice} = ${unitPrice * totalDays}`,
+        `Updated equipment charge #${existingCharge.id}: ${totalDays} days × ${Money.toUnitDbString(unitPriceDec)} = ${Money.toDbString(totalAmountDec)}`,
       );
     }
 

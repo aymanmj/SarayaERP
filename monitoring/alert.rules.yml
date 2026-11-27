@@ -59,7 +59,7 @@ groups:
 
       # قاعدة البيانات لا تعمل
       - alert: PostgresDown
-        expr: up{job="postgres-exporter"} == 0
+        expr: up{job="postgres-exporter"} == 0 or pg_up == 0
         for: 1m
         labels:
           severity: critical
@@ -69,7 +69,7 @@ groups:
 
       # Redis لا يعمل
       - alert: RedisDown
-        expr: up{job="redis-exporter"} == 0
+        expr: up{job="redis-exporter"} == 0 or redis_up == 0
         for: 1m
         labels:
           severity: critical

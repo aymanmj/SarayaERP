@@ -68,24 +68,37 @@ export class ClinicalABACGuard implements CanActivate {
       request.body?.[abacConfig.paramName];
     const patientId = Number(paramValue);
 
-    if (isNaN(patientId)) {
-      this.logger.warn(`ABAC Guard: Invalid patientId provided in request`);
-      return true; // We can't evaluate ABAC if the target patient is not specified
+    if (
+      paramValue === undefined ||
+      paramValue === null ||
+      paramValue === '' ||
+      !Number.isInteger(patientId) ||
+      patientId <= 0
+    ) {
+      this.logger.warn(
+        `ABAC Guard: Missing or invalid patientId provided in request`,
+      );
+      throw new ForbiddenException(
+        'معرف المريض غير صالح للتحقق من العلاقة السريرية.',
+      );
     }
 
     const isBreakGlass = request.headers['x-break-glass'] === 'true';
     const rawReason = request.headers['x-break-glass-reason'];
     const breakGlassReason =
-      typeof rawReason === 'string' && rawReason.trim()
-        ? rawReason
-        : Array.isArray(rawReason) && rawReason[0]
-          ? rawReason[0]
-          : 'Emergency Override';
+      typeof rawReason === 'string'
+        ? rawReason.trim()
+        : Array.isArray(rawReason) && typeof rawReason[0] === 'string'
+          ? rawReason[0].trim()
+          : '';
 
     // 1. Evaluate "Clinical Relation"
     // Does this doctor have an active Encounter or Appointment with this patient?
-    // In a real large-scale system, this would be a complex query checking Admitting Doctor, Attending Doctor, Consults, etc.
-    const relationResult = await this.evaluateRelation(doctorId, patientId);
+    const relationResult = await this.evaluateRelation(
+      user.hospitalId,
+      doctorId,
+      patientId,
+    );
 
     if (relationResult) {
       return true;
@@ -93,6 +106,12 @@ export class ClinicalABACGuard implements CanActivate {
 
     // 2. No relation found! Check Break Glass
     if (abacConfig.allowBreakGlass && isBreakGlass) {
+      if (breakGlassReason.length < 10) {
+        throw new ForbiddenException(
+          'يجب توضيح سبب سريري لا يقل عن 10 أحرف لاستخدام تجاوز الطوارئ (Break-Glass).',
+        );
+      }
+
       this.logger.warn(
         `🚨 BREAK-GLASS used by Doctor (ID: ${doctorId}) for Patient (ID: ${patientId}). Reason: ${breakGlassReason}`,
       );
@@ -134,12 +153,14 @@ export class ClinicalABACGuard implements CanActivate {
   }
 
   private async evaluateRelation(
+    hospitalId: number,
     doctorId: number,
     patientId: number,
   ): Promise<boolean> {
     // Check if doctor is assigned to an active encounter for this patient
     const encounter = await this.prisma.encounter.findFirst({
       where: {
+        hospitalId,
         patientId,
         doctorId,
         status: { not: 'CANCELLED' },
@@ -151,6 +172,7 @@ export class ClinicalABACGuard implements CanActivate {
     // Check if doctor has an appointment scheduled with this patient today/future
     const appointment = await this.prisma.appointment.findFirst({
       where: {
+        hospitalId,
         patientId,
         doctorId,
         scheduledStart: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }, // Today or future

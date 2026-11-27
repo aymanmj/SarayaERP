@@ -39,10 +39,6 @@
       "@typescript-eslint/no-unsafe-return": 2,
       "@typescript-eslint/require-await": 2
     },
-    "src/appointments/appointments.service.ts": {
-      "@typescript-eslint/no-unsafe-member-access": 1,
-      "@typescript-eslint/no-unused-vars": 1
-    },
     "src/assets/assets.controller.ts": {
       "@typescript-eslint/no-unsafe-assignment": 11,
       "@typescript-eslint/no-unsafe-member-access": 26
@@ -51,13 +47,6 @@
       "@typescript-eslint/no-unsafe-assignment": 1,
       "@typescript-eslint/no-unsafe-member-access": 4,
       "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/backup/backup.controller.ts": {
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/backup/backup.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 5,
-      "@typescript-eslint/no-unsafe-member-access": 4
     },
     "src/beds/beds.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 4
@@ -131,11 +120,6 @@
     "src/clinical/registries/registries.service.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
       "@typescript-eslint/no-unsafe-member-access": 5
-    },
-    "src/clinical/scheduling/bookings.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-call": 5,
-      "@typescript-eslint/no-unsafe-member-access": 8
     },
     "src/clinical/scheduling/resources.service.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2
@@ -220,34 +204,6 @@
       "@typescript-eslint/no-unsafe-function-type": 2,
       "@typescript-eslint/no-unsafe-member-access": 1
     },
-    "src/common/tenant/tenant.guard.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 5,
-      "@typescript-eslint/no-unsafe-member-access": 9
-    },
-    "src/common/tenant/tenant.middleware.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 4,
-      "@typescript-eslint/no-unsafe-member-access": 6,
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/common/tenant/tenant.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2
-    },
-    "src/common/tenant/tenant.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-call": 2,
-      "@typescript-eslint/no-unsafe-member-access": 6,
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/common/vault/vault.loader.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1,
-      "@typescript-eslint/no-unsafe-member-access": 3,
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/common/vault/vault.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1,
-      "@typescript-eslint/no-unsafe-member-access": 4,
-      "@typescript-eslint/require-await": 2
-    },
     "src/dashboard/dashboard.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 4
     },
@@ -284,18 +240,12 @@
       "@typescript-eslint/no-unsafe-call": 4,
       "@typescript-eslint/no-unsafe-member-access": 7
     },
-    "src/encounters/encounters.controller.ts": {
-      "@typescript-eslint/no-unused-vars": 1
-    },
     "src/encounters/encounters.service.spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 16,
       "@typescript-eslint/no-unsafe-call": 45,
       "@typescript-eslint/no-unsafe-member-access": 57,
       "@typescript-eslint/no-unsafe-return": 2,
       "@typescript-eslint/require-await": 1
-    },
-    "src/encounters/encounters.service.ts": {
-      "@typescript-eslint/no-unsafe-member-access": 2
     },
     "src/events/events.gateway.ts": {
       "@typescript-eslint/no-unsafe-member-access": 1
@@ -488,11 +438,6 @@
     "src/lab-orders/lab-orders.service.ts": {
       "@typescript-eslint/no-unsafe-return": 2
     },
-    "src/licensing/license.guard.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1,
-      "@typescript-eslint/no-unsafe-call": 1,
-      "@typescript-eslint/no-unsafe-member-access": 1
-    },
     "src/licensing/license.service.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,
       "@typescript-eslint/no-unsafe-member-access": 4,
@@ -563,19 +508,6 @@
     "src/order-sets/order-sets.service.ts": {
       "@typescript-eslint/no-unsafe-member-access": 6
     },
-    "src/patient-portal/auth/current-patient.decorator.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1,
-      "@typescript-eslint/no-unsafe-member-access": 1,
-      "@typescript-eslint/no-unsafe-return": 1
-    },
-    "src/patient-portal/auth/patient-auth.guard.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 5,
-      "@typescript-eslint/no-unsafe-member-access": 16
-    },
-    "src/patient-portal/auth/patient-otp.service.ts": {
-      "@typescript-eslint/no-unsafe-member-access": 3,
-      "@typescript-eslint/require-await": 1
-    },
     "src/patient-portal/controllers/portal-appointments.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 5
     },
@@ -641,40 +573,6 @@
       "@typescript-eslint/no-unsafe-assignment": 1,
       "@typescript-eslint/no-unused-vars": 1
     },
-    "src/patients/mpi.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 13,
-      "@typescript-eslint/no-unsafe-member-access": 17
-    },
-    "src/patients/mpi.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 6,
-      "@typescript-eslint/no-unsafe-call": 10,
-      "@typescript-eslint/no-unsafe-member-access": 24,
-      "@typescript-eslint/no-unsafe-return": 1,
-      "@typescript-eslint/require-await": 1
-    },
-    "src/patients/mpi.service.ts": {
-      "@typescript-eslint/no-require-imports": 3,
-      "@typescript-eslint/no-unsafe-assignment": 7,
-      "@typescript-eslint/no-unsafe-call": 3,
-      "@typescript-eslint/no-unsafe-member-access": 3,
-      "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/patients/patients.controller.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 30,
-      "@typescript-eslint/no-unsafe-member-access": 38,
-      "@typescript-eslint/no-unused-vars": 1
-    },
-    "src/patients/patients.service.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 7,
-      "@typescript-eslint/no-unsafe-call": 18,
-      "@typescript-eslint/no-unsafe-member-access": 23,
-      "@typescript-eslint/no-unsafe-return": 3
-    },
-    "src/patients/patients.service.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 20,
-      "@typescript-eslint/no-unsafe-member-access": 33,
-      "@typescript-eslint/no-unused-vars": 2
-    },
     "src/pdf/pdf.service.ts": {
       "@typescript-eslint/no-unsafe-assignment": 4,
       "@typescript-eslint/no-unsafe-member-access": 6
@@ -682,29 +580,6 @@
     "src/price-lists/price-lists.controller.ts": {
       "@typescript-eslint/no-unsafe-member-access": 2,
       "@typescript-eslint/no-unused-vars": 2
-    },
-    "src/prisma/audit.extension.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 23,
-      "@typescript-eslint/no-unsafe-call": 2,
-      "@typescript-eslint/no-unsafe-member-access": 6,
-      "@typescript-eslint/no-unused-vars": 2,
-      "no-empty": 1
-    },
-    "src/prisma/prisma.extension.spec.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 1,
-      "@typescript-eslint/no-unsafe-member-access": 10
-    },
-    "src/prisma/prisma.extension.ts": {
-      "@typescript-eslint/no-unsafe-assignment": 20,
-      "@typescript-eslint/no-unsafe-call": 2,
-      "@typescript-eslint/no-unsafe-member-access": 44,
-      "@typescript-eslint/no-unsafe-return": 11
-    },
-    "src/prisma/prisma.service.ts": {
-      "@typescript-eslint/no-misused-promises": 1,
-      "@typescript-eslint/no-unsafe-assignment": 2,
-      "@typescript-eslint/no-unsafe-member-access": 2,
-      "@typescript-eslint/no-unsafe-return": 2
     },
     "src/quality/quality.controller.spec.ts": {
       "@typescript-eslint/no-unsafe-assignment": 2,

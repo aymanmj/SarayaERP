@@ -8,6 +8,7 @@ services:
     image: postgres:15-alpine
     container_name: saraya_db
     restart: always
+    mem_limit: 2g
     shm_size: 1g # تحسين الأداء: زيادة الذاكرة المشتركة
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
@@ -37,6 +38,7 @@ services:
     image: redis:7-alpine
     container_name: saraya_redis
     restart: unless-stopped
+    mem_limit: 512m
     stop_grace_period: 30s
     command: >
       redis-server
@@ -65,6 +67,7 @@ services:
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:?IMAGE_TAG is required - pin a release tag or digest}
     container_name: saraya_backend
+    mem_limit: 2g
     env_file:
       - .env
     restart: always
@@ -141,6 +144,7 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-frontend:${IMAGE_TAG:?IMAGE_TAG is required - pin a release tag or digest}
     container_name: saraya_frontend
     restart: always
+    mem_limit: 256m
     environment:
       VITE_API_URL: /api
     depends_on:
@@ -157,6 +161,7 @@ services:
     image: nginx:${NGINX_IMAGE_TAG:-1.27-alpine}
     container_name: saraya_nginx
     restart: always
+    mem_limit: 256m
     ports:
       - "80:80"
       - "443:443"
@@ -280,9 +285,11 @@ services:
     image: postgres:15-alpine
     container_name: saraya_backup
     restart: always
-    user: root # يحتاج روت لتنصيب curl وضبط المجلدات
+    user: root
+    mem_limit: 512m
     volumes:
       - ${BACKUP_PATH:-./backups}:/backups
+      - ./uploads:/uploads:ro
       - ./scripts:/opt/saraya-erp/scripts:ro
       - /mnt:/mnt:rw,rslave      # الأقراص الخارجية (تظهر تلقائياً)
       - /media:/media:rw,rslave   # أقراص USB (تظهر تلقائياً)
@@ -296,7 +303,6 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        apk add --no-cache curl jq
         echo "⏳ Backup worker started..."
         /opt/saraya-erp/scripts/backup-worker.sh
     depends_on:
@@ -310,6 +316,7 @@ services:
     image: clamav/clamav:1.4_base
     container_name: saraya_clamav
     restart: unless-stopped
+    mem_limit: 1536m
     volumes:
       - clamav_data:/var/lib/clamav
     expose:
@@ -394,6 +401,7 @@ services:
     image: prom/prometheus:${PROMETHEUS_IMAGE_TAG:-v2.55.1}
     container_name: saraya_prometheus
     restart: always
+    mem_limit: 512m
     volumes:
       - ./monitoring:/etc/prometheus_config:ro
       - prometheus_data:/prometheus
@@ -411,6 +419,7 @@ services:
     container_name: saraya_grafana
     user: root
     restart: always
+    mem_limit: 512m
     ports:
       - "127.0.0.1:3001:3000" # يمكن الوصول لـ Grafana عبر المنفذ 3001 محلياً فقط
     environment:
@@ -448,6 +457,7 @@ services:
     container_name: saraya_loki
     restart: always
     user: "0:0"
+    mem_limit: 512m
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -479,6 +489,7 @@ services:
     container_name: saraya_tempo
     restart: always
     user: "0:0"
+    mem_limit: 512m
     command: -config.file=/etc/tempo_config/tempo-config.yml
     ports:
       - "127.0.0.1:3200:3200"   # Tempo Server

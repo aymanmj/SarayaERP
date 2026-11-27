@@ -199,7 +199,7 @@ describe('Patient Journey Integration Tests', () => {
         hospitalId: 1,
         patientId: 15,
         encounterId: 200,
-        totalAmount: 75,
+        totalAmount: '75.000',
       }),
     });
     expect(prisma.visit.create).toHaveBeenCalledWith({

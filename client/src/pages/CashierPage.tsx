@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { HasPermission } from "../components/HasPermission";
+import { Money } from "../utils/money";
 
 type InvoiceStatus =
   | "DRAFT"
@@ -65,8 +66,17 @@ function formatDateTime(iso: string) {
 }
 
 function formatMoney(val: number | string | null | undefined) {
-  const num = Number(val ?? 0);
-  return num.toFixed(3);
+  return Money.toFixed(val ?? 0, 3);
+}
+
+function isPaymentAmountZero(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return true;
+  try {
+    return Money.decimal(trimmed).eq(0);
+  } catch {
+    return false;
+  }
 }
 
 // ✅ دالة مساعدة لحساب القيم الفعلية
@@ -169,19 +179,37 @@ export default function CashierPage() {
       return;
     }
 
-    const value = Number(amount);
+    const trimmedAmount = amount.trim();
+    if (!trimmedAmount) {
+      toast.warning(t("treasury.cashier.toast.positiveValue", "أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0)."));
+      return;
+    }
 
-    if (value < 0) {
+    let parsedAmount: ReturnType<typeof Money.decimal>;
+    try {
+      parsedAmount = Money.decimal(trimmedAmount);
+    } catch {
+      toast.warning(t("treasury.cashier.toast.positiveValue", "أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0)."));
+      return;
+    }
+
+    if (parsedAmount.lt(0)) {
       toast.warning(t("treasury.cashier.toast.negativeValue", "القيمة لا يمكن أن تكون سالبة."));
       return;
     }
 
     // إذا كان هناك مبلغ مستحق، لا نسمح بـ 0
     // أما إذا كان المستحق 0 (تأمين كامل)، نسمح بـ 0 للتأكيد
-    if (value === 0 && selectedValues && selectedValues.dueNow > 0) {
+    if (
+      parsedAmount.eq(0) &&
+      selectedValues &&
+      Money.decimal(selectedValues.dueNow).gt(0)
+    ) {
       toast.warning(t("treasury.cashier.toast.positiveValue", "أدخل قيمة دفع صحيحة (المبلغ المستحق أكبر من 0)."));
       return;
     }
+
+    const value = Number(Money.toFixed(parsedAmount, 3));
 
     try {
       const res = await apiClient.post(
@@ -472,7 +500,7 @@ export default function CashierPage() {
                 data-testid="cashier-submit-payment"
                 className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 transition-all mt-2"
               >
-                {Number(amount) === 0
+                {isPaymentAmountZero(amount)
                   ? t("treasury.cashier.confirmFullCoverage", "تأكيد (تغطية كاملة)")
                   : t("treasury.cashier.confirmAndReceive", "تأكيد واستلام النقدية")}
               </button>

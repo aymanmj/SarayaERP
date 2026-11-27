@@ -1,4 +1,4 @@
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -10,4 +10,9 @@ export class LoginDto {
   @MinLength(6, { message: 'كلمة المرور قصيرة جداً' })
   @MaxLength(128, { message: 'كلمة المرور طويلة جداً' }) // bcrypt truncates at 72 bytes
   password: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(16)
+  mfaCode?: string;
 }

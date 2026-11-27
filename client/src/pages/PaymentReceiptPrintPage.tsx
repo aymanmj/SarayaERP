@@ -6,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { useQuery } from "@tanstack/react-query";
 import type { OrganizationSettings } from "../types/organization";
 import { Loader2 } from "lucide-react";
+import { Money, formatMoney as formatMoneyUtil } from "../utils/money";
 
 type EncounterType = "OPD" | "ER" | "IPD";
 
@@ -64,10 +65,7 @@ function fmtDate(iso?: string | null) {
 }
 
 function fmtMoney(val: number | string | null | undefined) {
-  return Number(val ?? 0).toLocaleString("en-US", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  return formatMoneyUtil(val, false);
 }
 
 function methodLabel(m: string) {
@@ -130,8 +128,10 @@ export default function PaymentReceiptPrintPage() {
   }
 
   const { payment, invoice, patient, encounter } = data;
-  const isFullyPaid = Number(invoice.remainingAmount) <= 0;
-  const net = Number(invoice.totalAmount) - Number(invoice.discountAmount);
+  const isFullyPaid = Money.decimal(invoice.remainingAmount ?? 0).lte(0);
+  const net = Money.decimal(invoice.totalAmount ?? 0)
+    .minus(Money.decimal(invoice.discountAmount ?? 0))
+    .toFixed(3);
 
   return (
     <>
@@ -369,7 +369,7 @@ export default function PaymentReceiptPrintPage() {
             <span className="r-summary-label">المبلغ الإجمالي:</span>
             <span className="r-summary-value"><span dir="ltr">{fmtMoney(invoice.totalAmount)}&nbsp;{invoice.currency}</span></span>
           </div>
-          {Number(invoice.discountAmount) > 0 && (
+          {Money.decimal(invoice.discountAmount ?? 0).gt(0) && (
             <div className="r-summary-row">
               <span className="r-summary-label">الخصم:</span>
               <span className="r-summary-value" style={{ color: "#dc2626" }}>
@@ -391,7 +391,7 @@ export default function PaymentReceiptPrintPage() {
             <span className="r-summary-label" style={{ fontWeight: 700 }}>المبلغ المتبقي:</span>
             <span className="r-summary-value" style={{
               fontSize: 18,
-              color: Number(invoice.remainingAmount) > 0 ? "#dc2626" : "#059669",
+              color: Money.decimal(invoice.remainingAmount ?? 0).gt(0) ? "#dc2626" : "#059669",
             }}>
               <span dir="ltr">{fmtMoney(invoice.remainingAmount)}&nbsp;{invoice.currency}</span>
             </span>

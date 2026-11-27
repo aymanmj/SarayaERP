@@ -21,27 +21,26 @@ const generateSearchHash = (value: string) =>
     ? createHash('sha256').update(value.trim().toLowerCase()).digest('hex')
     : null;
 
-function handleDecryption(data: any, encryptionService: EncryptionService) {
+function handleDecryption<T>(data: T, encryptionService: EncryptionService): T {
   if (!data) return data;
 
-  const decryptObject = (obj: any) => {
+  const decryptObject = (obj: unknown): unknown => {
+    if (!obj || typeof obj !== 'object') return obj;
+    const record = obj as Record<string, unknown>;
     for (const field of PATIENT_SENSITIVE_FIELDS) {
-      if (
-        obj[field] &&
-        typeof obj[field] === 'string' &&
-        obj[field].includes(':')
-      ) {
-        obj[field] = encryptionService.decrypt(obj[field]);
+      const val = record[field];
+      if (val && typeof val === 'string' && val.includes(':')) {
+        record[field] = encryptionService.decrypt(val);
       }
     }
-    return obj;
+    return record;
   };
 
   if (Array.isArray(data)) {
-    return data.map((item) => decryptObject(item));
+    return data.map((item) => decryptObject(item)) as unknown as T;
   }
 
-  return decryptObject(data);
+  return decryptObject(data) as T;
 }
 
 const PATIENT_RELATION_KEYS = new Set([
@@ -163,13 +162,40 @@ function needsRLS(model: string): boolean {
   return TENANT_SCOPED_MODELS.has(model) && !RLS_EXEMPT_MODELS.has(model);
 }
 
+export type MutableRecord = Record<string, unknown>;
+
+export interface TenantQueryArgs {
+  where?: MutableRecord;
+  data?: MutableRecord | MutableRecord[];
+  create?: MutableRecord;
+  update?: MutableRecord;
+  [key: string]: unknown;
+}
+
+interface DynamicPrismaDelegate {
+  update: (args: MutableRecord) => Promise<unknown>;
+  updateMany: (args: MutableRecord) => Promise<unknown>;
+}
+
+function getDynamicDelegate(
+  prisma: PrismaClient,
+  model: string,
+): DynamicPrismaDelegate {
+  const delegateKey = model.charAt(0).toLowerCase() + model.slice(1);
+  return (prisma as unknown as Record<string, DynamicPrismaDelegate>)[
+    delegateKey
+  ];
+}
+
 function getTenantHospitalId(): number | null {
   try {
     const cls = ClsServiceManager.getClsService();
     if (!cls) return null;
 
-    const hospitalId = cls.get('hospitalId');
-    return hospitalId ? Number(hospitalId) : null;
+    const hospitalId = cls.get<unknown>('hospitalId');
+    return typeof hospitalId === 'number' || typeof hospitalId === 'string'
+      ? Number(hospitalId) || null
+      : null;
   } catch {
     return null;
   }
@@ -220,7 +246,7 @@ function assertTenantMatch(
 
 function enforceTenantOnWhere(
   model: string,
-  args: any,
+  args: TenantQueryArgs,
   context: TenantContext = getTenantContext(),
 ): void {
   if (!needsRLS(model) || context.isSuperAdmin || !context.hospitalId) return;
@@ -235,7 +261,7 @@ function enforceTenantOnWhere(
 
 function enforceTenantOnData(
   model: string,
-  data: any,
+  data: MutableRecord | MutableRecord[] | undefined,
   context: TenantContext = getTenantContext(),
   source = 'data',
   injectMissing = true,
@@ -263,7 +289,7 @@ function enforceTenantOnData(
   });
 }
 
-function applySoftDeleteFilter(model: string, args: any): void {
+function applySoftDeleteFilter(model: string, args: TenantQueryArgs): void {
   if (!SOFT_DELETABLE_MODELS.has(model)) return;
 
   args.where = args.where || {};
@@ -272,15 +298,15 @@ function applySoftDeleteFilter(model: string, args: any): void {
   }
 }
 
-function applyTenantPolicy(
+function applyTenantPolicy<T extends TenantQueryArgs>(
   model: string,
   operation: TenantOperation,
-  args: any,
+  args: T,
   options?: {
     includeSoftDeleteFilter?: boolean;
     context?: TenantContext;
   },
-): any {
+): T {
   const context = options?.context ?? getTenantContext();
 
   switch (operation) {
@@ -321,28 +347,35 @@ function applyTenantPolicy(
   return args;
 }
 
-function injectRLS(model: string, args: any): void {
+function injectRLS(model: string, args: TenantQueryArgs): void {
   applyTenantPolicy(model, 'findMany', args);
 }
 
 function encryptPatientPayload(
-  data: any,
+  data: MutableRecord,
   encryptionService: EncryptionService,
   includeMrnHash = false,
 ): void {
-  if (data.phone) data.phoneHash = generateSearchHash(data.phone);
-  if (data.email) data.emailHash = generateSearchHash(data.email);
-  if (includeMrnHash && data.mrn) data.mrnHash = generateSearchHash(data.mrn);
-  if (data.nationalId) {
+  if (typeof data.phone === 'string') {
+    data.phoneHash = generateSearchHash(data.phone);
+  }
+  if (typeof data.email === 'string') {
+    data.emailHash = generateSearchHash(data.email);
+  }
+  if (includeMrnHash && typeof data.mrn === 'string') {
+    data.mrnHash = generateSearchHash(data.mrn);
+  }
+  if (typeof data.nationalId === 'string') {
     data.nationalIdHash = generateSearchHash(data.nationalId);
   }
-  if (data.identityNumber) {
+  if (typeof data.identityNumber === 'string') {
     data.identityNumberHash = generateSearchHash(data.identityNumber);
   }
 
   PATIENT_SENSITIVE_FIELDS.forEach((field) => {
-    if (data[field]) {
-      data[field] = encryptionService.encrypt(data[field]);
+    const val = data[field];
+    if (typeof val === 'string' && val.length > 0) {
+      data[field] = encryptionService.encrypt(val);
     }
   });
 }
@@ -355,19 +388,39 @@ export const extendedPrisma = (
     query: {
       patient: {
         async create({ args, query }) {
-          applyTenantPolicy('Patient', 'create', args as any);
-          encryptPatientPayload(args.data as any, encryptionService, true);
+          applyTenantPolicy(
+            'Patient',
+            'create',
+            args as unknown as TenantQueryArgs,
+          );
+          encryptPatientPayload(
+            args.data as unknown as MutableRecord,
+            encryptionService,
+            true,
+          );
           return query(args);
         },
         async update({ args, query }) {
-          applyTenantPolicy('Patient', 'update', args as any);
-          encryptPatientPayload(args.data as any, encryptionService);
+          applyTenantPolicy(
+            'Patient',
+            'update',
+            args as unknown as TenantQueryArgs,
+          );
+          encryptPatientPayload(
+            args.data as unknown as MutableRecord,
+            encryptionService,
+          );
           return query(args);
         },
         async findFirst({ args, query }) {
-          applyTenantPolicy('Patient', 'findFirst', args as any, {
-            includeSoftDeleteFilter: true,
-          });
+          applyTenantPolicy(
+            'Patient',
+            'findFirst',
+            args as unknown as TenantQueryArgs,
+            {
+              includeSoftDeleteFilter: true,
+            },
+          );
           const result = await query(args);
           return decryptPatientRelations(
             handleDecryption(result, encryptionService),
@@ -375,9 +428,14 @@ export const extendedPrisma = (
           );
         },
         async findMany({ args, query }) {
-          applyTenantPolicy('Patient', 'findMany', args as any, {
-            includeSoftDeleteFilter: true,
-          });
+          applyTenantPolicy(
+            'Patient',
+            'findMany',
+            args as unknown as TenantQueryArgs,
+            {
+              includeSoftDeleteFilter: true,
+            },
+          );
           const result = await query(args);
           return decryptPatientRelations(
             handleDecryption(result, encryptionService),
@@ -385,7 +443,11 @@ export const extendedPrisma = (
           );
         },
         async findUnique({ args, query }) {
-          applyTenantPolicy('Patient', 'findUnique', args as any);
+          applyTenantPolicy(
+            'Patient',
+            'findUnique',
+            args as unknown as TenantQueryArgs,
+          );
           const result = await query(args);
           return decryptPatientRelations(
             handleDecryption(result, encryptionService),
@@ -393,7 +455,11 @@ export const extendedPrisma = (
           );
         },
         async findUniqueOrThrow({ args, query }) {
-          applyTenantPolicy('Patient', 'findUniqueOrThrow', args as any);
+          applyTenantPolicy(
+            'Patient',
+            'findUniqueOrThrow',
+            args as unknown as TenantQueryArgs,
+          );
           const result = await query(args);
           return decryptPatientRelations(
             handleDecryption(result, encryptionService),
@@ -403,147 +469,158 @@ export const extendedPrisma = (
       },
       $allModels: {
         async delete({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'delete', args as any);
+          const scopedArgs = applyTenantPolicy(
+            model,
+            'delete',
+            args as unknown as TenantQueryArgs,
+          );
 
           if (SOFT_DELETABLE_MODELS.has(model)) {
-            return (prisma as any)[model].update({
+            const extraData =
+              scopedArgs.data && !Array.isArray(scopedArgs.data)
+                ? scopedArgs.data
+                : {};
+            return getDynamicDelegate(prisma, model).update({
               ...scopedArgs,
-              data: { isDeleted: true, ...(scopedArgs.data || {}) },
+              data: { isDeleted: true, ...extraData },
             });
           }
 
-          return query(scopedArgs);
+          return query(args);
         },
         async deleteMany({ model, args, query }) {
           const scopedArgs = applyTenantPolicy(
             model,
             'deleteMany',
-            args as any,
+            args as unknown as TenantQueryArgs,
           );
 
           if (SOFT_DELETABLE_MODELS.has(model)) {
-            return (prisma as any)[model].updateMany({
+            const extraData =
+              scopedArgs.data && !Array.isArray(scopedArgs.data)
+                ? scopedArgs.data
+                : {};
+            return getDynamicDelegate(prisma, model).updateMany({
               ...scopedArgs,
-              data: { isDeleted: true, ...(scopedArgs.data || {}) },
+              data: { isDeleted: true, ...extraData },
             });
           }
 
-          return query(scopedArgs);
+          return query(args);
         },
         async findMany({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'findMany', args as any, {
-            includeSoftDeleteFilter: model !== 'Patient',
-          });
-          return decryptPatientRelations(
-            await query(scopedArgs),
-            encryptionService,
+          applyTenantPolicy(
+            model,
+            'findMany',
+            args as unknown as TenantQueryArgs,
+            {
+              includeSoftDeleteFilter: model !== 'Patient',
+            },
           );
+          return decryptPatientRelations(await query(args), encryptionService);
         },
         async findFirst({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'findFirst',
-            args as any,
+            args as unknown as TenantQueryArgs,
             {
               includeSoftDeleteFilter: model !== 'Patient',
             },
           );
-          return decryptPatientRelations(
-            await query(scopedArgs),
-            encryptionService,
-          );
+          return decryptPatientRelations(await query(args), encryptionService);
         },
         async findFirstOrThrow({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'findFirstOrThrow',
-            args as any,
+            args as unknown as TenantQueryArgs,
             {
               includeSoftDeleteFilter: model !== 'Patient',
             },
           );
-          return decryptPatientRelations(
-            await query(scopedArgs),
-            encryptionService,
-          );
+          return decryptPatientRelations(await query(args), encryptionService);
         },
         async findUnique({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'findUnique',
-            args as any,
+            args as unknown as TenantQueryArgs,
           );
-          return decryptPatientRelations(
-            await query(scopedArgs),
-            encryptionService,
-          );
+          return decryptPatientRelations(await query(args), encryptionService);
         },
         async findUniqueOrThrow({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'findUniqueOrThrow',
-            args as any,
+            args as unknown as TenantQueryArgs,
           );
-          return decryptPatientRelations(
-            await query(scopedArgs),
-            encryptionService,
-          );
+          return decryptPatientRelations(await query(args), encryptionService);
         },
         async count({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
-            model,
-            'count',
-            (args ?? {}) as any,
-            {
-              includeSoftDeleteFilter: true,
-            },
-          );
-          return query(scopedArgs);
-        },
-        async aggregate({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
-            model,
-            'aggregate',
-            (args ?? {}) as any,
-            {
-              includeSoftDeleteFilter: true,
-            },
-          );
-          return query(scopedArgs);
-        },
-        async groupBy({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'groupBy', args as any, {
+          const scopedArgs = (args ?? {}) as TenantQueryArgs;
+          applyTenantPolicy(model, 'count', scopedArgs, {
             includeSoftDeleteFilter: true,
           });
-          return query(scopedArgs);
+          return query(scopedArgs as Parameters<typeof query>[0]);
+        },
+        async aggregate({ model, args, query }) {
+          const scopedArgs = (args ?? {}) as TenantQueryArgs;
+          applyTenantPolicy(model, 'aggregate', scopedArgs, {
+            includeSoftDeleteFilter: true,
+          });
+          return query(scopedArgs as Parameters<typeof query>[0]);
+        },
+        async groupBy({ model, args, query }) {
+          applyTenantPolicy(
+            model,
+            'groupBy',
+            args as unknown as TenantQueryArgs,
+            {
+              includeSoftDeleteFilter: true,
+            },
+          );
+          return query(args);
         },
         async create({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'create', args as any);
-          return query(scopedArgs);
+          applyTenantPolicy(
+            model,
+            'create',
+            args as unknown as TenantQueryArgs,
+          );
+          return query(args);
         },
         async createMany({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'createMany',
-            args as any,
+            args as unknown as TenantQueryArgs,
           );
-          return query(scopedArgs);
+          return query(args);
         },
         async update({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'update', args as any);
-          return query(scopedArgs);
+          applyTenantPolicy(
+            model,
+            'update',
+            args as unknown as TenantQueryArgs,
+          );
+          return query(args);
         },
         async updateMany({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(
+          applyTenantPolicy(
             model,
             'updateMany',
-            args as any,
+            args as unknown as TenantQueryArgs,
           );
-          return query(scopedArgs);
+          return query(args);
         },
         async upsert({ model, args, query }) {
-          const scopedArgs = applyTenantPolicy(model, 'upsert', args as any);
-          return query(scopedArgs);
+          applyTenantPolicy(
+            model,
+            'upsert',
+            args as unknown as TenantQueryArgs,
+          );
+          return query(args);
         },
       },
     },

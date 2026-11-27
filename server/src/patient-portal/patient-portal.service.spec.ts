@@ -33,6 +33,9 @@ describe('PatientPortalService', () => {
 
   const mockPrisma = {
     patient: { findUnique: jest.fn(), findFirst: jest.fn() },
+    user: { findFirst: jest.fn() },
+    doctorSchedule: { findFirst: jest.fn() },
+    leaveRequest: { findFirst: jest.fn() },
     patientRefreshToken: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -721,6 +724,72 @@ describe('PatientPortalService', () => {
       await expect(service.getInvoiceById(1, 7)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getDoctorAvailableSlots', () => {
+    const getFutureMonday = (): string => {
+      const target = new Date(Date.now() + 7 * 86_400_000);
+      const offset = (1 - target.getUTCDay() + 7) % 7;
+      target.setUTCDate(target.getUTCDate() + offset);
+      return target.toISOString().slice(0, 10);
+    };
+
+    it('should return empty slots when doctor is not scheduled on requested weekday', async () => {
+      const mondayStr = getFutureMonday();
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 7 });
+      mockPrisma.doctorSchedule.findFirst.mockResolvedValue({
+        workDays: '0,2,4',
+        startTime: '09:00',
+        endTime: '11:00',
+        slotDuration: 30,
+        maxPerDay: null,
+      });
+
+      const slots = await service.getDoctorAvailableSlots(1, 7, mondayStr);
+      expect(slots).toEqual([]);
+    });
+
+    it('should return empty slots when doctor has an approved leave request', async () => {
+      const mondayStr = getFutureMonday();
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 7 });
+      mockPrisma.doctorSchedule.findFirst.mockResolvedValue({
+        workDays: '1',
+        startTime: '09:00',
+        endTime: '11:00',
+        slotDuration: 30,
+        maxPerDay: null,
+      });
+      mockPrisma.leaveRequest.findFirst.mockResolvedValue({ id: 99 });
+
+      const slots = await service.getDoctorAvailableSlots(1, 7, mondayStr);
+      expect(slots).toEqual([]);
+    });
+
+    it('should omit overlapping appointment intervals while keeping open slots available', async () => {
+      const mondayStr = getFutureMonday();
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 7 });
+      mockPrisma.doctorSchedule.findFirst.mockResolvedValue({
+        workDays: '1',
+        startTime: '09:00',
+        endTime: '11:00',
+        slotDuration: 30,
+        maxPerDay: null,
+      });
+      mockPrisma.leaveRequest.findFirst.mockResolvedValue(null);
+      mockPrisma.appointment.findMany.mockResolvedValue([
+        {
+          scheduledStart: new Date(`${mondayStr}T09:30:00.000Z`),
+          scheduledEnd: new Date(`${mondayStr}T10:00:00.000Z`),
+        },
+      ]);
+
+      const slots = await service.getDoctorAvailableSlots(1, 7, mondayStr);
+      expect(slots).toEqual([
+        { time: `${mondayStr}T09:00:00.000Z`, available: true },
+        { time: `${mondayStr}T10:00:00.000Z`, available: true },
+        { time: `${mondayStr}T10:30:00.000Z`, available: true },
+      ]);
     });
   });
 });

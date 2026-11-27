@@ -47,6 +47,7 @@ export class JwtStrategy
       ]),
       ignoreExpiration: false,
       issuer: 'saraya-staff', // Enforce Token Isolation
+      algorithms: ['HS256'],
       secretOrKeyProvider: async (
         _request: Request,
         rawJwtToken: string,

@@ -1,10 +1,12 @@
 import { ForbiddenException } from '@nestjs/common';
-import { ClsServiceManager } from 'nestjs-cls';
+import { ClsServiceManager, type ClsService } from 'nestjs-cls';
 import {
   applySoftDeleteFilter,
   applyTenantPolicy,
   enforceTenantOnData,
   enforceTenantOnWhere,
+  type MutableRecord,
+  type TenantQueryArgs,
 } from './prisma.extension';
 
 describe('prisma tenant isolation helpers', () => {
@@ -15,11 +17,11 @@ describe('prisma tenant isolation helpers', () => {
   function mockCls(values: Record<string, unknown>) {
     jest.spyOn(ClsServiceManager, 'getClsService').mockReturnValue({
       get: (key: string) => values[key],
-    } as any);
+    } as unknown as ClsService);
   }
 
   it('injects the active hospital into where filters', () => {
-    const args: any = {};
+    const args: TenantQueryArgs = {};
 
     enforceTenantOnWhere('Encounter', args, {
       hospitalId: 7,
@@ -30,7 +32,7 @@ describe('prisma tenant isolation helpers', () => {
   });
 
   it('rejects cross-tenant where filters', () => {
-    const args: any = { where: { id: 22, hospitalId: 9 } };
+    const args: TenantQueryArgs = { where: { id: 22, hospitalId: 9 } };
 
     expect(() =>
       enforceTenantOnWhere('Encounter', args, {
@@ -41,7 +43,7 @@ describe('prisma tenant isolation helpers', () => {
   });
 
   it('injects the active hospital into create payloads', () => {
-    const data: any = { fullName: 'Test Patient' };
+    const data: MutableRecord = { fullName: 'Test Patient' };
 
     enforceTenantOnData(
       'Patient',
@@ -54,7 +56,7 @@ describe('prisma tenant isolation helpers', () => {
   });
 
   it('rejects cross-tenant create payloads', () => {
-    const data: any = { hospitalId: 99, fullName: 'Wrong Tenant' };
+    const data: MutableRecord = { hospitalId: 99, fullName: 'Wrong Tenant' };
 
     expect(() =>
       enforceTenantOnData(
@@ -72,7 +74,7 @@ describe('prisma tenant isolation helpers', () => {
     const args = applyTenantPolicy(
       'Appointment',
       'count',
-      {},
+      {} as TenantQueryArgs,
       {
         includeSoftDeleteFilter: true,
       },
@@ -84,35 +86,33 @@ describe('prisma tenant isolation helpers', () => {
   it('scopes upserts across where, create, and update payloads', () => {
     mockCls({ hospitalId: 15, isSuperAdmin: false });
 
-    const args: any = {
-      where: { id: 5 },
-      create: { status: 'OPEN' },
-      update: { status: 'CLOSED' },
-    };
+    const where: MutableRecord = { id: 5 };
+    const create: MutableRecord = { status: 'OPEN' };
+    const update: MutableRecord = { status: 'CLOSED' };
+    const args: TenantQueryArgs = { where, create, update };
 
     applyTenantPolicy('Encounter', 'upsert', args);
 
-    expect(args.where.hospitalId).toBe(15);
-    expect(args.create.hospitalId).toBe(15);
-    expect(args.update.hospitalId).toBeUndefined();
+    expect(where.hospitalId).toBe(15);
+    expect(create.hospitalId).toBe(15);
+    expect(update.hospitalId).toBeUndefined();
   });
 
   it('bypasses tenant enforcement for super admins', () => {
-    const args: any = {
-      where: { hospitalId: 42 },
-      data: { hospitalId: 42, note: 'cross tenant' },
-    };
+    const where: MutableRecord = { hospitalId: 42 };
+    const data: MutableRecord = { hospitalId: 42, note: 'cross tenant' };
+    const args: TenantQueryArgs = { where, data };
 
     applyTenantPolicy('Encounter', 'update', args, {
       context: { hospitalId: 7, isSuperAdmin: true },
     });
 
-    expect(args.where.hospitalId).toBe(42);
-    expect(args.data.hospitalId).toBe(42);
+    expect(where.hospitalId).toBe(42);
+    expect(data.hospitalId).toBe(42);
   });
 
   it('does not touch exempt models', () => {
-    const args: any = {};
+    const args: TenantQueryArgs = {};
 
     applyTenantPolicy('Hospital', 'findMany', args, {
       context: { hospitalId: 9, isSuperAdmin: false },
@@ -123,7 +123,7 @@ describe('prisma tenant isolation helpers', () => {
   });
 
   it('adds the soft delete filter only when missing', () => {
-    const args: any = { where: { isDeleted: true } };
+    const args: TenantQueryArgs = { where: { isDeleted: true } };
 
     applySoftDeleteFilter('Patient', args);
 

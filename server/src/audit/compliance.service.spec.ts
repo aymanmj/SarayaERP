@@ -137,7 +137,7 @@ describe('ComplianceService', () => {
 
       expect(pamControl).toBeDefined();
       expect(pamControl!.status).toBe('FAIL');
-      expect(pamControl!.details).toContain('2 SYSTEM_ADMIN');
+      expect(pamControl!.details).toContain('2 privileged admin');
       expect(pamControl!.dueDate).toBeDefined();
     });
 

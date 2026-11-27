@@ -360,9 +360,9 @@ describe('AppointmentsService', () => {
       expect(prisma.invoice.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            totalAmount: 120,
-            patientShare: 24,
-            insuranceShare: 96,
+            totalAmount: '120.000',
+            patientShare: '24.000',
+            insuranceShare: '96.000',
             insuranceProviderId: 7,
           }),
         }),

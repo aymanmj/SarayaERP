@@ -6,9 +6,52 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, GlobalPatient } from '@prisma/client';
+import {
+  Prisma,
+  GlobalPatient,
+  type Gender,
+  type IdentityType,
+  type MaritalStatus,
+} from '@prisma/client';
 import { SoftDeleteService } from '../common/soft-delete.service';
 import { createHash } from 'crypto';
+
+export type CreatePatientInput = Omit<
+  Prisma.PatientCreateInput,
+  | 'mrn'
+  | 'hospital'
+  | 'id'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'isDeleted'
+  | 'deletedAt'
+  | 'deletedById'
+  | 'globalPatient'
+> & {
+  hasDataSharingConsent?: boolean;
+  hospitalId?: number;
+};
+
+export interface UpdatePatientInput {
+  fullName?: string;
+  nationalId?: string | null;
+  dateOfBirth?: Date | null;
+  gender?: Gender | null;
+  phone?: string | null;
+  address?: string | null;
+  email?: string | null;
+  notes?: string | null;
+  motherName?: string | null;
+  familyBooklet?: string | null;
+  familySheet?: string | null;
+  registryNumber?: string | null;
+  identityType?: IdentityType | null;
+  identityNumber?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  insurancePolicyId?: number | null;
+  insuranceMemberId?: string | null;
+  hospitalId?: number;
+}
 
 @Injectable()
 export class PatientsService {
@@ -65,21 +108,11 @@ export class PatientsService {
 
   async create(
     hospitalId: number,
-    data: Omit<
-      Prisma.PatientCreateInput,
-      | 'mrn'
-      | 'hospital'
-      | 'id'
-      | 'createdAt'
-      | 'updatedAt'
-      | 'isDeleted'
-      | 'deletedAt'
-      | 'deletedById'
-      | 'globalPatient'
-    > & { hasDataSharingConsent?: boolean },
+    data: CreatePatientInput & { hospitalId?: number },
   ) {
     // Remove hospitalId from data if it was accidentally passed in the DTO
-    const { hospitalId: _, ...cleanData } = data as any;
+    const cleanData: CreatePatientInput = { ...data };
+    delete (cleanData as { hospitalId?: number }).hospitalId;
 
     let globalPatientId: number | undefined = undefined;
 
@@ -153,13 +186,13 @@ export class PatientsService {
     }
     const mrn = await this.generateNextMrn(hospitalId);
 
-    // Create the Local Patient File
+    // Create the Local Patient File (tenant extension injects hospitalId at runtime)
     const newPatient = await this.prisma.patient.create({
       data: {
         ...cleanData,
         mrn,
         globalPatientId,
-      },
+      } as unknown as Prisma.PatientCreateArgs['data'],
     });
 
     // ─── MPI Consent Record ────────────────────────────────────────────────────
@@ -346,12 +379,15 @@ export class PatientsService {
   // ✅ [ENHANCED] تحديث المريض المحلي + تزامن البيانات الديموغرافية مع GlobalPatient
   // عند تحديث بيانات المريض في أي فرع، يتم تحديث السجل الوطني الموحد (MPI)
   // تلقائياً لتنعكس التعديلات عند زيارة فروع أخرى.
-  async update(hospitalId: number, id: number, data: any) {
+  async update(hospitalId: number, id: number, data: UpdatePatientInput) {
     // التأكد من وجود المريض
     const existingPatient = await this.findOne(hospitalId, id);
 
     // فصل حقل insurancePolicyId و hospitalId عن باقي البيانات
-    const { insurancePolicyId, hospitalId: _, ...restData } = data;
+    const restData: UpdatePatientInput = { ...data };
+    const insurancePolicyId = restData.insurancePolicyId;
+    delete restData.insurancePolicyId;
+    delete restData.hospitalId;
 
     // تجهيز كائن التحديث (Prisma Input)
     const updateInput: Prisma.PatientUpdateInput = {
@@ -379,23 +415,27 @@ export class PatientsService {
     // This ensures that when Hospital (A) updates the patient's
     // phone number, Hospital (B) sees the updated data.
     // ═══════════════════════════════════════════════════════
-    const globalPatientId = (existingPatient as any).globalPatientId;
+    const globalPatientId = existingPatient.globalPatientId;
     if (globalPatientId) {
-      const SYNCED_FIELDS = [
-        'fullName',
-        'nationalId',
-        'dateOfBirth',
-        'gender',
-        'identityType',
-        'identityNumber',
-      ] as const;
+      const globalUpdate: Prisma.GlobalPatientUpdateInput = {};
 
-      const globalUpdate: Record<string, any> = {};
-
-      for (const field of SYNCED_FIELDS) {
-        if (restData[field] !== undefined) {
-          globalUpdate[field] = restData[field];
-        }
+      if (restData.fullName !== undefined) {
+        globalUpdate.fullName = restData.fullName;
+      }
+      if (restData.nationalId !== undefined) {
+        globalUpdate.nationalId = restData.nationalId;
+      }
+      if (restData.dateOfBirth !== undefined) {
+        globalUpdate.dateOfBirth = restData.dateOfBirth;
+      }
+      if (restData.gender !== undefined) {
+        globalUpdate.gender = restData.gender;
+      }
+      if (restData.identityType !== undefined) {
+        globalUpdate.identityType = restData.identityType;
+      }
+      if (restData.identityNumber !== undefined) {
+        globalUpdate.identityNumber = restData.identityNumber;
       }
 
       // Recompute search hashes if PII fields changed

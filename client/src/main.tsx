@@ -18,9 +18,11 @@ import "./styles.css";
 import "./lib/i18n";
 import { Toaster } from "sonner";
 import { useAuthStore } from "./stores/authStore";
+import { useThemeStore } from "./stores/themeStore";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { MainLayout } from "./layout/MainLayout";
 import { NetworkStatusBanner } from "./components/NetworkStatusBanner";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 
 // 1. Static Imports
 import { LoginPage } from "./pages/LoginPage";
@@ -42,6 +44,7 @@ const AboutPage = lazy(() =>
   import("./pages/AboutPage").then((m) => ({ default: m.AboutPage })),
 );
 const DeviceSessionsPage = lazy(() => import("./pages/settings/DeviceSessionsPage"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage"));
 
 // Print Pages (outside MainLayout)
 const InvoicePrintCleanPage = lazy(() => import("./pages/InvoicePrintCleanPage"));
@@ -57,8 +60,9 @@ const PageLoader = () => (
   </div>
 );
 
-// Hydrate Session
+// Hydrate Session & Clinical Theme
 if (typeof window !== "undefined") {
+  useThemeStore.getState().hydrateTheme();
   useAuthStore.getState().hydrateFromStorage();
   usePortalAuthStore.getState().hydrateFromStorage();
 }
@@ -82,38 +86,43 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
         <NetworkStatusBanner />
         <Toaster richColors position="top-center" closeButton />
 
-        {/* Suspense Wraps the App for Lazy Loading */}
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/activation" element={<ActivationPage />} />
+        {/* ErrorBoundary + Suspense Wrap the App */}
+        <AppErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/activation" element={<ActivationPage />} />
 
-            {/* Print Routes - Outside MainLayout */}
-            <Route path="/invoices/:id/print" element={<InvoicePrintCleanPage />} />
-            <Route path="/invoices/:id/pdf" element={<InvoicePrintPDFPage />} />
-            <Route path="/payments/:id/receipt/print" element={<PaymentReceiptPrintPage />} />
+              {/* Print Routes - Outside MainLayout */}
+              <Route path="/invoices/:id/print" element={<InvoicePrintCleanPage />} />
+              <Route path="/invoices/:id/pdf" element={<InvoicePrintPDFPage />} />
+              <Route path="/payments/:id/receipt/print" element={<PaymentReceiptPrintPage />} />
 
-            {/* Patient Portal Routes */}
-            {PortalRoutes}
+              {/* Patient Portal Routes */}
+              {PortalRoutes}
 
-            {/* Protected Routes */}
-            <Route element={<ProtectedRoute />}>
-              <Route element={<MainLayout />}>
-                {/* Dashboard */}
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/about" element={<AboutPage />} />
-                <Route path="/account/sessions" element={<DeviceSessionsPage />} />
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<MainLayout />}>
+                  {/* Dashboard */}
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/account/sessions" element={<DeviceSessionsPage />} />
 
-                {/* Module Routes */}
-                {ClinicalRoutes}
-                {FinanceRoutes}
-                {AdminRoutes}
-                {InventoryRoutes}
+                  {/* Module Routes */}
+                  {ClinicalRoutes}
+                  {FinanceRoutes}
+                  {AdminRoutes}
+                  {InventoryRoutes}
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </Suspense>
+
+              {/* 404 Fallback */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Suspense>
+        </AppErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

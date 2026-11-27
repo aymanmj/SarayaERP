@@ -34,7 +34,27 @@ PGPASSWORD=${POSTGRES_PASSWORD} pg_dump \
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ تم النسخ الاحتياطي بنجاح: ${BACKUP_FILE}${NC}"
-    
+
+    # SHA-256 checksum for integrity verification
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "${BACKUP_FILE}" > "${BACKUP_FILE}.sha256"
+    fi
+
+    # Archive clinical uploads if present and non-empty
+    UPLOADS_ARCHIVE=""
+    if [ -d "/uploads" ] && [ -n "$(ls -A /uploads 2>/dev/null)" ]; then
+        UPLOADS_ARCHIVE="${BACKUP_DIR}/saraya_uploads_${DATE}.tar.gz"
+        if tar -czf "${UPLOADS_ARCHIVE}" -C /uploads .; then
+            echo -e "${GREEN}✅ تم نسخ المرفقات بنجاح: ${UPLOADS_ARCHIVE}${NC}"
+            if command -v sha256sum >/dev/null 2>&1; then
+                sha256sum "${UPLOADS_ARCHIVE}" > "${UPLOADS_ARCHIVE}.sha256"
+            fi
+        else
+            echo -e "${YELLOW}⚠️ تعذر أرشفة مجلد المرفقات /uploads${NC}"
+            UPLOADS_ARCHIVE=""
+        fi
+    fi
+
     # Show backup size
     BACKUP_SIZE=$(ls -lh ${BACKUP_FILE} | awk '{print $5}')
     echo -e "${GREEN}📦 حجم النسخة: ${BACKUP_SIZE}${NC}"
@@ -45,6 +65,13 @@ if [ $? -eq 0 ]; then
         cp "${BACKUP_FILE}" "${SECONDARY_FILE}" 2>/dev/null && \
             echo -e "${YELLOW}📋 تم حفظ نسخة ثانية في المسار الافتراضي${NC}" || \
             echo -e "${YELLOW}⚠️ تعذر حفظ نسخة ثانية في المسار الافتراضي${NC}"
+        if [ -f "${BACKUP_FILE}.sha256" ]; then
+            cp "${BACKUP_FILE}.sha256" "${SECONDARY_FILE}.sha256" 2>/dev/null || true
+        fi
+        if [ -n "${UPLOADS_ARCHIVE}" ] && [ -f "${UPLOADS_ARCHIVE}" ]; then
+            cp "${UPLOADS_ARCHIVE}" "${DEFAULT_BACKUP_DIR}/saraya_uploads_${DATE}.tar.gz" 2>/dev/null || true
+            [ -f "${UPLOADS_ARCHIVE}.sha256" ] && cp "${UPLOADS_ARCHIVE}.sha256" "${DEFAULT_BACKUP_DIR}/saraya_uploads_${DATE}.tar.gz.sha256" 2>/dev/null || true
+        fi
     fi
 else
     echo -e "${RED}❌ فشل النسخ الاحتياطي!${NC}"
@@ -55,6 +82,9 @@ fi
 RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
 echo -e "${GREEN}🧹 تنظيف النسخ الأقدم من ${RETENTION_DAYS} يوماً في: ${BACKUP_DIR}${NC}"
 find ${BACKUP_DIR} -name "saraya_backup_*.sql.gz" -type f -mtime +${RETENTION_DAYS} -delete
+find ${BACKUP_DIR} -name "saraya_backup_*.sql.gz.sha256" -type f -mtime +${RETENTION_DAYS} -delete
+find ${BACKUP_DIR} -name "saraya_uploads_*.tar.gz" -type f -mtime +${RETENTION_DAYS} -delete
+find ${BACKUP_DIR} -name "saraya_uploads_*.tar.gz.sha256" -type f -mtime +${RETENTION_DAYS} -delete
 
 # List remaining backups
 echo -e "${GREEN}📋 النسخ الموجودة في المسار الهدف:${NC}"

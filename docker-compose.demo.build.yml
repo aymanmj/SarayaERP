@@ -1,0 +1,13 @@
+# Local source build override for Ubuntu VM production demo
+# Usage: docker compose -f docker-compose.demo.yml -f docker-compose.demo.build.yml --env-file .env.demo build
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api

@@ -23,7 +23,16 @@ import { MpiService } from './mpi.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import type { JwtPayload } from '../auth/jwt-payload.type';
 import type { Request } from 'express';
+
+type MpiAuthenticatedRequest = Request & {
+  user?: Partial<JwtPayload> & {
+    id?: number;
+    fullName?: string;
+    role?: string;
+  };
+};
 
 @ApiTags('MPI Federation')
 @ApiBearerAuth()
@@ -48,7 +57,7 @@ export class MpiController {
   async searchGlobalPatients(
     @Query('nationalId') nationalId: string,
     @Query('phone') phone: string,
-    @Req() req: Request,
+    @Req() req: MpiAuthenticatedRequest,
   ) {
     if (!nationalId && !phone) {
       throw new BadRequestException(
@@ -57,8 +66,8 @@ export class MpiController {
     }
 
     // Require the user's organizationId to be present in the JWT payload for proper Tenant Isolation
-    const user = (req as any).user;
-    if (!user || !user.organizationId) {
+    const user = req.user;
+    if (!user?.organizationId) {
       throw new ForbiddenException(
         'Invalid tenant scope. Cannot determine your organization context.',
       );
@@ -77,21 +86,21 @@ export class MpiController {
   async triggerConsentOtp(
     @Query('patientId') patientId: number,
     @Query('purpose') purpose: string,
-    @Req() req: Request,
+    @Req() req: MpiAuthenticatedRequest,
   ) {
     if (!patientId) throw new BadRequestException('patientId is required');
 
-    const user = (req as any).user;
-    if (!user || !user.organizationId) {
+    const user = req.user;
+    const requestingUserId = user?.sub ?? user?.id;
+    if (!user?.organizationId || !requestingUserId) {
       throw new ForbiddenException(
         'Invalid tenant scope. Cannot determine your organization context.',
       );
     }
-    const doctorName = user?.fullName || 'Doctor';
+    const doctorName = user.fullName || user.username || 'Doctor';
     const hospitalName = 'Saraya General Hospital'; // Could be derived from hospitalId
     const requestingOrganizationId = user.organizationId;
-    const requestingHospitalId = user.hospitalId || null;
-    const requestingUserId = user.id;
+    const requestingHospitalId = user.hospitalId ?? null;
 
     return this.mpiService.triggerConsentOtp(
       Number(patientId),
@@ -111,13 +120,12 @@ export class MpiController {
   async verifyConsentOtp(
     @Query('patientId') patientId: number,
     @Query('otp') otp: string,
-    @Req() req: Request,
+    @Req() req: MpiAuthenticatedRequest,
   ) {
     if (!patientId || !otp)
       throw new BadRequestException('patientId and otp are required');
 
-    const user = (req as any).user;
-    const requestingOrganizationId = user?.organizationId;
+    const requestingOrganizationId = req.user?.organizationId;
 
     return this.mpiService.verifyConsentOtp(
       Number(patientId),
@@ -146,19 +154,25 @@ export class MpiController {
       reason: string;
       organizationId?: number;
     },
-    @Req() req: Request,
+    @Req() req: MpiAuthenticatedRequest,
   ) {
-    const user = (req as any).user;
+    const user = req.user;
     if (!body.reason) {
       throw new BadRequestException(
         'A reason for consent revocation is required for audit compliance.',
       );
     }
+    const revokedByUserId = user?.sub ?? user?.id;
+    if (!revokedByUserId) {
+      throw new ForbiddenException(
+        'Invalid user context. Cannot determine revoking user.',
+      );
+    }
 
     return this.mpiService.revokeConsent({
       patientId,
-      revokedByUserId: user.sub || user.id,
-      revokedByRole: user.role || 'ADMIN',
+      revokedByUserId,
+      revokedByRole: user?.role || user?.roles?.[0] || 'ADMIN',
       organizationId: body.organizationId,
       reason: body.reason,
     });
@@ -182,9 +196,14 @@ export class MpiController {
   })
   async getConsentAuditTrail(
     @Param('patientId', ParseIntPipe) patientId: number,
-    @Req() req: Request,
+    @Req() req: MpiAuthenticatedRequest,
   ) {
-    const user = (req as any).user;
-    return this.mpiService.getConsentAuditTrail(patientId, user.hospitalId);
+    const hospitalId = req.user?.hospitalId;
+    if (!hospitalId) {
+      throw new ForbiddenException(
+        'Invalid tenant scope. Cannot determine your hospital context.',
+      );
+    }
+    return this.mpiService.getConsentAuditTrail(patientId, hospitalId);
   }
 }

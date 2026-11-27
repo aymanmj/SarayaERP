@@ -19,7 +19,7 @@ vi.mock("../../stores/authStore", () => ({
   ) => select({ user: { id: 10 }, currentBranchId: 1 }),
 }));
 vi.mock("../../api/apiClient", () => ({
-  apiClient: { get: vi.fn(), delete: vi.fn() },
+  apiClient: { get: vi.fn(), delete: vi.fn(), post: vi.fn() },
 }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -125,5 +125,40 @@ describe("device sessions", () => {
     expect(
       screen.queryByRole("button", { name: "deviceSessions.end" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("supports TOTP 2FA setup and confirmation", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: { userId: 10, mfaEnabled: false, sessions: [current] },
+    });
+    vi.mocked(apiClient.post)
+      .mockResolvedValueOnce({
+        data: {
+          secret: "GEZDGNBVGY3TQOJQ",
+          otpauthUrl: "otpauth://totp/SarayaERP:user?secret=GEZDGNBVGY3TQOJQ",
+        },
+      })
+      .mockResolvedValueOnce({ data: { mfaEnabled: true } });
+
+    open();
+    fireEvent.click(
+      await screen.findByRole("button", { name: "deviceSessions.mfa.enableStart" }),
+    );
+    expect(await screen.findByText("GEZDGNBVGY3TQOJQ")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("deviceSessions.mfa.codeLabel"), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "deviceSessions.mfa.confirmEnable" }),
+    );
+
+    expect(
+      await screen.findByText("deviceSessions.mfa.enabledSuccess"),
+    ).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith("/auth/mfa/setup");
+    expect(apiClient.post).toHaveBeenCalledWith("/auth/mfa/enable", {
+      code: "123456",
+    });
   });
 });

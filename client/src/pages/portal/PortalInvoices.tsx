@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { portalApi } from '../../api/portalApi';
 import { CreditCard, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { Money } from '../../utils/money';
 
 export default function PortalInvoices() {
    
@@ -31,7 +32,11 @@ export default function PortalInvoices() {
    
   const openPaymentModal = (invoice: any) => {
     setSelectedInvoice(invoice);
-    const remaining = Number(invoice.totalAmount) - Number(invoice.paidAmount);
+    const remaining = Money.toDbString(
+      Money.decimal(invoice.totalAmount ?? 0).minus(
+        Money.decimal(invoice.paidAmount ?? 0),
+      ),
+    );
     setPaymentAmount(remaining);
     setShowPayment(true);
   };
@@ -43,7 +48,7 @@ export default function PortalInvoices() {
     setSubmittingPayment(true);
     try {
       await portalApi.post(`/financial/pay/${selectedInvoice.id}`, {
-        amount: Number(paymentAmount),
+        amount: Number(Money.toDbString(paymentAmount)),
         paymentMethod,
       });
       toast.success('تمت عملية الدفع بنجاح');
@@ -75,7 +80,7 @@ export default function PortalInvoices() {
         <div className="portal-balance-card">
           <div>
             <span>الرصيد المستحق</span>
-            <h2>{balance.totalOutstanding?.toFixed(3)} {balance.currency}</h2>
+            <h2>{Money.toDbString(balance.totalOutstanding ?? 0)} {balance.currency}</h2>
           </div>
           <span>{balance.invoiceCount} فواتير</span>
         </div>
@@ -99,7 +104,11 @@ export default function PortalInvoices() {
                 <input 
                   type="number" 
                   step="0.001"
-                  max={Number(selectedInvoice.totalAmount) - Number(selectedInvoice.paidAmount)}
+                  max={Money.toDbString(
+                    Money.decimal(selectedInvoice.totalAmount ?? 0).minus(
+                      Money.decimal(selectedInvoice.paidAmount ?? 0),
+                    ),
+                  )}
                   value={paymentAmount}
                   onChange={e => setPaymentAmount(e.target.value)}
                   required 
@@ -139,8 +148,8 @@ export default function PortalInvoices() {
                     <span className="portal-list-date">{new Date(inv.createdAt).toLocaleDateString('ar-LY')}</span>
                   </div>
                   <div className="portal-invoice-amounts">
-                    <span>الإجمالي: <strong>{Number(inv.totalAmount).toFixed(3)} {inv.currency}</strong></span>
-                    <span>المدفوع: <strong>{Number(inv.paidAmount).toFixed(3)} {inv.currency}</strong></span>
+                    <span>الإجمالي: <strong>{Money.toDbString(inv.totalAmount ?? 0)} {inv.currency}</strong></span>
+                    <span>المدفوع: <strong>{Money.toDbString(inv.paidAmount ?? 0)} {inv.currency}</strong></span>
                   </div>
                 </div>
                 {canPay && (

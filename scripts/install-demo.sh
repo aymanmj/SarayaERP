@@ -1,12 +1,18 @@
 #!/bin/bash
 # ==============================================================================
-# Saraya ERP - Ubuntu VM Full-Production Demo Installer (GHCR + Cloudflare)
+# Saraya ERP - Ubuntu VM Full-Production Demo Installer
 # ==============================================================================
-# Installs a lightweight 6-container full-production demo stack:
-#   postgres + redis + backend (GHCR) + frontend (GHCR) + nginx + cloudflared
+# Installs a lightweight production demo stack:
+#   postgres + redis + backend + frontend + nginx (+ optional cloudflared tunnel)
 #
-# Usage on Ubuntu VM:
+# Supports:
+#   1) Prebuilt GHCR images (default) OR --local-build from local repo source
+#   2) Public HTTPS via Cloudflare Tunnel (default) OR --lan-http for LAN IP tests
+#
+# Usage on Ubuntu Server VM:
 #   sudo bash scripts/install-demo.sh
+#   sudo bash scripts/install-demo.sh --local-build
+#   sudo bash scripts/install-demo.sh --local-build --lan-http
 # ==============================================================================
 
 set -euo pipefail
@@ -22,10 +28,35 @@ INSTALL_DIR="/opt/saraya-demo"
 SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
 SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
 
+LOCAL_BUILD=false
+LAN_HTTP=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --local-build)
+      LOCAL_BUILD=true
+      ;;
+    --lan-http)
+      LAN_HTTP=true
+      ;;
+    -h|--help)
+      echo "Usage: sudo bash scripts/install-demo.sh [--local-build] [--lan-http]"
+      echo "  --local-build   Build backend & frontend Docker images directly from local repo source"
+      echo "  --lan-http      Configure local VM LAN HTTP access without Cloudflare Tunnel"
+      exit 0
+      ;;
+    *)
+      echo -e "${RED}Unknown option: ${arg}${NC}"
+      echo "Usage: sudo bash scripts/install-demo.sh [--local-build] [--lan-http]"
+      exit 1
+      ;;
+  esac
+done
+
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║      SARAYA ERP - UBUNTU VM PRODUCTION DEMO INSTALLER           ║${NC}"
-echo -e "${CYAN}║      Full Production Mode + GHCR + Cloudflare Tunnel            ║${NC}"
+echo -e "${CYAN}║      Full Production Mode + GHCR/Local Build + HTTPS/LAN        ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -68,45 +99,120 @@ done
 cp "${SOURCE_DIR}/docker-compose.demo.yml" "${INSTALL_DIR}/docker-compose.demo.yml"
 cp "${SOURCE_DIR}/production/nginx/nginx.demo.conf" "${INSTALL_DIR}/production/nginx/nginx.demo.conf"
 cp "${SOURCE_DIR}/scripts/reset-demo.sh" "${INSTALL_DIR}/scripts/reset-demo.sh"
+if [ -f "${SOURCE_DIR}/docker-compose.demo.build.yml" ]; then
+  cp "${SOURCE_DIR}/docker-compose.demo.build.yml" "${INSTALL_DIR}/docker-compose.demo.build.yml"
+fi
+sed -i 's/\r$//' \
+  "${INSTALL_DIR}/docker-compose.demo.yml" \
+  "${INSTALL_DIR}/production/nginx/nginx.demo.conf" \
+  "${INSTALL_DIR}/scripts/reset-demo.sh"
 chmod +x "${INSTALL_DIR}/scripts/reset-demo.sh"
 
 # Ensure node user (UID 1000) can read/write license, keys, uploads, backups
 chown -R 1000:1000 "${INSTALL_DIR}/data" "${INSTALL_DIR}/uploads" "${INSTALL_DIR}/backups"
 echo -e "${GREEN}✓ Files copied to ${INSTALL_DIR}${NC}"
 
-echo -e "${YELLOW}[4/7] Configuring GHCR credentials...${NC}"
-read -r -p "  GitHub Username [aymanmj]: " GH_USER
-GH_USER=${GH_USER:-aymanmj}
-read -r -s -p "  GitHub PAT (read:packages — leave empty if already logged in): " GH_PAT
-echo ""
-if [ -n "$GH_PAT" ]; then
-  echo "$GH_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
-  echo -e "${GREEN}✓ Logged in to ghcr.io${NC}"
-else
-  echo -e "${CYAN}ℹ Skipping docker login (using existing credentials)${NC}"
+echo -e "${YELLOW}[4/7] Configuring Image Source (GHCR Pull vs Local Build)...${NC}"
+if [ "$LOCAL_BUILD" != "true" ]; then
+  echo "  1) Pull prebuilt production images from GHCR (default)"
+  echo "  2) Build images locally on this VM from ${SOURCE_DIR}"
+  read -r -p "  Choose image source [1]: " IMG_CHOICE
+  IMG_CHOICE=${IMG_CHOICE:-1}
+  if [ "$IMG_CHOICE" = "2" ]; then
+    LOCAL_BUILD=true
+  fi
 fi
 
-echo -e "${YELLOW}[5/7] Configuring Demo Domain, Image Tag & Cloudflare Tunnel...${NC}"
-read -r -p "  Public Demo Domain (e.g. demo.alsarayatech.ly): " SARAYA_DOMAIN
-while [ -z "$SARAYA_DOMAIN" ]; do
-  read -r -p "  Public Demo Domain is required: " SARAYA_DOMAIN
-done
-
+read -r -p "  GitHub Repository Owner / Namespace [aymanmj]: " GH_USER
+GH_USER=${GH_USER:-aymanmj}
 read -r -p "  Docker IMAGE_TAG [latest]: " IMAGE_TAG
 IMAGE_TAG=${IMAGE_TAG:-latest}
 
-read -r -p "  Cloudflare TUNNEL_TOKEN: " TUNNEL_TOKEN
-while [ -z "$TUNNEL_TOKEN" ]; do
-  read -r -p "  Cloudflare TUNNEL_TOKEN is required: " TUNNEL_TOKEN
-done
+if [ "$LOCAL_BUILD" = "true" ]; then
+  if [ ! -f "${SOURCE_DIR}/server/Dockerfile" ] || [ ! -f "${SOURCE_DIR}/client/Dockerfile" ]; then
+    echo -e "${RED}Error: server/Dockerfile or client/Dockerfile not found in ${SOURCE_DIR}.${NC}"
+    exit 1
+  fi
+  echo -e "${CYAN}ℹ Building local production images (${GH_USER}/saraya-*:${IMAGE_TAG})...${NC}"
+  docker build -t "ghcr.io/${GH_USER}/saraya-frontend:${IMAGE_TAG}" \
+    --build-arg VITE_API_URL=/api \
+    -f "${SOURCE_DIR}/client/Dockerfile" \
+    "${SOURCE_DIR}/client"
+  docker build -t "ghcr.io/${GH_USER}/saraya-backend:${IMAGE_TAG}" \
+    -f "${SOURCE_DIR}/server/Dockerfile" \
+    "${SOURCE_DIR}/server"
+  echo -e "${GREEN}✓ Local production images built successfully${NC}"
+else
+  read -r -s -p "  GitHub PAT (read:packages — leave empty if already logged in or public): " GH_PAT
+  echo ""
+  if [ -n "$GH_PAT" ]; then
+    echo "$GH_PAT" | docker login ghcr.io -u "$GH_USER" --password-stdin
+    echo -e "${GREEN}✓ Logged in to ghcr.io${NC}"
+  else
+    echo -e "${CYAN}ℹ Skipping docker login (using existing credentials)${NC}"
+  fi
+fi
+
+echo -e "${YELLOW}[5/7] Configuring Access Mode (Cloudflare HTTPS vs LAN HTTP)...${NC}"
+if [ "$LAN_HTTP" != "true" ]; then
+  echo "  1) Public HTTPS via Cloudflare Tunnel (recommended for live client demos) [default]"
+  echo "  2) Local Ubuntu VM LAN HTTP only (no Cloudflare Tunnel needed)"
+  read -r -p "  Choose access mode [1]: " ACCESS_CHOICE
+  ACCESS_CHOICE=${ACCESS_CHOICE:-1}
+  if [ "$ACCESS_CHOICE" = "2" ]; then
+    LAN_HTTP=true
+  fi
+fi
+
+if [ "$LAN_HTTP" = "true" ]; then
+  DETECTED_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  DETECTED_IP=${DETECTED_IP:-127.0.0.1}
+  read -r -p "  Ubuntu VM LAN IP or hostname [${DETECTED_IP}]: " SARAYA_DOMAIN
+  SARAYA_DOMAIN=${SARAYA_DOMAIN:-$DETECTED_IP}
+  DEMO_HTTP_PORT_VAL="80"
+  CORS_ORIGINS_VAL="http://${SARAYA_DOMAIN},http://localhost,http://127.0.0.1"
+  COOKIE_SECURE_VAL="false"
+  TUNNEL_TOKEN="unused-lan-mode"
+  DEMO_USE_TUNNEL="false"
+  DEMO_SCHEME="http"
+else
+  read -r -p "  Public Demo Domain (e.g. demo.alsarayatech.ly): " SARAYA_DOMAIN
+  while [ -z "$SARAYA_DOMAIN" ]; do
+    read -r -p "  Public Demo Domain is required: " SARAYA_DOMAIN
+  done
+  read -r -p "  Cloudflare TUNNEL_TOKEN: " TUNNEL_TOKEN
+  while [ -z "$TUNNEL_TOKEN" ]; do
+    read -r -p "  Cloudflare TUNNEL_TOKEN is required: " TUNNEL_TOKEN
+  done
+  DEMO_HTTP_PORT_VAL="80"
+  CORS_ORIGINS_VAL="https://${SARAYA_DOMAIN}"
+  COOKIE_SECURE_VAL="true"
+  DEMO_USE_TUNNEL="true"
+  DEMO_SCHEME="https"
+fi
+
+upsert_env() {
+  local file="$1"
+  local key="$2"
+  local val="$3"
+  if grep -qE "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "$file"
+  else
+    echo "${key}=${val}" >> "$file"
+  fi
+}
 
 ENV_FILE="${INSTALL_DIR}/.env.demo"
 if [ -f "$ENV_FILE" ]; then
-  echo -e "${CYAN}ℹ Existing ${ENV_FILE} detected — updating domain/tag/tunnel and keeping existing DB/encryption keys.${NC}"
-  sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" "$ENV_FILE"
-  sed -i "s|^SARAYA_DOMAIN=.*|SARAYA_DOMAIN=${SARAYA_DOMAIN}|" "$ENV_FILE"
-  sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=https://${SARAYA_DOMAIN}|" "$ENV_FILE"
-  sed -i "s|^TUNNEL_TOKEN=.*|TUNNEL_TOKEN=${TUNNEL_TOKEN}|" "$ENV_FILE"
+  echo -e "${CYAN}ℹ Existing ${ENV_FILE} detected — updating network/tag settings and preserving DB & encryption secrets.${NC}"
+  upsert_env "$ENV_FILE" "GITHUB_REPOSITORY_OWNER" "${GH_USER}"
+  upsert_env "$ENV_FILE" "IMAGE_TAG" "${IMAGE_TAG}"
+  upsert_env "$ENV_FILE" "SARAYA_DOMAIN" "${SARAYA_DOMAIN}"
+  upsert_env "$ENV_FILE" "CORS_ORIGINS" "${CORS_ORIGINS_VAL}"
+  upsert_env "$ENV_FILE" "COOKIE_SECURE" "${COOKIE_SECURE_VAL}"
+  upsert_env "$ENV_FILE" "DEMO_HTTP_PORT" "${DEMO_HTTP_PORT_VAL}"
+  upsert_env "$ENV_FILE" "TUNNEL_TOKEN" "${TUNNEL_TOKEN}"
+  upsert_env "$ENV_FILE" "DEMO_USE_TUNNEL" "${DEMO_USE_TUNNEL}"
 else
   PG_PASS="$(openssl rand -hex 24)"
   REDIS_PASS="$(openssl rand -hex 24)"
@@ -118,10 +224,11 @@ else
 GITHUB_REPOSITORY_OWNER=${GH_USER}
 IMAGE_TAG=${IMAGE_TAG}
 SARAYA_DOMAIN=${SARAYA_DOMAIN}
-CORS_ORIGINS=https://${SARAYA_DOMAIN}
-COOKIE_SECURE=true
-DEMO_HTTP_PORT=80
+CORS_ORIGINS=${CORS_ORIGINS_VAL}
+COOKIE_SECURE=${COOKIE_SECURE_VAL}
+DEMO_HTTP_PORT=${DEMO_HTTP_PORT_VAL}
 TUNNEL_TOKEN=${TUNNEL_TOKEN}
+DEMO_USE_TUNNEL=${DEMO_USE_TUNNEL}
 
 POSTGRES_USER=saraya_demo
 POSTGRES_DB=saraya_demo
@@ -139,15 +246,27 @@ EOF
   echo -e "${GREEN}✓ Generated production secrets in ${ENV_FILE}${NC}"
 fi
 
-echo -e "${YELLOW}[6/7] Pulling GHCR images and starting demo containers...${NC}"
+echo -e "${YELLOW}[6/7] Starting production demo containers...${NC}"
 cd "$INSTALL_DIR"
-docker compose -f docker-compose.demo.yml --env-file .env.demo pull
-docker compose -f docker-compose.demo.yml --env-file .env.demo up -d
+if [ "$LOCAL_BUILD" != "true" ]; then
+  if [ "$DEMO_USE_TUNNEL" = "true" ]; then
+    docker compose -f docker-compose.demo.yml --env-file .env.demo pull
+  else
+    docker compose -f docker-compose.demo.yml --env-file .env.demo pull postgres redis backend frontend nginx
+  fi
+fi
 
-echo -e "${YELLOW}[7/7] Waiting for backend health & license Machine ID...${NC}"
+if [ "$DEMO_USE_TUNNEL" = "true" ]; then
+  docker compose -f docker-compose.demo.yml --env-file .env.demo up -d
+else
+  docker compose -f docker-compose.demo.yml --env-file .env.demo stop tunnel >/dev/null 2>&1 || true
+  docker compose -f docker-compose.demo.yml --env-file .env.demo up -d postgres redis backend frontend nginx
+fi
+
+echo -e "${YELLOW}[7/7] Waiting for backend readiness (/api/health/ready — DB + Redis + Seed)...${NC}"
 HEALTHY=false
-for i in $(seq 1 45); do
-  if docker exec saraya_demo_backend curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+for i in $(seq 1 60); do
+  if docker exec saraya_demo_backend curl -sf http://localhost:3000/api/health/ready >/dev/null 2>&1; then
     HEALTHY=true
     break
   fi
@@ -155,32 +274,40 @@ for i in $(seq 1 45); do
 done
 
 if [ "$HEALTHY" != "true" ]; then
-  echo -e "${RED}✗ Backend did not become healthy within 90s. Check logs:${NC}"
+  echo -e "${RED}✗ Backend did not pass /api/health/ready within 120s. Check logs:${NC}"
   echo "  docker logs --tail 100 saraya_demo_backend"
   exit 1
 fi
 
 MACHINE_ID="(not generated yet — check docker logs saraya_demo_backend)"
 if [ -f "${INSTALL_DIR}/data/license/machine.id" ]; then
-  MACHINE_ID="$(cat "${INSTALL_DIR}/data/license/machine.id" | tr -d '[:space:]')"
+  MACHINE_ID="$(tr -d '[:space:]' < "${INSTALL_DIR}/data/license/machine.id")"
 fi
+
+ACCESS_URL="${DEMO_SCHEME}://${SARAYA_DOMAIN}"
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║            SARAYA ERP PRODUCTION DEMO IS RUNNING!               ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  ${BOLD}Public URL:${NC}       https://${SARAYA_DOMAIN}"
-echo -e "  ${BOLD}Cloudflare Origin:${NC} http://saraya_nginx:80"
+echo -e "  ${BOLD}Access URL:${NC}       ${ACCESS_URL}"
+if [ "$DEMO_USE_TUNNEL" = "true" ]; then
+  echo -e "  ${BOLD}Cloudflare Origin:${NC} http://saraya_nginx:80"
+fi
 echo -e "  ${BOLD}Install Path:${NC}     ${INSTALL_DIR}"
 echo -e "  ${BOLD}Machine ID:${NC}       ${CYAN}${MACHINE_ID}${NC}"
 echo ""
 echo -e "  ${YELLOW}NEXT STEP — Activate Full Production Enterprise License:${NC}"
-echo -e "  1. On your admin workstation, run: ${BOLD}node admin-tools/issue-license.js${NC}"
+echo -e "  1. On your admin workstation (with private signing key), run:"
+echo -e "     ${BOLD}node admin-tools/issue-license.js${NC}"
 echo -e "     - Paste Machine ID: ${CYAN}${MACHINE_ID}${NC}"
-echo -e "     - Choose Plan: Enterprise (include ACCOUNTS, HR, ASSETS, LAB, RADIOLOGY, PHARMACY, OBGYN, INSURANCE_INTEGRATION)"
-echo -e "  2. Open ${BOLD}https://${SARAYA_DOMAIN}/activation${NC} and paste the signed license key"
-echo -e "     (or copy saraya.lic to ${INSTALL_DIR}/data/license/saraya.lic and restart backend)."
+echo -e "     - Choose Plan: Enterprise (ACCOUNTS, HR, ASSETS, LAB, RADIOLOGY, PHARMACY, OBGYN, INSURANCE_INTEGRATION)"
+echo -e "  2. Open ${BOLD}${ACCESS_URL}/activation${NC} and paste the signed license key"
+echo -e "     (or copy saraya.lic to ${INSTALL_DIR}/data/license/saraya.lic and run: docker restart saraya_demo_backend)."
+echo ""
+echo -e "  ${BOLD}Verify Live HTTP/HTTPS API Smoke Test:${NC}"
+echo -e "    node scripts/smoke-demo.cjs ${ACCESS_URL}"
 echo ""
 echo -e "  ${BOLD}Demo Accounts:${NC}"
 echo -e "    Admin:  admin / admin123"

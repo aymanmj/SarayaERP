@@ -9,7 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 const readdir = promisify(fs.readdir);
 const stat = promisify(fs.stat);
@@ -107,10 +107,14 @@ export class BackupService implements OnModuleInit {
       );
     }
 
-    // التأكد أن المسار يبدأ بأحد المسارات المسموحة
-    const isAllowed = this.ALLOWED_BASE_PATHS.some((base) =>
-      resolved.startsWith(base),
-    );
+    // التأكد أن المسار يبدأ بأحد المسارات المسموحة بفاصل مسار صريح
+    const isAllowed = this.ALLOWED_BASE_PATHS.some((base) => {
+      const normalizedBase = path.resolve(base);
+      return (
+        resolved === normalizedBase ||
+        resolved.startsWith(normalizedBase + path.sep)
+      );
+    });
     if (!isAllowed) {
       throw new BadRequestException(
         `المسار "${resolved}" غير مسموح. المسارات المسموحة: ${this.ALLOWED_BASE_PATHS.join(', ')}`,
@@ -182,10 +186,16 @@ export class BackupService implements OnModuleInit {
     let backupCount = 0;
 
     try {
-      // الحصول على معلومات المساحة عبر df
-      const dfOutput = execSync(`df -B1 "${dirPath}" 2>/dev/null | tail -1`, {
+      // الحصول على معلومات المساحة عبر df بدون shell interpolation
+      const dfRaw = execFileSync('df', ['-B1', dirPath], {
         encoding: 'utf8',
-      }).trim();
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      const dfLines = dfRaw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const dfOutput = dfLines[dfLines.length - 1] || '';
       const parts = dfOutput.split(/\s+/);
       if (parts.length >= 5) {
         totalSpace = parseInt(parts[1]) || 0;
@@ -281,7 +291,11 @@ export class BackupService implements OnModuleInit {
     try {
       if (fs.existsSync(this.configFile)) {
         const content = await readFile(this.configFile, 'utf8');
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(content) as Partial<{
+          autoBackupPath: string;
+          secondaryPath: string | null;
+          dualBackupEnabled: boolean;
+        }>;
         return {
           autoBackupPath: parsed.autoBackupPath || this.defaultBackupDir,
           secondaryPath: parsed.secondaryPath || null,
@@ -581,15 +595,26 @@ export class BackupService implements OnModuleInit {
   // حالة الـ Worker
   // ==========================================
 
-  async getStatus(): Promise<any> {
+  async getStatus(): Promise<{
+    status: string;
+    error?: string;
+    [key: string]: unknown;
+  }> {
     try {
       if (fs.existsSync(this.statusFile)) {
         const content = await readFile(this.statusFile, 'utf8');
-        return JSON.parse(content);
+        return JSON.parse(content) as {
+          status: string;
+          error?: string;
+          [key: string]: unknown;
+        };
       }
       return { status: 'unknown' };
-    } catch (e) {
-      return { status: 'error', error: e.message };
+    } catch (e: unknown) {
+      return {
+        status: 'error',
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
   }
 

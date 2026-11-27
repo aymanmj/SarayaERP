@@ -18,23 +18,18 @@ export function ProtectedRoute() {
   // 2. We haven't fetched yet (hasFetched = false)
   // 3. State is idle (initial state)
   useEffect(() => {
-    console.log("[ProtectedRoute] Check: isAuthenticated=", isAuthenticated, "licenseState=", licenseState, "hasFetched=", hasFetched);
-    
     if (isAuthenticated && !hasFetched && licenseState === "idle") {
-      console.log("[ProtectedRoute] Triggering fetchLicenseStatus...");
       fetchLicenseStatus();
     }
   }, [isAuthenticated, licenseState, hasFetched, fetchLicenseStatus]);
 
   // 1. Not authenticated -> Login
   if (!isAuthenticated) {
-    console.log("[ProtectedRoute] Not authenticated -> redirect to login");
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // 2. License loading or idle -> Show loader
   if (licenseState === "idle" || licenseState === "loading") {
-    console.log("[ProtectedRoute] License loading -> show spinner");
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-slate-500">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-sky-500 mb-4"></div>
@@ -46,7 +41,6 @@ export function ProtectedRoute() {
   // 3. License error -> Show error with retry
   if (licenseState === "error") {
     const errorMessage = useLicenseStore.getState().errorMessage;
-    console.log("[ProtectedRoute] License error:", errorMessage);
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-slate-400">
         <div className="text-5xl mb-4">⚠️</div>
@@ -71,11 +65,9 @@ export function ProtectedRoute() {
 
   // 4. License inactive -> Activation page
   if (licenseState === "inactive") {
-    console.log("[ProtectedRoute] License inactive -> redirect to activation");
     return <Navigate to="/activation" replace />;
   }
 
   // 5. License active -> Render children
-  console.log("[ProtectedRoute] License active -> render children");
   return <Outlet />;
 }

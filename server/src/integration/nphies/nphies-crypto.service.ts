@@ -78,6 +78,11 @@ export class NphiesCryptoService {
    */
   signPayload(payload: any): string {
     if (this.isDummyMode || !this.privateKey) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'NPHIES private key is not configured for production signing',
+        );
+      }
       return 'dummy.jws.signature.for.local.testing.only';
     }
 

@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { VaultService } from '../common/vault/vault.service';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
+import { generateBase32Secret, generateTotpCode } from './totp.util';
 
 interface MockUserHospital {
   id: number;
@@ -28,6 +29,9 @@ interface MockUserRecord {
   passwordHash: string;
   authVersion: number;
   isActive: boolean;
+  isDeleted?: boolean;
+  mfaEnabled?: boolean;
+  mfaSecret?: string | null;
   hospitalId: number;
   hospital: MockUserHospital;
   userRoles: {
@@ -54,6 +58,7 @@ interface MockAuthPrisma {
   $queryRaw: jest.Mock;
   user: {
     findUnique: jest.Mock;
+    update: jest.Mock;
   };
   hospital: {
     findUnique: jest.Mock;
@@ -142,6 +147,7 @@ describe('AuthService', () => {
       ),
       user: {
         findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
       },
       hospital: {
         findUnique: jest.fn(),
@@ -445,6 +451,126 @@ describe('AuthService', () => {
       expect(
         result.permissions.filter((p: string) => p === 'VIEW_PATIENTS'),
       ).toHaveLength(1);
+    });
+  });
+
+  // ===========================================
+  //  MFA (TOTP 2FA) & ACCOUNT LOCKOUT
+  // ===========================================
+  describe('MFA & Brute-Force Lockout', () => {
+    it('should require valid TOTP code when mfaEnabled is true and strip mfaSecret from login response', async () => {
+      const mfaSecret = generateBase32Secret();
+      prisma.user.findUnique.mockResolvedValue(
+        mockUser({ mfaEnabled: true, mfaSecret }),
+      );
+
+      await expect(service.validateUser('admin', PASSWORD)).rejects.toThrow(
+        'MFA_REQUIRED',
+      );
+      await expect(
+        service.validateUser('admin', PASSWORD, '000000'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      const code = generateTotpCode(mfaSecret);
+      const loginRes = await service.login('admin', PASSWORD, code);
+      expect(loginRes.user).not.toHaveProperty('mfaSecret');
+      expect(loginRes.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('should setup, enable, and disable MFA with valid password and TOTP code', async () => {
+      const actor = {
+        sub: 1,
+        sid,
+        username: 'admin',
+        hospitalId: 1,
+        roles: ['ADMIN'],
+        permissions: ['VIEW_PATIENTS'],
+        authVersion: 0,
+        branchVersion: 0,
+      };
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: 1,
+        username: 'admin',
+        isActive: true,
+        isDeleted: false,
+      });
+
+      const setupRes = await service.setupMfa(actor);
+      expect(setupRes.secret).toMatch(/^[A-Z2-7]{32}$/);
+      expect(setupRes.otpauthUrl).toContain('otpauth://totp/');
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: {
+          mfaSecret: setupRes.secret,
+          mfaEnabled: false,
+        },
+      });
+
+      const validCode = generateTotpCode(setupRes.secret);
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: 1,
+        mfaSecret: setupRes.secret,
+        isActive: true,
+        isDeleted: false,
+      });
+      await expect(service.enableMfa(actor, validCode)).resolves.toEqual({
+        mfaEnabled: true,
+      });
+
+      prisma.user.findUnique.mockResolvedValueOnce({
+        id: 1,
+        passwordHash,
+        mfaEnabled: true,
+        mfaSecret: setupRes.secret,
+        isActive: true,
+        isDeleted: false,
+      });
+      await expect(
+        service.disableMfa(actor, PASSWORD, validCode),
+      ).resolves.toEqual({ mfaEnabled: false });
+    });
+
+    it('should lock out account after 5 consecutive failed logins when throttler is active', async () => {
+      const prevDisableThrottler = process.env.DISABLE_THROTTLER;
+      process.env.DISABLE_THROTTLER = 'false';
+      try {
+        prisma.user.findUnique.mockResolvedValue(mockUser());
+
+        for (let i = 0; i < 5; i++) {
+          await expect(
+            service.validateUser('lockeduser', 'wrong-pass'),
+          ).rejects.toThrow(UnauthorizedException);
+        }
+
+        await expect(
+          service.validateUser('lockeduser', PASSWORD),
+        ).rejects.toThrow('تم قفل الحساب مؤقتاً');
+      } finally {
+        process.env.DISABLE_THROTTLER = prevDisableThrottler;
+      }
+    });
+
+    it('should return current MFA status via getMfaStatus', async () => {
+      const verifiedAt = new Date('2026-11-26T20:00:00.000Z');
+      prisma.user.findUnique.mockResolvedValueOnce({
+        mfaEnabled: true,
+        mfaVerifiedAt: verifiedAt,
+      });
+
+      const status = await service.getMfaStatus({
+        sub: 1,
+        sid,
+        username: 'admin',
+        hospitalId: 1,
+        roles: ['ADMIN'],
+        permissions: [],
+        authVersion: 0,
+        branchVersion: 0,
+      });
+      expect(status).toEqual({
+        mfaEnabled: true,
+        mfaVerifiedAt: verifiedAt,
+      });
     });
   });
 });

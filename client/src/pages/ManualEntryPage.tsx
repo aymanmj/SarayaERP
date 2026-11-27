@@ -6,6 +6,7 @@ import { apiClient } from "../api/apiClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Money } from "../utils/money";
 
 type AccountLite = {
   id: number;
@@ -120,20 +121,29 @@ export default function ManualEntryPage() {
   };
 
   const totals = useMemo(() => {
-    let totalDebit = 0;
-    let totalCredit = 0;
-
-    for (const l of lines) {
-      const d = parseFloat(l.debit || "0") || 0;
-      const c = parseFloat(l.credit || "0") || 0;
-      totalDebit += d;
-      totalCredit += c;
-    }
+    const debitList = lines.map((l) => {
+      try {
+        return Money.decimal(l.debit || "0");
+      } catch {
+        return Money.decimal(0);
+      }
+    });
+    const creditList = lines.map((l) => {
+      try {
+        return Money.decimal(l.credit || "0");
+      } catch {
+        return Money.decimal(0);
+      }
+    });
+    const totalDebitDec = Money.sumDecimal(...debitList);
+    const totalCreditDec = Money.sumDecimal(...creditList);
+    const diffDec = totalDebitDec.minus(totalCreditDec);
 
     return {
-      totalDebit,
-      totalCredit,
-      diff: totalDebit - totalCredit,
+      totalDebit: Money.toFixed(totalDebitDec, 3),
+      totalCredit: Money.toFixed(totalCreditDec, 3),
+      diff: Money.toFixed(diffDec, 3),
+      isBalanced: diffDec.abs().lte("0.0005"),
     };
   }, [lines]);
 
@@ -154,12 +164,19 @@ export default function ManualEntryPage() {
         setError(t("accounting.manualEntry.errorSelectAccount", "يرجى اختيار الحساب لكل سطر."));
         return;
       }
-      const debit = parseFloat(l.debit || "0") || 0;
-      const credit = parseFloat(l.credit || "0") || 0;
+      let debitDec;
+      let creditDec;
+      try {
+        debitDec = Money.decimal(l.debit || "0");
+        creditDec = Money.decimal(l.credit || "0");
+      } catch {
+        setError(t("accounting.manualEntry.errorInvalidAmount", "قيمة المبلغ غير صالحة."));
+        return;
+      }
 
-      if (debit === 0 && credit === 0) continue;
+      if (debitDec.isZero() && creditDec.isZero()) continue;
 
-      if (debit < 0 || credit < 0) {
+      if (debitDec.isNegative() || creditDec.isNegative()) {
         setError(t("accounting.manualEntry.errorNegativeAmount", "لا يمكن إدخال مبالغ سالبة."));
         return;
       }
@@ -167,8 +184,8 @@ export default function ManualEntryPage() {
       payloadLines.push({
         accountId: Number(l.accountId),
         costCenterId: l.costCenterId ? Number(l.costCenterId) : undefined, // ✅ إرسال مركز التكلفة
-        debit,
-        credit,
+        debit: Number(Money.toDbString(debitDec)),
+        credit: Number(Money.toDbString(creditDec)),
         description: l.description || undefined,
       });
     }
@@ -178,7 +195,7 @@ export default function ManualEntryPage() {
       return;
     }
 
-    if (Math.abs(totals.diff) > 0.0001) {
+    if (!totals.isBalanced) {
       setError(t("accounting.manualEntry.errorUnbalanced", "إجمالي المدين يجب أن يساوي إجمالي الدائن قبل الحفظ."));
       return;
     }
@@ -428,23 +445,23 @@ export default function ManualEntryPage() {
           <div className="rounded-2xl bg-emerald-900/10 border border-emerald-500/20 p-3 flex justify-between items-center">
             <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalDebit", "إجمالي المدين")}</span>
             <span className="text-lg font-mono font-bold text-emerald-400">
-              {totals.totalDebit.toFixed(3)}
+              {totals.totalDebit}
             </span>
           </div>
           <div className="rounded-2xl bg-rose-900/10 border border-rose-500/20 p-3 flex justify-between items-center">
             <span className="text-slate-400 text-xs">{t("accounting.manualEntry.totalCredit", "إجمالي الدائن")}</span>
             <span className="text-lg font-mono font-bold text-rose-400">
-              {totals.totalCredit.toFixed(3)}
+              {totals.totalCredit}
             </span>
           </div>
           <div
-            className={`rounded-2xl border p-3 flex justify-between items-center transition-colors ${Math.abs(totals.diff) < 0.0001 ? "bg-sky-900/10 border-sky-500/20" : "bg-amber-900/10 border-amber-500/40"}`}
+            className={`rounded-2xl border p-3 flex justify-between items-center transition-colors ${totals.isBalanced ? "bg-sky-900/10 border-sky-500/20" : "bg-amber-900/10 border-amber-500/40"}`}
           >
             <span className="text-slate-400 text-xs">{t("accounting.manualEntry.differenceBudget", "الفرق (الموازنة)")}</span>
             <span
-              className={`text-lg font-mono font-bold ${Math.abs(totals.diff) < 0.0001 ? "text-sky-400" : "text-amber-400"}`}
+              className={`text-lg font-mono font-bold ${totals.isBalanced ? "text-sky-400" : "text-amber-400"}`}
             >
-              {totals.diff.toFixed(3)}
+              {totals.diff}
             </span>
           </div>
         </div>

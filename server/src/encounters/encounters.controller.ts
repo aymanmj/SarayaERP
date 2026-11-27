@@ -19,7 +19,6 @@ import { Permissions } from '../auth/permissions.decorator';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { JwtPayload } from '../auth/jwt-payload.type';
-import { Type } from 'class-transformer';
 import { EncounterType, EncounterStatus } from '@prisma/client';
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
@@ -44,13 +43,6 @@ class CreateEncounterDto {
   @IsOptional()
   @IsString()
   chiefComplaint?: string;
-}
-
-class ListEncountersQueryDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  patientId: number;
 }
 
 @UseGuards(JwtAuthGuard, PermissionsGuard)

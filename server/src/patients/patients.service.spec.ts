@@ -6,20 +6,46 @@
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { PatientsService } from './patients.service';
+import { PatientsService, type CreatePatientInput } from './patients.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SoftDeleteService } from '../common/soft-delete.service';
 
+type MockPrismaPatientService = {
+  patient: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+    count: jest.Mock;
+  };
+  patientAllergy: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    create: jest.Mock;
+    delete: jest.Mock;
+  };
+  globalPatient: {
+    findUnique: jest.Mock;
+    create: jest.Mock;
+    update: jest.Mock;
+  };
+  $transaction: jest.Mock;
+  systemSetting: { findUnique: jest.Mock };
+  hospital: { findUnique: jest.Mock };
+  orgSetting: { findUnique: jest.Mock };
+};
+
 describe('PatientsService', () => {
   let service: PatientsService;
-  let prisma: any;
+  let prisma: MockPrismaPatientService;
 
   const mockSoftDeleteService = {
     softDelete: jest.fn().mockResolvedValue({ id: 1, isDeleted: true }),
   };
 
   beforeEach(async () => {
-    const mockPrismaService = {
+    const mockPrismaService: MockPrismaPatientService = {
       patient: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
@@ -39,11 +65,13 @@ describe('PatientsService', () => {
         create: jest.fn().mockResolvedValue({ id: 100 }),
         update: jest.fn().mockResolvedValue({ id: 100 }),
       },
-      $transaction: jest.fn((arg: any) => {
+      $transaction: jest.fn((arg: unknown) => {
         if (Array.isArray(arg)) {
-          return Promise.all(arg);
+          return Promise.all(arg as Promise<unknown>[]);
         }
-        return arg(mockPrismaService);
+        return (arg as (tx: MockPrismaPatientService) => unknown)(
+          mockPrismaService,
+        );
       }),
       systemSetting: {
         findUnique: jest.fn(),
@@ -65,7 +93,7 @@ describe('PatientsService', () => {
     }).compile();
 
     service = module.get<PatientsService>(PatientsService);
-    prisma = module.get<PrismaService>(PrismaService);
+    prisma = module.get<MockPrismaPatientService>(PrismaService);
     jest.clearAllMocks();
   });
 
@@ -80,21 +108,25 @@ describe('PatientsService', () => {
     it('should create patient with auto-generated MRN', async () => {
       // No existing patients → MRN-0001
       prisma.patient.findFirst.mockResolvedValue(null);
-      prisma.patient.create.mockImplementation((args: any) => ({
-        id: 1,
-        ...args.data,
-        hospitalId: 1,
-      }));
+      prisma.patient.create.mockImplementation(
+        (args: { data: Record<string, unknown> }) => ({
+          id: 1,
+          ...args.data,
+          hospitalId: 1,
+        }),
+      );
 
-      const result = await service.create(1, { fullName: 'أحمد محمد' } as any);
+      const result = await service.create(1, {
+        fullName: 'أحمد محمد',
+      } as CreatePatientInput);
 
       expect(result).toBeDefined();
       expect(prisma.patient.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            mrn: expect.stringMatching(/^H\d+-MRN-\d{4}$/),
+            mrn: expect.stringMatching(/^H\d+-MRN-\d{4}$/) as unknown,
             fullName: 'أحمد محمد',
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -105,18 +137,20 @@ describe('PatientsService', () => {
         .mockResolvedValueOnce({ mrn: 'H1-MRN-0005' }) // generateNextMrn: findFirst for last patient
         .mockResolvedValueOnce(null); // generateNextMrn: collision check (MRN-0006 available)
 
-      prisma.patient.create.mockImplementation((args: any) => ({
-        id: 6,
-        ...args.data,
-      }));
+      prisma.patient.create.mockImplementation(
+        (args: { data: Record<string, unknown> }) => ({
+          id: 6,
+          ...args.data,
+        }),
+      );
 
-      await service.create(1, { fullName: 'Test' } as any);
+      await service.create(1, { fullName: 'Test' } as CreatePatientInput);
 
       expect(prisma.patient.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             mrn: 'H1-MRN-0006',
-          }),
+          }) as unknown,
         }),
       );
     });
@@ -178,10 +212,12 @@ describe('PatientsService', () => {
           where: expect.objectContaining({
             OR: expect.arrayContaining([
               expect.objectContaining({
-                fullName: expect.objectContaining({ contains: 'أحمد' }),
-              }),
-            ]),
-          }),
+                fullName: expect.objectContaining({
+                  contains: 'أحمد',
+                }) as unknown,
+              }) as unknown,
+            ]) as unknown,
+          }) as unknown,
         }),
       );
     });
@@ -247,7 +283,7 @@ describe('PatientsService', () => {
       });
       prisma.patientAllergy.delete.mockResolvedValue({ id: 1 });
 
-      const result = await service.removeAllergy(1, 1);
+      const result = (await service.removeAllergy(1, 1)) as { id: number };
       expect(result.id).toBe(1);
     });
 

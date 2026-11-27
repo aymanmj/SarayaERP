@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { BookingsService } from './bookings.service';
@@ -14,6 +15,8 @@ import { WaitlistService } from './waitlist.service';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/permissions.guard';
 import { Permissions } from '../../auth/permissions.decorator';
+import { CurrentUser } from '../../auth/current-user.decorator';
+import type { JwtPayload } from '../../auth/jwt-payload.type';
 
 @Controller('clinical/scheduling')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -27,14 +30,26 @@ export class SchedulingController {
   // --- Resources ---
   @Get('hospitals/:hospitalId/resources')
   @Permissions('scheduling:view')
-  async getResources(@Param('hospitalId', ParseIntPipe) hospitalId: number) {
-    return this.resourcesService.getAllResources(hospitalId);
+  async getResources(
+    @Param('hospitalId', ParseIntPipe) hospitalId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (hospitalId !== user.hospitalId) {
+      throw new ForbiddenException('Access to other hospital resources denied');
+    }
+    return this.resourcesService.getAllResources(user.hospitalId);
   }
 
   @Post('resources')
   @Permissions('scheduling:manage')
-  async createResource(@Body() data: any) {
-    return this.resourcesService.createResource(data);
+  async createResource(
+    @Body() data: Record<string, unknown>,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.resourcesService.createResource({
+      ...data,
+      hospitalId: user.hospitalId,
+    });
   }
 
   // --- Bookings ---
@@ -49,8 +64,9 @@ export class SchedulingController {
       scheduledStart: Date;
       scheduledEnd: Date;
     },
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.bookingsService.createBooking(data);
+    return this.bookingsService.createBooking(user.hospitalId, data);
   }
 
   @Get('resources/:resourceId/bookings')
@@ -59,8 +75,10 @@ export class SchedulingController {
     @Param('resourceId', ParseIntPipe) resourceId: number,
     @Query('from') from: string,
     @Query('to') to: string,
+    @CurrentUser() user: JwtPayload,
   ) {
     return this.bookingsService.getResourceBookings(
+      user.hospitalId,
       resourceId,
       new Date(from),
       new Date(to),
@@ -69,20 +87,35 @@ export class SchedulingController {
 
   @Post('bookings/:bookingId/cancel')
   @Permissions('scheduling:manage')
-  async cancelBooking(@Param('bookingId', ParseIntPipe) bookingId: number) {
-    return this.bookingsService.cancelBooking(bookingId);
+  async cancelBooking(
+    @Param('bookingId', ParseIntPipe) bookingId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.bookingsService.cancelBooking(user.hospitalId, bookingId);
   }
 
   // --- Waitlist ---
   @Get('hospitals/:hospitalId/waitlist')
   @Permissions('scheduling:view')
-  async getWaitlist(@Param('hospitalId', ParseIntPipe) hospitalId: number) {
-    return this.waitlistService.getWaitlistForHospital(hospitalId);
+  async getWaitlist(
+    @Param('hospitalId', ParseIntPipe) hospitalId: number,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    if (hospitalId !== user.hospitalId) {
+      throw new ForbiddenException('Access to other hospital waitlist denied');
+    }
+    return this.waitlistService.getWaitlistForHospital(user.hospitalId);
   }
 
   @Post('waitlist')
   @Permissions('scheduling:manage')
-  async joinWaitlist(@Body() data: any) {
-    return this.waitlistService.joinWaitlist(data);
+  async joinWaitlist(
+    @Body() data: Record<string, unknown>,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.waitlistService.joinWaitlist({
+      ...(data as Parameters<WaitlistService['joinWaitlist']>[0]),
+      hospitalId: user.hospitalId,
+    });
   }
 }

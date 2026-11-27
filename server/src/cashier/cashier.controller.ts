@@ -33,6 +33,7 @@ import { PaymentMethod } from '@prisma/client';
 import type { PaymentReceiptDto } from './cashier.service';
 import { PdfService } from '../pdf/pdf.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { Money } from '../common/utils/money.util';
 import type { Response } from 'express';
 
 class RecordPaymentDto {
@@ -194,9 +195,12 @@ export class CashierController {
       invoiceStatus: receiptData.invoice.status,
       totalAmount: receiptData.invoice.totalAmount,
       discountAmount: receiptData.invoice.discountAmount,
-      netAmount:
-        Number(receiptData.invoice.totalAmount) -
-        Number(receiptData.invoice.discountAmount || 0),
+      netAmount: Money.toDb(
+        Money.subtractDecimal(
+          receiptData.invoice.totalAmount ?? 0,
+          receiptData.invoice.discountAmount ?? 0,
+        ),
+      ),
       paidAmount: receiptData.invoice.paidAmount,
       remainingAmount: receiptData.invoice.remainingAmount,
 

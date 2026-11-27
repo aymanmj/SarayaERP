@@ -5,6 +5,7 @@ import { apiClient } from "../api/apiClient";
 import PrintLayout from "../components/print/PrintLayout";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { Money, formatMoney as formatMoneyUtil } from "../utils/money";
 
 type EncounterType = "OPD" | "ER" | "IPD";
 
@@ -72,11 +73,7 @@ function formatDate(iso?: string | null) {
 }
 
 function formatMoney(val: number | string | null | undefined) {
-  const num = Number(val ?? 0);
-  return num.toLocaleString("en-US", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  return formatMoneyUtil(val, false);
 }
 
 function getPaymentMethodLabel(method: string) {
@@ -151,9 +148,10 @@ export default function PaymentReceiptPage() {
   if (!data) return null;
 
   const { payment, invoice, patient, encounter } = data as PaymentReceiptData;
-  const isFullyPaid = Number(invoice.remainingAmount) <= 0;
-  const netTotal =
-    Number(invoice.totalAmount) - Number(invoice.discountAmount);
+  const isFullyPaid = Money.decimal(invoice.remainingAmount ?? 0).lte(0);
+  const netTotal = Money.decimal(invoice.totalAmount ?? 0)
+    .minus(Money.decimal(invoice.discountAmount ?? 0))
+    .toFixed(3);
 
   return (
     <PrintLayout
@@ -482,7 +480,7 @@ export default function PaymentReceiptPage() {
             </span>
           </div>
 
-          {Number(invoice.discountAmount) > 0 && (
+          {Money.decimal(invoice.discountAmount ?? 0).gt(0) && (
             <div className="receipt-summary-row">
               <span className="receipt-summary-label">الخصم:</span>
               <span
@@ -522,8 +520,9 @@ export default function PaymentReceiptPage() {
               className="receipt-summary-value"
               style={{
                 fontSize: 18,
-                color:
-                  Number(invoice.remainingAmount) > 0 ? "#dc2626" : "#059669",
+                color: Money.decimal(invoice.remainingAmount ?? 0).gt(0)
+                  ? "#dc2626"
+                  : "#059669",
               }}
             >
               <span dir="ltr">{formatMoney(invoice.remainingAmount)}&nbsp;{invoice.currency}</span>

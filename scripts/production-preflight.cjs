@@ -93,6 +93,13 @@ function validateComposeText(composeText) {
     warnings.push('OPS07 Advisory: Default vault local config has tls_disable: 1; enable TLS certs and https:// VAULT_ADDR in production deployment.');
   }
 
+  // 8. Forbid runtime apk/apt package downloads on container boot (offline-first durability)
+  if (/^\s*(?:apk\s+add|apt-get\s+install)\b/m.test(composeText)) {
+    errors.push(
+      'OPS06: Production compose must not install Alpine/Debian packages (apk add / apt-get install) at container startup; use prebuilt images for air-gapped hospitals.',
+    );
+  }
+
   return { errors, warnings };
 }
 

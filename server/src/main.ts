@@ -1,4 +1,4 @@
-import './tracing'; // يجب أن يكون أول استيراد لضمان اعتراض وتتبع كل شيء (OpenTelemetry)
+import { shutdownTracing } from './tracing'; // يجب أن يكون أول استيراد لضمان اعتراض وتتبع كل شيء (OpenTelemetry)
 import 'reflect-metadata';
 import './common/bullmq-mock';
 import { NestFactory, Reflector } from '@nestjs/core';
@@ -227,6 +227,7 @@ async function bootstrap() {
 
     try {
       await app.close();
+      await shutdownTracing();
       clearTimeout(shutdownTimer);
       logger.log('✅ Graceful shutdown complete. All connections closed.');
       process.exit(0);

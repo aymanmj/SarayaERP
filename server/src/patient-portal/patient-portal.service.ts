@@ -25,6 +25,7 @@ import { PatientOtpService } from './auth/patient-otp.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { PatientJwtPayload } from './interfaces/patient-context.interface';
 import { VaultService } from '../common/vault/vault.service';
+import { Money } from '../common/utils/money.util';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -692,10 +693,16 @@ export class PatientPortalService {
       }),
     ]);
 
-    // Calculate balance
-    const totalOutstanding = outstandingBalance.reduce(
-      (sum, inv) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount)),
-      0,
+    // Calculate balance using Money
+    const totalOutstanding = Money.toDb(
+      outstandingBalance.reduce(
+        (sum, inv) =>
+          Money.addDecimal(
+            sum,
+            Money.subtractDecimal(inv.totalAmount, inv.paidAmount),
+          ),
+        Money.decimal(0),
+      ),
     );
 
     // Multi-tenant verification
@@ -803,9 +810,15 @@ export class PatientPortalService {
       },
     });
 
-    const totalOutstanding = invoices.reduce(
-      (sum, inv) => sum + (Number(inv.totalAmount) - Number(inv.paidAmount)),
-      0,
+    const totalOutstanding = Money.toDb(
+      invoices.reduce(
+        (sum, inv) =>
+          Money.addDecimal(
+            sum,
+            Money.subtractDecimal(inv.totalAmount, inv.paidAmount),
+          ),
+        Money.decimal(0),
+      ),
     );
 
     return {
@@ -920,10 +933,15 @@ export class PatientPortalService {
     doctorId: number,
     dateStr: string,
   ) {
-    // Basic mock logic for available slots since appointments service may not have a simple 'getAvailableSlots' exposed yet.
-    // In a real enterprise system, this evaluates Doctor Schedules, Leaves, and existing appointments.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      throw new BadRequestException('تاريخ الموعد غير صالح');
+    }
+
     const startOfDay = new Date(`${dateStr}T00:00:00Z`);
-    const endOfDay = new Date(`${dateStr}T23:59:59Z`);
+    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`);
+    if (Number.isNaN(startOfDay.getTime())) {
+      throw new BadRequestException('تاريخ الموعد غير صالح');
+    }
 
     // Verify doctor exists
     const doctor = await this.prisma.user.findFirst({
@@ -935,40 +953,107 @@ export class PatientPortalService {
     });
     if (!doctor) throw new NotFoundException('الطبيب غير موجود');
 
+    // Evaluate real DoctorSchedule & approved LeaveRequest
+    const schedule = await this.prisma.doctorSchedule?.findFirst?.({
+      where: { hospitalId, doctorId },
+      select: {
+        workDays: true,
+        startTime: true,
+        endTime: true,
+        slotDuration: true,
+        maxPerDay: true,
+      },
+    });
+
+    const workDays = (schedule?.workDays || '0,1,2,3,4')
+      .split(',')
+      .map((d) => Number(d.trim()))
+      .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    if (!workDays.includes(startOfDay.getUTCDay())) {
+      return [];
+    }
+
+    const onApprovedLeave = await this.prisma.leaveRequest?.findFirst?.({
+      where: {
+        hospitalId,
+        userId: doctorId,
+        status: 'APPROVED',
+        startDate: { lte: endOfDay },
+        endDate: { gte: startOfDay },
+      },
+      select: { id: true },
+    });
+    if (onApprovedLeave) {
+      return [];
+    }
+
     // Get existing appointments for the date
     const existingAppointments = await this.prisma.appointment.findMany({
       where: {
+        hospitalId,
         doctorId,
         scheduledStart: { gte: startOfDay, lte: endOfDay },
         status: { in: ['REQUESTED', 'CONFIRMED', 'CHECKED_IN'] },
       },
-      select: { scheduledStart: true },
+      select: { scheduledStart: true, scheduledEnd: true },
     });
 
-    const bookedTimes = existingAppointments.map((a) =>
-      a.scheduledStart.getTime(),
+    if (
+      schedule?.maxPerDay &&
+      existingAppointments.length >= schedule.maxPerDay
+    ) {
+      return [];
+    }
+
+    const parseMinutes = (
+      hhmm: string | null | undefined,
+      fallback: number,
+    ) => {
+      if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return fallback;
+      const [h, m] = hhmm.split(':').map(Number);
+      if (h < 0 || h > 23 || m < 0 || m > 59) return fallback;
+      return h * 60 + m;
+    };
+
+    const startMinutes = parseMinutes(schedule?.startTime, 8 * 60);
+    const endMinutes = parseMinutes(schedule?.endTime, 16 * 60);
+    const slotDuration = Math.min(
+      120,
+      Math.max(10, schedule?.slotDuration ?? 30),
     );
+    if (endMinutes <= startMinutes) {
+      return [];
+    }
 
-    // Generate slots every 30 minutes from 09:00 to 17:00
+    const bookedIntervals = existingAppointments.map((a) => {
+      const s = a.scheduledStart.getTime();
+      const e = a.scheduledEnd
+        ? a.scheduledEnd.getTime()
+        : s + slotDuration * 60_000;
+      return { start: s, end: e };
+    });
+
     const slots: { time: string; available: boolean }[] = [];
-    const baseDate = new Date(`${dateStr}T00:00:00Z`);
+    const dayStartMs = startOfDay.getTime();
 
-    // Convert baseDate to local offset or assume UTC (here we assume simple hours for demo)
-    for (let hour = 9; hour < 17; hour++) {
-      for (const min of [0, 30]) {
-        const slotTime = new Date(baseDate);
-        slotTime.setUTCHours(hour, min, 0, 0);
+    for (
+      let minute = startMinutes;
+      minute + slotDuration <= endMinutes;
+      minute += slotDuration
+    ) {
+      const slotStartMs = dayStartMs + minute * 60_000;
+      const slotEndMs = slotStartMs + slotDuration * 60_000;
 
-        // Skip past slots
-        if (slotTime.getTime() <= Date.now()) continue;
+      if (slotStartMs <= Date.now()) continue;
 
-        // Skip booked slots (exact match for simplicity)
-        if (!bookedTimes.includes(slotTime.getTime())) {
-          slots.push({
-            time: slotTime.toISOString(),
-            available: true,
-          });
-        }
+      const overlaps = bookedIntervals.some(
+        (b) => slotStartMs < b.end && slotEndMs > b.start,
+      );
+      if (!overlaps) {
+        slots.push({
+          time: new Date(slotStartMs).toISOString(),
+          available: true,
+        });
       }
     }
 

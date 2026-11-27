@@ -1,14 +1,14 @@
 # ABAC & Tenant Isolation Coverage Report
 
-**Generated:** 2026-11-22
+**Generated:** 2026-11-27
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Controllers | 100 | — |
-| ABAC Guarded | 100 | 100% |
-| Tenant Isolated | 100 | 100% |
+| Total Controllers | 113 | — |
+| ABAC Guarded | 113 | 100% |
+| Tenant Isolated | 113 | 100% |
 | Exempt (Auth/Health/FHIR) | 12 | — |
-| **Effective ABAC Coverage** | **88/88** | **100%** |
+| **Effective ABAC Coverage** | **101/101** | **100%** |
 
 ## Compliant Controllers
 
@@ -25,6 +25,9 @@
 | AuditController | ✅ | ✅ |
 | BedsController | ✅ | ✅ |
 | BillingController | ✅ | ✅ |
+| BiometricAttendanceController | ✅ | ✅ |
+| BloodBankController | ✅ | ✅ |
+| BudgetsCashFlowController | ✅ | ✅ |
 | CashierController | ✅ | ✅ |
 | CashierSessionsController | ✅ | ✅ |
 | CDSSController | ✅ | ✅ |
@@ -35,6 +38,7 @@
 | CommissionController | ✅ | ✅ |
 | ConsentFormsController | ✅ | ✅ |
 | ConsumptionOperationsController | ✅ | ✅ |
+| ControlledConsignmentController | ✅ | ✅ |
 | DashboardController | ✅ | ✅ |
 | DeliveryController | ✅ | ✅ |
 | DepartmentsController | ✅ | ✅ |
@@ -45,6 +49,7 @@
 | FertilityController | ✅ | ✅ |
 | FinancialYearsController | ✅ | ✅ |
 | HrController | ✅ | ✅ |
+| HrFinancialController | ✅ | ✅ |
 | IcuController | ✅ | ✅ |
 | InpatientRoundsController | ✅ | ✅ |
 | InsuranceController | ✅ | ✅ |
@@ -55,6 +60,8 @@
 | InvoiceRefundsController | ✅ | ✅ |
 | LabController | ✅ | ✅ |
 | LabOrdersController | ✅ | ✅ |
+| LabQcController | ✅ | ✅ |
+| LabSpecimenController | ✅ | ✅ |
 | MpiController | ✅ | ✅ |
 | NoteTemplatesController | ✅ | ✅ |
 | NotificationsController | ✅ | ✅ |
@@ -63,6 +70,7 @@
 | ObstetricHistoryController | ✅ | ✅ |
 | OrdersController | ✅ | ✅ |
 | OrderSetsController | ✅ | ✅ |
+| PatientGovernanceController | ✅ | ✅ |
 | PatientsController | ✅ | ✅ |
 | PayrollController | ✅ | ✅ |
 | PharmacyController | ✅ | ✅ |
@@ -80,6 +88,7 @@
 | PurchasesController | ✅ | ✅ |
 | QualityController | ✅ | ✅ |
 | RadiologyController | ✅ | ✅ |
+| RadiologyDoseController | ✅ | ✅ |
 | RadiologyPacsController | ✅ | ✅ |
 | RadiologyViewerController | ✅ | ✅ |
 | RecallDisposalController | ✅ | ✅ |
@@ -90,12 +99,16 @@
 | SchedulingController | ✅ | ✅ |
 | ServicesController | ✅ | ✅ |
 | SettingsController | ✅ | ✅ |
+| StaffCredentialingController | ✅ | ✅ |
 | SuppliersController | ✅ | ✅ |
 | SurgeryController | ✅ | ✅ |
+| SurgicalPackageController | ✅ | ✅ |
+| SurgicalSafetyController | ✅ | ✅ |
 | SystemSettingsController | ✅ | ✅ |
 | TelehealthController | ✅ | ✅ |
 | TenantController | ✅ | ✅ |
 | TransfersController | ✅ | ✅ |
+| TreasuryFxController | ✅ | ✅ |
 | TriageController | ✅ | ✅ |
 | UsersController | ✅ | ✅ |
 | VisitsController | ✅ | ✅ |

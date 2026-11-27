@@ -1,11 +1,149 @@
 @import "tailwindcss";
 @import "./pages/portal/portal.css";
 
+/* ── Saraya Clinical Design System: Semantic Tokens & Multi-Theme ── */
+:root,
+html[data-theme="clinical-dark"] {
+  --saraya-canvas: #0b1120;
+  --saraya-surface: #0f172a;
+  --saraya-surface-muted: #1e293b;
+  --saraya-border: #1e293b;
+  --saraya-text: #f1f5f9;
+  --saraya-text-muted: #94a3b8;
+  --saraya-accent: #0284c7;
+  --saraya-accent-soft: rgba(14, 165, 233, 0.12);
+}
+
+/* ── Clinical Daylight (Light Mode for Clinics, Pharmacy & Nursing Stations) ── */
+html[data-theme="clinical-light"] {
+  --saraya-canvas: #f1f5f9;
+  --saraya-surface: #ffffff;
+  --saraya-surface-muted: #f8fafc;
+  --saraya-border: #cbd5e1;
+  --saraya-text: #0f172a;
+  --saraya-text-muted: #475569;
+  --saraya-accent: #0369a1;
+  --saraya-accent-soft: rgba(3, 105, 161, 0.1);
+
+  --color-slate-950: #f1f5f9;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #e2e8f0;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #64748b;
+  --color-slate-500: #475569;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #1e293b;
+  --color-slate-100: #0f172a;
+  --color-slate-50: #020617;
+
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-pink-400: #be185d;
+  --color-violet-400: #6d28d9;
+  --color-green-400: #15803d;
+  --color-red-400: #b91c1c;
+}
+
+/* ── Saraya Clinical Teal (Hospital Brand Signature Daylight) ── */
+html[data-theme="clinical-emerald"] {
+  --saraya-canvas: #f4f7f6;
+  --saraya-surface: #ffffff;
+  --saraya-surface-muted: #f0fdfa;
+  --saraya-border: #cbd5e1;
+  --saraya-text: #0f172a;
+  --saraya-text-muted: #475569;
+  --saraya-accent: #0f766e;
+  --saraya-accent-soft: rgba(15, 118, 110, 0.1);
+
+  --color-slate-950: #f4f7f6;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #dde6e4;
+  --color-slate-700: #cbd5e1;
+  --color-slate-600: #64748b;
+  --color-slate-500: #475569;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-slate-200: #1e293b;
+  --color-slate-100: #0f172a;
+  --color-slate-50: #020617;
+
+  --color-sky-300: #0f766e;
+  --color-sky-400: #0f766e;
+  --color-sky-500: #0d9488;
+  --color-sky-600: #0f766e;
+  --color-sky-900: #ccfbf1;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-amber-300: #b45309;
+  --color-amber-400: #d97706;
+  --color-pink-400: #be185d;
+  --color-violet-400: #6d28d9;
+  --color-green-400: #15803d;
+  --color-red-400: #b91c1c;
+}
+
+/* Preserve readable headings in daylight themes without breaking solid colored buttons/banners */
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .text-white:not([class*="bg-"]):not(.saraya-solid-bg):not(
+    .saraya-solid-bg *
+  ):not(button[class*="bg-"]):not(a[class*="bg-"]) {
+  color: var(--saraya-text);
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-900\/70,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-900\/80,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-900\/60,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-900\/50,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-950\/95,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-950\/90,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-950\/80,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .bg-slate-950\/50 {
+  background-color: var(--saraya-surface);
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  aside {
+  background-color: var(--saraya-surface);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
 body {
   direction: inherit;
   font-family: "Cairo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background-color: #0f172a; /* خلفية غامقة بسيطة */
+  background-color: var(--saraya-canvas);
+  color: var(--saraya-text);
 }
 
 html[lang="en"] body {
@@ -15,6 +153,11 @@ html[lang="en"] body {
 /* ==== إعدادات الطباعة العامة ==== */
 
 @media print {
+  html,
+  html[data-theme] {
+    color-scheme: light !important;
+  }
+
   /* إخفاء واجهات النظام الرئيسية في الطباعة */
   header:not(.print-header),
   nav,

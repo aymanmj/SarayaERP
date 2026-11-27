@@ -1,17 +1,32 @@
-import { describe, expect, it } from 'vitest';
-import { getInvoiceShares } from './cashierInvoiceShares';
+import { describe, expect, it } from "vitest";
+import { getInvoiceShares } from "./cashierInvoiceShares";
 
-describe('Cashier liability after approved corrections', () => {
-  it('keeps a fully credited invoice at zero instead of restoring the original debt', () => {
-    expect(getInvoiceShares({ totalAmount: 100, patientShare: 0, originalPatientShare: 100, adjustmentAmount: -100, insuranceShare: 0, paidAmount: 0 })).toMatchObject({ total: 0, patient: 0, dueNow: 0 });
+describe("getInvoiceShares (LYD 3dp Money Precision)", () => {
+  it("avoids IEEE-754 floating-point drift on 3dp LYD values", () => {
+    const result = getInvoiceShares({
+      totalAmount: 0.3,
+      patientShare: 0.2,
+      insuranceShare: 0.1,
+      paidAmount: 0.1,
+      adjustmentAmount: 0,
+      refundedAmount: 0,
+    });
+
+    expect(result.dueNow).toBe(0.1);
+    expect(result.total).toBe(0.3);
+    expect(result.isInsurance).toBe(true);
   });
-  it('shows only the additional liability on a paid invoice with an approved debit', () => {
-    expect(getInvoiceShares({ totalAmount: 100, patientShare: 150, originalPatientShare: 100, adjustmentAmount: 50, insuranceShare: 0, paidAmount: 100 })).toMatchObject({ total: 150, dueNow: 50 });
-  });
-  it('preserves legacy cash compatibility only when correction metadata is absent', () => {
-    expect(getInvoiceShares({ totalAmount: 100, patientShare: 0, insuranceShare: 0, paidAmount: 20 }).dueNow).toBe(80);
-  });
-  it('keeps fully insured patient liability at zero without treating insurance as a patient debt', () => {
-    expect(getInvoiceShares({ totalAmount: 100, patientShare: 0, insuranceShare: 100, paidAmount: 0 })).toMatchObject({ patient: 0, dueNow: 0, isInsurance: true });
+
+  it("handles large 3dp insurance invoices and refunds accurately", () => {
+    const result = getInvoiceShares({
+      totalAmount: "1500.668",
+      patientShare: "300.134",
+      insuranceShare: "1200.534",
+      paidAmount: "200.100",
+      refundedAmount: "50.050",
+    });
+
+    expect(result.paid).toBe(150.05);
+    expect(result.dueNow).toBe(150.084);
   });
 });

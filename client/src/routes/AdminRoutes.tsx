@@ -90,7 +90,6 @@ export const AdminRoutes = (
     <Route path="/reports/doctor-performance" element={<DoctorPerformancePage />} />
     <Route path="/reports/revenue-department" element={<RevenueDepartmentPage />} />
     <Route path="/referrals" element={<ReferralsPage />} />
-    <Route path="/settings/commissions" element={<CommissionSettingsPage />} />
     <Route path="/settings/note-templates" element={<NoteTemplatesPage />} />
 
     {/* ✅ Quality & Patient Safety */}

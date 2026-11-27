@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Money } from "../utils/money";
 export type RefundReportFields = {
   refundsSummary?: {
     totalAmount: number;
@@ -30,11 +31,11 @@ export function RefundReportSummary({
       </h2>
       <p>
         {t("refunds.reportTotal", "إجمالي الاسترداد")}:{" "}
-        {Number(report.refundsSummary.totalAmount).toFixed(3)} LYD ·{" "}
+        {Money.toFixed(report.refundsSummary.totalAmount, 3)} LYD ·{" "}
         {t("refunds.reportCash", "منه نقدي")}:{" "}
-        {Number(report.refundsSummary.cashAmount).toFixed(3)} LYD ·{" "}
+        {Money.toFixed(report.refundsSummary.cashAmount, 3)} LYD ·{" "}
         {t("refunds.reportNet", "صافي التحصيل بعد الاسترداد")}:{" "}
-        {Number(report.netPaymentsSummary?.totalAmount ?? 0).toFixed(3)} LYD
+        {Money.toFixed(report.netPaymentsSummary?.totalAmount ?? 0, 3)} LYD
       </p>
       {!!report.refunds?.length && (
         <div className="overflow-auto">
@@ -56,7 +57,7 @@ export function RefundReportSummary({
                     #{row.invoiceId} / #{row.paymentId}
                   </td>
                   <td>{row.method}</td>
-                  <td>{Number(row.amount).toFixed(3)}</td>
+                  <td>{Money.toFixed(row.amount, 3)}</td>
                   <td>{row.executionReference}</td>
                 </tr>
               ))}

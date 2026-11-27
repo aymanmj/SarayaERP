@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, Users, User, Search, Plus, 
 import { apiClient } from "../api/apiClient";
 import { useAuthStore } from "../stores/authStore";
 import { toast } from "sonner";
+import { formatMoney } from "../utils/money";
 
 // --- Types ---
 type AppointmentStatus =
@@ -1156,9 +1157,9 @@ export default function AppointmentsPage() {
                           );
                       }
 
-                      const priceDisplay = doc.schedule.calculatedPrice 
-                          ? Number(doc.schedule.calculatedPrice).toFixed(2) 
-                          : "0.00";
+                      const priceDisplay = doc.schedule.calculatedPrice
+                        ? formatMoney(doc.schedule.calculatedPrice, false)
+                        : formatMoney(0, false);
 
                       return (
                           <div className="space-y-3">
