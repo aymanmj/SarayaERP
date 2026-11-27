@@ -328,7 +328,7 @@ export default function TriageDashboardPage() {
 
                 {levelConfig && (
                   <div
-                    className={`text-xs text-center py-1 rounded font-bold mb-3 ${levelConfig.color} bg-opacity-20 text-opacity-100`}
+                    className={`text-xs text-center py-1 rounded border font-bold mb-3 ${levelConfig.color}`}
                   >
                     {levelConfig.label}
                   </div>

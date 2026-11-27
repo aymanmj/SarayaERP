@@ -473,14 +473,14 @@ export default function OrderSetsPage() {
                         setSelectedSet(set);
                         setShowExecuteModal(true);
                       }}
-                      className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-bold transition-colors"
+                      className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition-colors"
                     >
-                      t("orderSets.btn.execute", "▶ تنفيذ")
+                      {t("orderSets.btn.execute", "تنفيذ")}
                     </button>
                   )}
                   <button
                     onClick={() => openBuilder(set)}
-                    className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg text-xs transition-colors"
+                    className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors"
                   >
                     {set.status === 'DRAFT' ? t("orderSets.btn.edit", "تعديل") : t("orderSets.btn.newVersion", "إصدار جديد")}
                   </button>
@@ -488,7 +488,7 @@ export default function OrderSetsPage() {
                     <button
                       disabled={workflowBusyId === set.id}
                       onClick={() => runWorkflowAction(set, 'submit-review', t("orderSets.toast.submittedReview", "تم إرسال المسودة للمراجعة"))}
-                      className="px-3 py-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 rounded-lg text-xs transition-colors"
+                      className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-50 rounded-lg text-xs transition-colors"
                     >
                       للمراجعة
                     </button>

@@ -685,7 +685,7 @@ export default function PreAuthPage() {
                 </div>
               ))}
               <button onClick={() => setNphiesServices([...nphiesServices, { code: "", name: "", quantity: 1, unitPrice: 0 }])}
-                className="text-xs text-violet-400 hover:text-violet-300 transition">t("preAuth.nphies.addServiceBtn", "+ إضافة خدمة")</button>
+                className="text-xs text-violet-400 hover:text-violet-300 transition">{t("preAuth.nphies.addServiceBtn", "+ إضافة خدمة")}</button>
             </div>
 
             {/* Diagnoses */}
@@ -699,12 +699,12 @@ export default function PreAuthPage() {
                     placeholder={t("preAuth.placeholder.diagnosisDesc", "وصف التشخيص")} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-violet-500 outline-none" />
                   <label className="flex items-center gap-1 text-xs text-slate-400">
                     <input type="checkbox" checked={diag.isPrimary} onChange={e => { const n = [...nphiesDiagnoses]; n[idx].isPrimary = e.target.checked; setNphiesDiagnoses(n); }}
-                      className="rounded border-slate-700" /> t("preAuth.nphies.isPrimary", "رئيسي")
+                      className="rounded border-slate-700" /> {t("preAuth.nphies.isPrimary", "رئيسي")}
                   </label>
                 </div>
               ))}
               <button onClick={() => setNphiesDiagnoses([...nphiesDiagnoses, { code: "", display: "", isPrimary: false }])}
-                className="text-xs text-violet-400 hover:text-violet-300 transition">t("preAuth.nphies.addDiagnosisBtn", "+ إضافة تشخيص")</button>
+                className="text-xs text-violet-400 hover:text-violet-300 transition">{t("preAuth.nphies.addDiagnosisBtn", "+ إضافة تشخيص")}</button>
             </div>
 
             {/* Attachments */}
@@ -713,7 +713,7 @@ export default function PreAuthPage() {
               <div className="border-2 border-dashed border-slate-700 hover:border-violet-500/50 rounded-xl p-4 text-center transition cursor-pointer"
                 onClick={() => document.getElementById('nphies-file-input')?.click()}>
                 <FileCheck className="w-8 h-8 mx-auto text-slate-600 mb-2" />
-                <p className="text-xs text-slate-500">t("preAuth.nphies.uploadHint", "اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)")</p>
+                <p className="text-xs text-slate-500">{t("preAuth.nphies.uploadHint", "اضغط لرفع تقارير طبية أو صور أشعة (PDF, JPG, PNG)")}</p>
                 <input id="nphies-file-input" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden"
                   onChange={e => setNphiesFiles(Array.from(e.target.files || []))} />
               </div>
@@ -734,7 +734,7 @@ export default function PreAuthPage() {
               <button onClick={handleNphiesSubmit} disabled={nphiesLoading}
                 className="px-6 py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl shadow-lg transition flex items-center gap-2">
                 {nphiesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                t("preAuth.nphies.submitBtn", "إرسال إلى نفيس")
+                <span>{t("preAuth.nphies.submitBtn", "إرسال إلى نفيس")}</span>
               </button>
             </div>
           </div>

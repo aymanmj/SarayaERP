@@ -461,13 +461,13 @@ export default function RegistriesDashboard() {
               {selectedRegistryAnalytics && (
                 <div className="flex gap-3 text-xs">
                   <span className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-                    t("registries.analytics.members", "الأعضاء:") + " "
+                    {t("registries.analytics.members", "الأعضاء:")}{" "}
                     <span className="text-sky-400 font-bold">
                       {selectedRegistryAnalytics.totalMembers}
                     </span>
                   </span>
                   <span className="bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-                    t("registries.analytics.openGaps", "الفجوات المفتوحة:") + " "
+                    {t("registries.analytics.openGaps", "الفجوات المفتوحة:")}{" "}
                     <span className="text-rose-400 font-bold">
                       {selectedRegistryAnalytics.openGaps}
                     </span>
@@ -624,7 +624,7 @@ export default function RegistriesDashboard() {
                       </span>
                     </div>
                     <div className="text-xs text-slate-500 mb-4">
-                      t("registries.patientGaps.identifiedDate", "تاريخ الاكتشاف:") + " "
+                      {t("registries.patientGaps.identifiedDate", "تاريخ الاكتشاف:")}{" "}
                       {new Date(gap.createdAt || gap.identifiedAt).toLocaleDateString(
                         "ar-LY",
                       )}
@@ -906,7 +906,7 @@ export default function RegistriesDashboard() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-300 mb-4">
-                t("registries.closeGap.ruleLabel", "القاعدة:") + " "
+                {t("registries.closeGap.ruleLabel", "القاعدة:")}{" "}
                 <span className="font-bold text-slate-200">{selectedGap.rule?.name}</span>
               </p>
               <textarea
@@ -928,7 +928,7 @@ export default function RegistriesDashboard() {
                 disabled={!closeNotes.trim() || closeGapMutation.isPending}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-sm shadow-lg transition-colors disabled:opacity-50"
               >
-                t("registries.closeGap.confirmBtn", "تأكيد الإغلاق")
+                {t("registries.closeGap.confirmBtn", "تأكيد الإغلاق")}
               </button>
             </div>
           </div>

@@ -248,7 +248,7 @@ export default function InsuranceProviderDetailsPage() {
 
               <div className="text-xs text-slate-400 space-y-1 mb-3">
                 <div>
-                  t("insuranceProviders.details.defaultCopay", "التحمل الافتراضي:") + " "
+                  {t("insuranceProviders.details.defaultCopay", "التحمل الافتراضي:")}{" "}
                   <span className="text-slate-200">
                     {(plan.defaultCopayRate * 100).toFixed(0)}%
                   </span>
@@ -333,7 +333,7 @@ export default function InsuranceProviderDetailsPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-950 border border-slate-700 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <h3 className="text-lg font-bold text-emerald-400">
-              t("insuranceProviders.details.newPolicyModalTitle", "إضافة عقد / بوليصة جديدة")
+              {t("insuranceProviders.details.newPolicyModalTitle", "إضافة عقد / بوليصة جديدة")}
             </h3>
             <div className="space-y-3 text-xs">
               <div>

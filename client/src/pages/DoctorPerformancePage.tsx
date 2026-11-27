@@ -3,6 +3,13 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "../api/apiClient";
 import {
+  BarChart3,
+  Users,
+  Banknote,
+  Scissors,
+  Stethoscope,
+} from "lucide-react";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -124,8 +131,9 @@ export default function DoctorPerformancePage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            📊 {t("doctorPerformance.title", "تقرير أداء الأطباء")}
+          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-3">
+            <BarChart3 className="w-7 h-7 text-sky-400 shrink-0" strokeWidth={1.75} />
+            <span>{t("doctorPerformance.title", "تقرير أداء الأطباء")}</span>
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             {t("doctorPerformance.subtitle", "تحليل شامل لإنتاجية وأداء الطاقم الطبي حسب الفترة الزمنية")}
@@ -183,39 +191,45 @@ export default function DoctorPerformancePage() {
               {
                 label: t("doctorPerformance.kpis.totalEncounters", "إجمالي الحالات"),
                 value: summary?.totalEncounters || 0,
-                icon: "👥",
-                color: "from-sky-500/20 to-sky-900/10 border-sky-800/40",
+                Icon: Users,
+                color: "bg-sky-950/60 border-sky-800/50",
+                iconWrap: "bg-sky-500/15 text-sky-400",
                 textColor: "text-sky-400",
               },
               {
                 label: t("doctorPerformance.kpis.totalRevenue", "الإيرادات المُولّدة"),
                 value: `${((summary?.totalRevenue || 0) / 1000).toFixed(1)}K`,
-                icon: "💰",
-                color: "from-emerald-500/20 to-emerald-900/10 border-emerald-800/40",
+                Icon: Banknote,
+                color: "bg-emerald-950/60 border-emerald-800/50",
+                iconWrap: "bg-emerald-500/15 text-emerald-400",
                 textColor: "text-emerald-400",
               },
               {
                 label: t("doctorPerformance.kpis.totalSurgeries", "العمليات الجراحية"),
                 value: summary?.totalSurgeries || 0,
-                icon: "🔪",
-                color: "from-purple-500/20 to-purple-900/10 border-purple-800/40",
+                Icon: Scissors,
+                color: "bg-purple-950/60 border-purple-800/50",
+                iconWrap: "bg-purple-500/15 text-purple-400",
                 textColor: "text-purple-400",
               },
               {
                 label: t("doctorPerformance.kpis.activeDoctors", "الأطباء النشطين"),
                 value: summary?.activeDoctors || 0,
-                icon: "🩺",
-                color: "from-amber-500/20 to-amber-900/10 border-amber-800/40",
+                Icon: Stethoscope,
+                color: "bg-amber-950/60 border-amber-800/50",
+                iconWrap: "bg-amber-500/15 text-amber-400",
                 textColor: "text-amber-400",
               },
             ].map((kpi) => (
               <div
                 key={kpi.label}
-                className={`bg-gradient-to-br ${kpi.color} border rounded-2xl p-5 flex items-center gap-4`}
+                className={`${kpi.color} border rounded-2xl p-5 flex items-center gap-4`}
               >
-                <span className="text-3xl">{kpi.icon}</span>
+                <div className={`p-3 rounded-xl ${kpi.iconWrap}`}>
+                  <kpi.Icon className="w-6 h-6" strokeWidth={1.75} />
+                </div>
                 <div>
-                  <div className={`text-2xl font-black ${kpi.textColor}`}>
+                  <div className={`text-2xl font-black tabular-nums ${kpi.textColor}`}>
                     {kpi.value}
                   </div>
                   <div className="text-[11px] text-slate-400 font-bold">
@@ -231,8 +245,9 @@ export default function DoctorPerformancePage() {
             {/* Bar Chart */}
             <div className="xl:col-span-2 bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-slate-300">
-                  📊 {t("doctorPerformance.chart.compare", "مقارنة الأطباء")} — {sortLabel[sortKey]}
+                <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-sky-400" strokeWidth={1.75} />
+                  <span>{t("doctorPerformance.chart.compare", "مقارنة الأطباء")} — {sortLabel[sortKey]}</span>
                 </h3>
                 <select
                   className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-[11px] text-slate-400 outline-none"
@@ -271,7 +286,7 @@ export default function DoctorPerformancePage() {
                       }}
                       formatter={(value: number) => [
                         sortKey === "totalRevenue"
-                          ? `${value.toLocaleString()} ${t("common.currency", "د.ل")}`
+                          ? `${value.toLocaleString()} ${t("common.currency.lyd", "د.ل")}`
                           : sortKey === "avgConsultationMins"
                           ? `${value} دقيقة`
                           : value,
@@ -390,15 +405,15 @@ export default function DoctorPerformancePage() {
                           <td className="px-4 py-3 text-center font-mono text-xs text-purple-400">
                             {doc.totalSurgeries}
                           </td>
-                          <td className="px-4 py-3 text-center font-mono text-xs text-emerald-400">
-                            {doc.totalRevenue.toLocaleString()} <span className="text-slate-600">{t("common.currency", "د.ل")}</span>
+                          <td className="px-4 py-3 text-center font-mono tabular-nums text-xs text-emerald-400">
+                            {doc.totalRevenue.toLocaleString()} <span className="text-slate-500">{t("common.currency.lyd", "د.ل")}</span>
                           </td>
-                          <td className="px-4 py-3 text-center font-mono text-xs text-slate-400">
+                          <td className="px-4 py-3 text-center font-mono tabular-nums text-xs text-slate-400">
                             {doc.commissionRate > 0 ? `${doc.commissionRate}%` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-center font-mono text-xs text-cyan-400">
+                          <td className="px-4 py-3 text-center font-mono tabular-nums text-xs text-cyan-400">
                             {doc.doctorCommission > 0
-                              ? <>{doc.doctorCommission.toLocaleString()} <span className="text-slate-600">{t("common.currency", "د.ل")}</span></>
+                              ? <>{doc.doctorCommission.toLocaleString()} <span className="text-slate-500">{t("common.currency.lyd", "د.ل")}</span></>
                               : "—"}
                           </td>
                           <td className="px-4 py-3 text-center font-mono text-xs text-amber-400">

@@ -108,7 +108,7 @@ const QuickActionCard = ({
         </span>
       )}
     </div>
-    <h3 className="text-sm font-semibold text-slate-200 mb-1 group-hover:text-white transition-colors">
+    <h3 className="text-sm font-semibold text-slate-200 mb-1 group-hover:text-sky-400 transition-colors">
       {title}
     </h3>
     <p className="text-xs text-slate-400 leading-relaxed">
@@ -190,7 +190,7 @@ export function DashboardPage() {
 
         {/* License Info Card */}
         {license && (
-          <div className={`bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-6 shadow-lg ${isRtl ? 'flex-row' : 'flex-row-reverse'}`}>
+          <div className={`bg-slate-900 border border-slate-700/70 rounded-2xl p-4 flex items-center gap-6 shadow-sm ${isRtl ? 'flex-row' : 'flex-row-reverse'}`}>
             <div className="text-center px-2">
               <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">
                 {t("dashboard.licensePlan", "الباقة الحالية")}

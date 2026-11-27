@@ -4,6 +4,7 @@
 /* ── Saraya Clinical Design System: Semantic Tokens & Multi-Theme ── */
 :root,
 html[data-theme="clinical-dark"] {
+  color-scheme: dark;
   --saraya-canvas: #0b1120;
   --saraya-surface: #0f172a;
   --saraya-surface-muted: #1e293b;
@@ -14,18 +15,20 @@ html[data-theme="clinical-dark"] {
   --saraya-accent-soft: rgba(14, 165, 233, 0.12);
 }
 
-/* ── Clinical Daylight (Light Mode for Clinics, Pharmacy & Nursing Stations) ── */
+/* ── 1. Clinical Daylight (Crisp Epic-Style Light Mode for Clinics, Pharmacy & Nursing) ── */
 html[data-theme="clinical-light"] {
-  --saraya-canvas: #f1f5f9;
+  color-scheme: light;
+  --saraya-canvas: #f3f6fa;
   --saraya-surface: #ffffff;
   --saraya-surface-muted: #f8fafc;
-  --saraya-border: #cbd5e1;
+  --saraya-border: #dbe3ee;
   --saraya-text: #0f172a;
   --saraya-text-muted: #475569;
-  --saraya-accent: #0369a1;
-  --saraya-accent-soft: rgba(3, 105, 161, 0.1);
+  --saraya-accent: #0284c7;
+  --saraya-accent-soft: rgba(2, 132, 199, 0.1);
 
-  --color-slate-950: #f1f5f9;
+  /* Neutral scales (slate, gray, zinc, neutral) remapped cleanly for daylight */
+  --color-slate-950: #f3f6fa;
   --color-slate-900: #ffffff;
   --color-slate-800: #e2e8f0;
   --color-slate-700: #cbd5e1;
@@ -37,91 +40,496 @@ html[data-theme="clinical-light"] {
   --color-slate-100: #0f172a;
   --color-slate-50: #020617;
 
-  --color-sky-300: #0369a1;
+  --color-gray-950: #f3f6fa;
+  --color-gray-900: #ffffff;
+  --color-gray-800: #e2e8f0;
+  --color-gray-700: #cbd5e1;
+  --color-gray-600: #64748b;
+  --color-gray-500: #475569;
+  --color-gray-400: #475569;
+  --color-gray-300: #334155;
+  --color-gray-200: #1e293b;
+  --color-gray-100: #0f172a;
+  --color-gray-50: #020617;
+
+  --color-zinc-950: #f3f6fa;
+  --color-zinc-900: #ffffff;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-600: #52525b;
+  --color-zinc-500: #52525b;
+  --color-zinc-400: #52525b;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-200: #27272a;
+  --color-zinc-100: #18181b;
+  --color-zinc-50: #09090b;
+
+  --color-neutral-950: #f3f6fa;
+  --color-neutral-900: #ffffff;
+  --color-neutral-800: #e5e5e5;
+  --color-neutral-700: #d4d4d4;
+  --color-neutral-600: #525252;
+  --color-neutral-500: #525252;
+  --color-neutral-400: #525252;
+  --color-neutral-300: #404040;
+  --color-neutral-200: #262626;
+  --color-neutral-100: #171717;
+  --color-neutral-50: #0a0a0a;
+
+  /* Chromatic dark-tint surfaces (-950/-900/-800) & readable text (-200/-300/-400) */
+  --color-sky-950: #f0f9ff;
+  --color-sky-900: #e0f2fe;
+  --color-sky-800: #bae6fd;
   --color-sky-400: #0284c7;
-  --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
-  --color-rose-300: #be123c;
-  --color-rose-400: #e11d48;
-  --color-amber-300: #b45309;
-  --color-amber-400: #d97706;
-  --color-pink-400: #be185d;
+  --color-sky-300: #0369a1;
+  --color-sky-200: #075985;
+
+  --color-blue-950: #eff6ff;
+  --color-blue-900: #dbeafe;
+  --color-blue-800: #bfdbfe;
+  --color-blue-400: #2563eb;
+  --color-blue-300: #1d4ed8;
+  --color-blue-200: #1e40af;
+
+  --color-indigo-950: #eef2ff;
+  --color-indigo-900: #e0e7ff;
+  --color-indigo-800: #c7d2fe;
+  --color-indigo-400: #4f46e5;
+  --color-indigo-300: #4338ca;
+  --color-indigo-200: #3730a3;
+
+  --color-violet-950: #f5f3ff;
+  --color-violet-900: #ede9fe;
+  --color-violet-800: #ddd6fe;
   --color-violet-400: #6d28d9;
-  --color-green-400: #15803d;
-  --color-red-400: #b91c1c;
+  --color-violet-300: #5b21b6;
+  --color-violet-200: #4c1d95;
+
+  --color-purple-950: #faf5ff;
+  --color-purple-900: #f3e8ff;
+  --color-purple-800: #e9d5ff;
+  --color-purple-400: #7e22ce;
+  --color-purple-300: #6b21a8;
+  --color-purple-200: #581c87;
+
+  --color-emerald-950: #ecfdf5;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-400: #059669;
+  --color-emerald-300: #047857;
+  --color-emerald-200: #065f46;
+
+  --color-green-950: #f0fdf4;
+  --color-green-900: #dcfce7;
+  --color-green-800: #bbf7d0;
+  --color-green-400: #16a34a;
+  --color-green-300: #15803d;
+  --color-green-200: #166534;
+
+  --color-teal-950: #f0fdfa;
+  --color-teal-900: #ccfbf1;
+  --color-teal-800: #99f6e4;
+  --color-teal-400: #0d9488;
+  --color-teal-300: #0f766e;
+  --color-teal-200: #115e59;
+
+  --color-cyan-950: #ecfeff;
+  --color-cyan-900: #cffafe;
+  --color-cyan-800: #a5f3fc;
+  --color-cyan-400: #0891b2;
+  --color-cyan-300: #0e7490;
+  --color-cyan-200: #155e75;
+
+  --color-amber-950: #fffbeb;
+  --color-amber-900: #fef3c7;
+  --color-amber-800: #fde68a;
+  --color-amber-400: #d97706;
+  --color-amber-300: #b45309;
+  --color-amber-200: #92400e;
+
+  --color-yellow-950: #fefce8;
+  --color-yellow-900: #fef9c3;
+  --color-yellow-800: #fef08a;
+  --color-yellow-400: #ca8a04;
+  --color-yellow-300: #a16207;
+  --color-yellow-200: #854d0e;
+
+  --color-orange-950: #fff7ed;
+  --color-orange-900: #ffedd5;
+  --color-orange-800: #fed7aa;
+  --color-orange-400: #ea580c;
+  --color-orange-300: #c2410c;
+  --color-orange-200: #9a3412;
+
+  --color-rose-950: #fff1f2;
+  --color-rose-900: #ffe4e6;
+  --color-rose-800: #fecdd3;
+  --color-rose-400: #e11d48;
+  --color-rose-300: #be123c;
+  --color-rose-200: #9f1239;
+
+  --color-red-950: #fef2f2;
+  --color-red-900: #fee2e2;
+  --color-red-800: #fecaca;
+  --color-red-400: #dc2626;
+  --color-red-300: #b91c1c;
+  --color-red-200: #991b1b;
+
+  --color-pink-950: #fdf2f8;
+  --color-pink-900: #fce7f3;
+  --color-pink-800: #fbcfe8;
+  --color-pink-400: #db2777;
+  --color-pink-300: #be185d;
+  --color-pink-200: #9d174d;
 }
 
-/* ── Saraya Clinical Teal (Hospital Brand Signature Daylight) ── */
+/* ── 2. Saraya Medical Signature Daylight (Calm Clinical Sage & Teal Identity) ── */
 html[data-theme="clinical-emerald"] {
-  --saraya-canvas: #f4f7f6;
+  color-scheme: light;
+  --saraya-canvas: #edf4f2;
   --saraya-surface: #ffffff;
-  --saraya-surface-muted: #f0fdfa;
-  --saraya-border: #cbd5e1;
-  --saraya-text: #0f172a;
-  --saraya-text-muted: #475569;
+  --saraya-surface-muted: #f2f9f7;
+  --saraya-border: #cde0db;
+  --saraya-text: #0b2220;
+  --saraya-text-muted: #3f5e59;
   --saraya-accent: #0f766e;
-  --saraya-accent-soft: rgba(15, 118, 110, 0.1);
+  --saraya-accent-soft: rgba(15, 118, 110, 0.12);
 
-  --color-slate-950: #f4f7f6;
+  /* Eucalyptus-tinted neutral scales */
+  --color-slate-950: #edf4f2;
   --color-slate-900: #ffffff;
-  --color-slate-800: #dde6e4;
-  --color-slate-700: #cbd5e1;
-  --color-slate-600: #64748b;
-  --color-slate-500: #475569;
-  --color-slate-400: #475569;
-  --color-slate-300: #334155;
-  --color-slate-200: #1e293b;
-  --color-slate-100: #0f172a;
-  --color-slate-50: #020617;
+  --color-slate-800: #dce9e5;
+  --color-slate-700: #c3d8d2;
+  --color-slate-600: #557570;
+  --color-slate-500: #3f5e59;
+  --color-slate-400: #3f5e59;
+  --color-slate-300: #294642;
+  --color-slate-200: #173330;
+  --color-slate-100: #0b2220;
+  --color-slate-50: #041514;
 
-  --color-sky-300: #0f766e;
-  --color-sky-400: #0f766e;
-  --color-sky-500: #0d9488;
-  --color-sky-600: #0f766e;
+  --color-gray-950: #edf4f2;
+  --color-gray-900: #ffffff;
+  --color-gray-800: #dce9e5;
+  --color-gray-700: #c3d8d2;
+  --color-gray-600: #557570;
+  --color-gray-500: #3f5e59;
+  --color-gray-400: #3f5e59;
+  --color-gray-300: #294642;
+  --color-gray-200: #173330;
+  --color-gray-100: #0b2220;
+  --color-gray-50: #041514;
+
+  --color-zinc-950: #edf4f2;
+  --color-zinc-900: #ffffff;
+  --color-zinc-800: #dce9e5;
+  --color-zinc-700: #c3d8d2;
+  --color-zinc-600: #557570;
+  --color-zinc-500: #3f5e59;
+  --color-zinc-400: #3f5e59;
+  --color-zinc-300: #294642;
+  --color-zinc-200: #173330;
+  --color-zinc-100: #0b2220;
+  --color-zinc-50: #041514;
+
+  --color-neutral-950: #edf4f2;
+  --color-neutral-900: #ffffff;
+  --color-neutral-800: #dce9e5;
+  --color-neutral-700: #c3d8d2;
+  --color-neutral-600: #557570;
+  --color-neutral-500: #3f5e59;
+  --color-neutral-400: #3f5e59;
+  --color-neutral-300: #294642;
+  --color-neutral-200: #173330;
+  --color-neutral-100: #0b2220;
+  --color-neutral-50: #041514;
+
+  /* Primary Saraya Teal brand signature mapped across primary sky utilities */
+  --color-sky-950: #f0fdfa;
   --color-sky-900: #ccfbf1;
-  --color-emerald-300: #047857;
-  --color-emerald-400: #059669;
-  --color-rose-300: #be123c;
-  --color-rose-400: #e11d48;
-  --color-amber-300: #b45309;
-  --color-amber-400: #d97706;
-  --color-pink-400: #be185d;
+  --color-sky-800: #99f6e4;
+  --color-sky-700: #115e59;
+  --color-sky-600: #0f766e;
+  --color-sky-500: #0d9488;
+  --color-sky-400: #0f766e;
+  --color-sky-300: #115e59;
+  --color-sky-200: #134e4a;
+
+  --color-blue-950: #eff6ff;
+  --color-blue-900: #dbeafe;
+  --color-blue-800: #bfdbfe;
+  --color-blue-400: #2563eb;
+  --color-blue-300: #1d4ed8;
+  --color-blue-200: #1e40af;
+
+  --color-indigo-950: #eef2ff;
+  --color-indigo-900: #e0e7ff;
+  --color-indigo-800: #c7d2fe;
+  --color-indigo-400: #4f46e5;
+  --color-indigo-300: #4338ca;
+  --color-indigo-200: #3730a3;
+
+  --color-violet-950: #f5f3ff;
+  --color-violet-900: #ede9fe;
+  --color-violet-800: #ddd6fe;
   --color-violet-400: #6d28d9;
-  --color-green-400: #15803d;
-  --color-red-400: #b91c1c;
+  --color-violet-300: #5b21b6;
+  --color-violet-200: #4c1d95;
+
+  --color-purple-950: #faf5ff;
+  --color-purple-900: #f3e8ff;
+  --color-purple-800: #e9d5ff;
+  --color-purple-400: #7e22ce;
+  --color-purple-300: #6b21a8;
+  --color-purple-200: #581c87;
+
+  --color-emerald-950: #ecfdf5;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-400: #059669;
+  --color-emerald-300: #047857;
+  --color-emerald-200: #065f46;
+
+  --color-green-950: #f0fdf4;
+  --color-green-900: #dcfce7;
+  --color-green-800: #bbf7d0;
+  --color-green-400: #16a34a;
+  --color-green-300: #15803d;
+  --color-green-200: #166534;
+
+  --color-teal-950: #f0fdfa;
+  --color-teal-900: #ccfbf1;
+  --color-teal-800: #99f6e4;
+  --color-teal-400: #0d9488;
+  --color-teal-300: #0f766e;
+  --color-teal-200: #115e59;
+
+  --color-cyan-950: #ecfeff;
+  --color-cyan-900: #cffafe;
+  --color-cyan-800: #a5f3fc;
+  --color-cyan-400: #0891b2;
+  --color-cyan-300: #0e7490;
+  --color-cyan-200: #155e75;
+
+  --color-amber-950: #fffbeb;
+  --color-amber-900: #fef3c7;
+  --color-amber-800: #fde68a;
+  --color-amber-400: #d97706;
+  --color-amber-300: #b45309;
+  --color-amber-200: #92400e;
+
+  --color-yellow-950: #fefce8;
+  --color-yellow-900: #fef9c3;
+  --color-yellow-800: #fef08a;
+  --color-yellow-400: #ca8a04;
+  --color-yellow-300: #a16207;
+  --color-yellow-200: #854d0e;
+
+  --color-orange-950: #fff7ed;
+  --color-orange-900: #ffedd5;
+  --color-orange-800: #fed7aa;
+  --color-orange-400: #ea580c;
+  --color-orange-300: #c2410c;
+  --color-orange-200: #9a3412;
+
+  --color-rose-950: #fff1f2;
+  --color-rose-900: #ffe4e6;
+  --color-rose-800: #fecdd3;
+  --color-rose-400: #e11d48;
+  --color-rose-300: #be123c;
+  --color-rose-200: #9f1239;
+
+  --color-red-950: #fef2f2;
+  --color-red-900: #fee2e2;
+  --color-red-800: #fecaca;
+  --color-red-400: #dc2626;
+  --color-red-300: #b91c1c;
+  --color-red-200: #991b1b;
+
+  --color-pink-950: #fdf2f8;
+  --color-pink-900: #fce7f3;
+  --color-pink-800: #fbcfe8;
+  --color-pink-400: #db2777;
+  --color-pink-300: #be185d;
+  --color-pink-200: #9d174d;
 }
 
-/* Preserve readable headings in daylight themes without breaking solid colored buttons/banners */
+/* ── Daylight Contrast Protection: Headings, Inputs, Surfaces & Solid Buttons ── */
+
+/* Protect light-first components/modals (bg-white + text-slate-900/800) from neutral inversion */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .text-white:not([class*="bg-"]):not(.saraya-solid-bg):not(
-    .saraya-solid-bg *
-  ):not(button[class*="bg-"]):not(a[class*="bg-"]) {
+  :is(
+    .text-slate-950,
+    .text-slate-900,
+    .text-slate-800,
+    .text-gray-950,
+    .text-gray-900,
+    .text-gray-800,
+    .text-zinc-900,
+    .text-neutral-900
+  ) {
   color: var(--saraya-text);
 }
 
+/* Convert text-white used for headings/cards on dark surfaces into high-contrast ink */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-900\/70,
+  .text-white {
+  color: var(--saraya-text);
+}
+
+/* Prevent hover:text-white / group-hover:text-white from turning text invisible on light cards */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-900\/80,
+  .hover\:text-white:hover,
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-900\/60,
+  .group:hover
+  .group-hover\:text-white {
+  color: var(--saraya-accent);
+}
+
+/* Keep crisp white #ffffff text ONLY on solid chromatic buttons/pills/badges/avatars */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-900\/50,
+  :is(
+    .saraya-solid-bg,
+    .saraya-solid-bg *,
+    .text-white[class*="bg-emerald-500"]:not([class*="bg-emerald-500/"]),
+    .text-white[class*="bg-emerald-600"]:not([class*="bg-emerald-600/"]),
+    .text-white[class*="bg-emerald-700"]:not([class*="bg-emerald-700/"]),
+    .text-white[class*="bg-green-500"]:not([class*="bg-green-500/"]),
+    .text-white[class*="bg-green-600"]:not([class*="bg-green-600/"]),
+    .text-white[class*="bg-green-700"]:not([class*="bg-green-700/"]),
+    .text-white[class*="bg-teal-500"]:not([class*="bg-teal-500/"]),
+    .text-white[class*="bg-teal-600"]:not([class*="bg-teal-600/"]),
+    .text-white[class*="bg-teal-700"]:not([class*="bg-teal-700/"]),
+    .text-white[class*="bg-sky-500"]:not([class*="bg-sky-500/"]),
+    .text-white[class*="bg-sky-600"]:not([class*="bg-sky-600/"]),
+    .text-white[class*="bg-sky-700"]:not([class*="bg-sky-700/"]),
+    .text-white[class*="bg-blue-500"]:not([class*="bg-blue-500/"]),
+    .text-white[class*="bg-blue-600"]:not([class*="bg-blue-600/"]),
+    .text-white[class*="bg-blue-700"]:not([class*="bg-blue-700/"]),
+    .text-white[class*="bg-indigo-500"]:not([class*="bg-indigo-500/"]),
+    .text-white[class*="bg-indigo-600"]:not([class*="bg-indigo-600/"]),
+    .text-white[class*="bg-indigo-700"]:not([class*="bg-indigo-700/"]),
+    .text-white[class*="bg-violet-500"]:not([class*="bg-violet-500/"]),
+    .text-white[class*="bg-violet-600"]:not([class*="bg-violet-600/"]),
+    .text-white[class*="bg-purple-500"]:not([class*="bg-purple-500/"]),
+    .text-white[class*="bg-purple-600"]:not([class*="bg-purple-600/"]),
+    .text-white[class*="bg-rose-500"]:not([class*="bg-rose-500/"]),
+    .text-white[class*="bg-rose-600"]:not([class*="bg-rose-600/"]),
+    .text-white[class*="bg-rose-700"]:not([class*="bg-rose-700/"]),
+    .text-white[class*="bg-red-500"]:not([class*="bg-red-500/"]),
+    .text-white[class*="bg-red-600"]:not([class*="bg-red-600/"]),
+    .text-white[class*="bg-red-700"]:not([class*="bg-red-700/"]),
+    .text-white[class*="bg-orange-500"]:not([class*="bg-orange-500/"]),
+    .text-white[class*="bg-orange-600"]:not([class*="bg-orange-600/"]),
+    .text-white[class*="bg-amber-600"]:not([class*="bg-amber-600/"]),
+    .text-white[class*="bg-cyan-600"]:not([class*="bg-cyan-600/"]),
+    .text-white[class*="bg-pink-600"]:not([class*="bg-pink-600/"]),
+    .text-white[style*="background"]
+  ) {
+  color: #ffffff;
+}
+
+/* Crisp daylight inputs, selects, and textareas (prevents white-on-white or dark inputs) */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-950\/95,
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea
+  ) {
+  color: var(--saraya-text);
+  background-color: var(--saraya-surface);
+  border-color: var(--saraya-border);
+}
+
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-950\/90,
+  :is(input, select, textarea)::placeholder {
+  color: #64748b;
+}
+
+/* Clean flat card & table header surfaces in daylight modes */
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-950\/80,
-:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  .bg-slate-950\/50 {
+  :is(
+    .bg-slate-900\/90,
+    .bg-slate-900\/80,
+    .bg-slate-900\/70,
+    .bg-slate-900\/60,
+    .bg-slate-900\/50,
+    .bg-slate-900\/40,
+    .bg-gray-900\/90,
+    .bg-gray-900\/80,
+    .bg-gray-900\/70,
+    .bg-gray-900\/60,
+    .bg-gray-900\/50,
+    .bg-gray-900\/40
+  ) {
   background-color: var(--saraya-surface);
 }
 
 :is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
-  aside {
+  :is(
+    .bg-slate-950\/95,
+    .bg-slate-950\/90,
+    .bg-slate-950\/80,
+    .bg-slate-950\/60,
+    .bg-slate-950\/50,
+    .bg-slate-950\/40,
+    .bg-gray-950\/60,
+    .bg-gray-950\/50
+  ) {
+  background-color: var(--saraya-surface-muted);
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .hover\:bg-white\/\[0\.02\]:hover,
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .hover\:bg-white\/5:hover {
+  background-color: var(--saraya-surface-muted);
+}
+
+/* Recharts global daylight legibility (axes, grid lines & tooltips) */
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .recharts-default-tooltip {
+  background-color: var(--saraya-surface) !important;
+  border-color: var(--saraya-border) !important;
+  color: var(--saraya-text) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12) !important;
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  :is(.recharts-tooltip-label, .recharts-tooltip-item, .recharts-legend-item-text) {
+  color: var(--saraya-text) !important;
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .recharts-cartesian-grid line {
+  stroke: var(--saraya-border) !important;
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .recharts-cartesian-axis-tick-value tspan {
+  fill: var(--saraya-text-muted) !important;
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  .recharts-tooltip-cursor {
+  fill: var(--saraya-accent-soft) !important;
+}
+
+/* Distinct sidebar/header polish per daylight theme */
+html[data-theme="clinical-light"] aside {
   background-color: var(--saraya-surface);
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+}
+
+html[data-theme="clinical-emerald"] aside {
+  background-color: #f7fbfa;
+  border-top: 3px solid #0f766e;
+  box-shadow: 0 1px 4px 0 rgba(15, 118, 110, 0.08);
+}
+
+html[data-theme="clinical-emerald"] header {
+  background-color: #f9fcfb;
+  border-bottom-color: #cde0db;
 }
 
 .tabular-nums {

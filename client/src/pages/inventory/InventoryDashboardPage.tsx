@@ -26,14 +26,14 @@ import { useQuery } from "@tanstack/react-query";
 const COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444'];
 
  
-const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
-    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-lg hover:bg-slate-800/50 transition-colors">
-        <div className={`p-4 rounded-xl ${colorClass} bg-opacity-20`}>
-            <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+const StatCard = ({ title, value, icon: Icon, badgeClass, iconClass }: any) => (
+    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-sm hover:bg-slate-800/50 transition-colors">
+        <div className={`p-3.5 rounded-xl border ${badgeClass}`}>
+            <Icon className={`w-6 h-6 ${iconClass}`} strokeWidth={1.75} />
         </div>
         <div>
             <div className="text-slate-400 text-sm font-medium">{title}</div>
-            <div className="text-2xl font-black text-white mt-1">{value}</div>
+            <div className="text-2xl font-black text-white mt-1 tabular-nums">{value}</div>
         </div>
     </div>
 );
@@ -104,10 +104,10 @@ export function InventoryDashboardPage() {
 
        {/* Stats Grid */}
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title={t("inventory.dashboard.totalValue", "إجمالي قيمة المخزون")} value={`${formatMoney(stats.totalValue)} ${t("inventory.currencyDinar", "د.ل")}`} icon={TrendingUp} colorClass="bg-emerald-500" />
-            <StatCard title={t("inventory.dashboard.lowStockItems", "أصناف منخفضة الرصيد")} value={`${stats.lowStockCount} ${t("inventory.dashboard.items", "صنف")}`} icon={AlertCircle} colorClass="bg-rose-500" />
-            <StatCard title={t("inventory.dashboard.pendingOrders", "أوامر شراء معلقة")} value={`${stats.pendingOrders} ${t("inventory.dashboard.requests", "طلبات")}`} icon={Package} colorClass="bg-amber-500" />
-            <StatCard title={t("inventory.dashboard.activeCounts", "عمليات جرد نشطة")} value={`${stats.activeCounts} ${t("inventory.dashboard.operations", "عمليات")}`} icon={RefreshCcw} colorClass="bg-sky-500" />
+            <StatCard title={t("inventory.dashboard.totalValue", "إجمالي قيمة المخزون")} value={`${formatMoney(stats.totalValue)} ${t("inventory.currencyDinar", "د.ل")}`} icon={TrendingUp} badgeClass="bg-emerald-500/15 border-emerald-500/30" iconClass="text-emerald-400" />
+            <StatCard title={t("inventory.dashboard.lowStockItems", "أصناف منخفضة الرصيد")} value={`${stats.lowStockCount} ${t("inventory.dashboard.items", "صنف")}`} icon={AlertCircle} badgeClass="bg-rose-500/15 border-rose-500/30" iconClass="text-rose-400" />
+            <StatCard title={t("inventory.dashboard.pendingOrders", "أوامر شراء معلقة")} value={`${stats.pendingOrders} ${t("inventory.dashboard.requests", "طلبات")}`} icon={Package} badgeClass="bg-amber-500/15 border-amber-500/30" iconClass="text-amber-400" />
+            <StatCard title={t("inventory.dashboard.activeCounts", "عمليات جرد نشطة")} value={`${stats.activeCounts} ${t("inventory.dashboard.operations", "عمليات")}`} icon={RefreshCcw} badgeClass="bg-sky-500/15 border-sky-500/30" iconClass="text-sky-400" />
        </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

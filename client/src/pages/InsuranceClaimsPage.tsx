@@ -825,7 +825,7 @@ export default function InsuranceClaimsPage() {
                   <td colSpan={9} className="text-center py-20 text-slate-500">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-10 h-10 rounded-full border-4 border-sky-500/30 border-t-sky-500 animate-spin mb-3"></div>
-                      <span className="animate-pulse">t("insuranceClaims.loading", "جاري سحب بيانات المطالبات...")</span>
+                      <span className="animate-pulse">{t("insuranceClaims.loading", "جاري سحب بيانات المطالبات...")}</span>
                     </div>
                   </td>
                 </tr>

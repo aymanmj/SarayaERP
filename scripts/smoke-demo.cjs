@@ -110,10 +110,19 @@ function assertSetCookieSize(res, context) {
 }
 
 async function login(username, password) {
-  const res = await request(`${BASE_URL}/api/auth/login`, {
+  let res = await request(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
     body: { username, password },
   });
+  if (res.status === 429) {
+    const waitSec = Math.min(Math.max(Number(res.headers['retry-after']) || 62, 5), 70);
+    console.log(`INFO | Production login throttle active (${username}); waiting ${waitSec}s before retrying...`);
+    await new Promise((r) => setTimeout(r, waitSec * 1000));
+    res = await request(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      body: { username, password },
+    });
+  }
   if (res.status !== 200 && res.status !== 201) {
     throw new Error(`Login failed for ${username}: HTTP ${res.status} ${res.text}`);
   }
@@ -252,7 +261,7 @@ async function main() {
     ['Radiology Worklist', '/api/radiology/worklist'],
     ['Pharmacy Worklist', '/api/pharmacy/worklist'],
     ['OB-GYN Antenatal Care List', '/api/obgyn/anc'],
-    ['Fertility Cases List', '/api/fertility/cases'],
+    ['Fertility Cases List', '/api/obgyn/fertility/cases'],
     ['Surgery Cases', '/api/surgery/cases'],
     ['Surgical Packages', '/api/surgery/packages'],
     ['Billing Invoices', '/api/billing/invoices'],
@@ -335,8 +344,8 @@ async function main() {
     return 'dashboard + notifications + patients HTTP 200';
   });
 
-  // Role accounts login verification
-  const roleUsers = ['dr_ahmed', 'nurse_laila', 'cashier_mo', 'acc_samir', 'pharm_ali', 'lab_user', 'rad_user'];
+  // Role accounts login verification (dr_ahmed already verified above)
+  const roleUsers = ['nurse_laila', 'cashier_mo', 'acc_samir', 'pharm_ali', 'lab_user', 'rad_user'];
   for (const u of roleUsers) {
     await check(`Role Login (${u})`, async () => {
       const s = await login(u, '123456');

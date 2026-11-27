@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 // src/pages/QualityAndSafetyPage.tsx
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { ShieldAlert, Plus, BarChart3, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { toast } from 'sonner';
 import { IncidentDetailsModal } from '../components/quality/IncidentDetailsModal';
@@ -217,10 +218,12 @@ export default function QualityAndSafetyPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white" dir={isRtl ? "rtl" : "ltr"}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-red-950 via-slate-900 to-slate-950 border-b border-red-900/40 px-6 py-5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="bg-slate-900 border-b border-slate-800 px-6 py-5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-600/20 border border-red-500/40 rounded-xl flex items-center justify-center text-2xl">🛡️</div>
+            <div className="w-12 h-12 bg-rose-500/15 border border-rose-500/30 rounded-xl flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6 text-rose-500" strokeWidth={1.75} />
+            </div>
             <div>
               <h1 className="text-2xl font-bold text-white">{t("quality.qualityAndPatientSafety", "الجودة وسلامة المريض")}</h1>
               <p className="text-slate-400 text-sm">{t("quality.clinicalIncidentManagementAndCapa", "إدارة الحوادث السريرية والـ CAPA")}</p>
@@ -229,27 +232,33 @@ export default function QualityAndSafetyPage() {
           <button
             id="btn-report-incident"
             onClick={() => setTab('report')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl font-semibold transition-all shadow-lg shadow-red-900/30"
+            className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-semibold transition-all shadow-sm"
           >
-            <span>＋</span> {t("quality.reportIncident", "الإبلاغ عن حادثة")}
+            <Plus className="w-4 h-4" strokeWidth={2} />
+            <span>{t("quality.reportIncident", "الإبلاغ عن حادثة")}</span>
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-800 px-6">
+      <div className="border-b border-slate-800 bg-slate-900/60 px-6">
         <div className="max-w-7xl mx-auto flex gap-1">
-          {([['dashboard', t("quality.controlPanel", "📊 لوحة التحكم")], ['incidents', t("quality.accidents", "📋 الحوادث")], ['my-capa', t("quality.capaTasks", "✅ مهام CAPA")], ['report', t("quality.inform", "＋ إبلاغ")]] as const).map(([key, label]) => (
+          {([
+            ['dashboard', BarChart3, t("quality.controlPanel", "لوحة التحكم")],
+            ['incidents', ClipboardList, t("quality.accidents", "الحوادث")],
+            ['my-capa', CheckCircle2, t("quality.capaTasks", "مهام CAPA")],
+            ['report', Plus, t("quality.inform", "إبلاغ")],
+          ] as const).map(([key, Icon, label]) => (
             <button
               key={key}
               id={`tab-quality-${key}`}
-               
               onClick={() => setTab(key as any)}
-              className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-all ${
+              className={`px-5 py-3.5 text-sm font-medium border-b-2 transition-all flex items-center gap-2 ${
                 tab === key ? 'border-red-500 text-red-400' : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
-              {label}
+              <Icon className="w-4 h-4" strokeWidth={1.75} />
+              <span>{label}</span>
             </button>
           ))}
         </div>

@@ -465,7 +465,7 @@ export function PrescriptionsTab({
                     <option value="">-- {t("prescriptions.selectDrugPlaceholder", "اختر الدواء من الدليل")} --</option>
                     {catalog.map((d) => (
                       <option key={d.id} value={d.id}>
-                        {renderDrugName(d)} ("(" + t("inventory.stock", "المخزون:") + ` ${d.stockOnHand})`)
+                        {renderDrugName(d)} ({t("inventory.stock", "المخزون:")} {d.stockOnHand})
                       </option>
                     ))}
                   </select>
@@ -714,7 +714,7 @@ export function PrescriptionsTab({
               </div>
               {pres.notes && (
                 <div className="mt-3 text-[10px] text-amber-200/80 bg-amber-950/10 p-2 rounded-lg border border-amber-900/20 font-medium">
-                  t("prescriptions.pharmacistNotesLabel", "ملاحظات الصيدلي:") + " " + pres.notes
+                  {t("prescriptions.pharmacistNotesLabel", "ملاحظات الصيدلي:")} {pres.notes}
                 </div>
               )}
             </div>

@@ -207,6 +207,19 @@
 
 ## سجل تحديث المراحل
 
+- 2026-11-27 تنفيذ الدفعة 42 — الموجة 8 (إعادة هندسة ألوان الوضع النهاري السريري ووضع السرايا الطبي، وإصلاح الأعطال المرئية والترجمة في العرض المباشر `https://demo.alsarayatech.ly`):
+  - **التثبت على السيرفر الحي أولاً (`scripts/smoke-demo.cjs`):** إصلاح مسار اختبار الخصوبة في `scripts/smoke-demo.cjs` إلى `/api/obgyn/fertility/cases` وإضافة انتظار/إعادة محاولة تلقائي عند تفعيل محدّد الدخول الإنتاجي `RedisThrottlerStorage` (`HTTP 429`)، ليحقق الفحص الخارجي عبر `HTTPS` **`37/37 PASSED`**.
+  - **إعادة هندسة نظام السمات النهارية (`client/src/styles.css`):**
+    - تفعيل `color-scheme: light` لكلٍ من `clinical-light` (لوح بارد `#f3f6fa` ولمسات زرقاء سريرية `#0284c7`) و`clinical-emerald` (هوية **السرايا الطبي**: لوح مريمي هادئ `#edf4f2` وشريط جانبي مميز بحد علوي `#0f766e` وأزرار `sky-*` محوّلة إلى `#0f766e`/`#0d9488`).
+    - توسيع خرائط الألوان المحايدة لتشمل `gray` و`zinc` و`neutral` إضافةً لـ `slate` (ما أصلح البطاقات السوداء في شاشات المخزون والميزانية).
+    - تحويل الدرجات اللونية الداكنة (`-950/-900/-800`) للخلفيات والأحزمة وحالات التأمين والجودة إلى باستيل نهاري مشرق مع نصوص (`-200/-300/-400`) عالية التباين (مع إبقاء الأزرار المصمتة `-500/-600/-700` بنص أبيض، وحماية `.text-slate-900/950` والمدخلات `input/select/textarea` ومنع `group-hover:text-white` من إخفاء النص، وتوحيد تنسيق `Recharts` tooltips والشبكة والمحاور للوضعين النهاريين).
+  - **إصلاح الأعطال المرئية والترجمة المرصودة عبر لقطات العرض المباشر:**
+    - `DoctorPerformancePage.tsx`: تصحيح `t("common.currency.lyd")` في المواضع الـ 3 (بدلاً من الكائن `common.currency`) واستبدال الإيموجي بأيقونات `lucide-react` وخلفية بطاقات نظيفة متوافقة مع الوضع النهاري.
+    - `InventoryDashboardPage.tsx` و`TriageDashboardPage.tsx` و`AdvancedAdmissionManagement.tsx` و`DischargePlanningPage.tsx` و`PatientPortalPage.tsx` و`ReportsPage.tsx`: إزالة جميع مواضع `bg-opacity-*` الـ 10 المعطلة في Tailwind v4 واستبدالها بشفافية متوافقة (`/15` و`/50`).
+    - `QualityAndSafetyPage.tsx` و`DashboardPage.tsx`: إزالة تدرج العنوان القاتم `from-red-950` / `from-slate-900` واستبدال الإيموجي بأيقونات `lucide-react`.
+    - إصلاح جميع الـ **29** موضعاً لنصوص `t(...)` الظاهرة حرفياً داخل `JsxText` عبر 8 ملفات (`BalanceSheetPage.tsx` مع أيقونات `Printer`/`Wallet` و`tabular-nums`، `RegistriesDashboard.tsx`، `PreAuthPage.tsx`، `InsuranceProviderDetailsPage.tsx`، `PrescriptionsTab.tsx`، `ProblemListPanel.tsx`، `InsuranceClaimsPage.tsx`، `OrderSetsPage.tsx`).
+  - **التحقق المنفذ (بعد آخر تعديل):** فحص الشجرة البرمجية AST عبر TypeScript (`EXACT_JSX_TEXT_T_BUGS: 0`، `TOTAL_BG_OPACITY: 0`، `BAD_CURRENCY_CALLS: 0`)، توازن الترجمة `check-i18n.js` (`7443` عميل + `40` جوال PASS)، `client` `eslint .` (`0` أخطاء، `84` تحذيراً سابقاً)، `tsc -b && vite build` (`13.87 s`؛ `index-s8Lq3ZZk.js` `995.29 kB`)، واجتياز كامل اختبارات `Vitest` (**`67/67` ملفاً = `296/296` اختباراً ناجحاً** خلال `36.34 s`).
+
 - 2026-11-27 تنفيذ الدفعة 41 — الموجة 7 (تجهيز وتصلب حزمة النشر الإنتاجي للديمو على خادم `Ubuntu Server 24.04 LTS VM`، وإصلاح بناء صور `Docker` الإنتاجية):
   - **إصلاحين حرجين في `server/Dockerfile` قبل النشر الإنتاجي:**
     - إصلاح مرحلة البناء (`builder`): إضافة `ENV NODE_OPTIONS="--max-old-space-size=4096"` قبل `RUN npm run build:protected` لمنع تعطل `nest build && compile_bytenode` بنفاد الذاكرة (`JavaScript heap out of memory` عند حد ~2 GB الافتراضي داخل الحاوية).

@@ -340,13 +340,13 @@ export function ProblemListPanel({ patientId, onUpdate }: { patientId: number; o
                       <div className="flex items-center gap-3 text-[10px] text-slate-500 mt-1.5">
                         {problem.onsetDate && (
                           <span>
-                            t("problems.onsetDateLabel", "البداية:") + " "
+                            {t("problems.onsetDateLabel", "البداية:")}{" "}
                             {new Date(problem.onsetDate).toLocaleDateString("ar-LY")}
                           </span>
                         )}
                         {problem.resolvedDate && (
                           <span>
-                            t("problems.resolvedDateLabel", "الحل:") + " "
+                            {t("problems.resolvedDateLabel", "الحل:")}{" "}
                             {new Date(problem.resolvedDate).toLocaleDateString("ar-LY")}
                           </span>
                         )}

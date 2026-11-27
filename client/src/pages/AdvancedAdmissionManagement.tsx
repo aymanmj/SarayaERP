@@ -856,7 +856,7 @@ export default function AdvancedAdmissionManagement() {
 
       {/* Edit Admission Modal */}
       {showEditModal && editingAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
             <h3 className="text-xl font-bold mb-4">{t("admissions.modals.edit.title", "تعديل بيانات الإيواء")}</h3>
             <div className="space-y-4">
@@ -928,7 +928,7 @@ export default function AdvancedAdmissionManagement() {
 
       {/* Discharge Planning Modal */}
       {showDischargePlanningModal && selectedAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
             <h3 className="text-xl font-bold mb-4">{t("admissions.modals.dischargePlanning.title", "تخطيط التسريح")}</h3>
             <div className="space-y-4">
@@ -996,7 +996,7 @@ export default function AdvancedAdmissionManagement() {
 
       {/* Bed Transfer Modal */}
       {showBedTransferModal && selectedAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
             <h3 className="text-xl font-bold mb-4">{t("admissions.modals.bedTransfer.title", "طلب نقل السرير")}</h3>
             <div className="space-y-4">
@@ -1055,7 +1055,7 @@ export default function AdvancedAdmissionManagement() {
 
       {/* Quick Admission Modal */}
       {showQuickAdmissionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
             <h3 className="text-xl font-bold mb-4">{t("admissions.modals.quick.title", "إيواء سريع للطوارئ")}</h3>
             
@@ -1210,7 +1210,7 @@ export default function AdvancedAdmissionManagement() {
       
       {/* Isolation Management Modal */}
       {showIsolationModal && selectedAdmission && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir={isRtl ? "rtl" : "ltr"}>
             <h3 className="text-xl font-bold mb-4">{t("admissions.modals.isolation.title", { defaultValue: "إدارة العزل - {{name}}", name: selectedAdmission.patient.fullName })}</h3>
             <div className="space-y-4">
