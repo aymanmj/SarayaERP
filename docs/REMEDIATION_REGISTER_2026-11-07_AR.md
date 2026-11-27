@@ -207,6 +207,20 @@
 
 ## سجل تحديث المراحل
 
+- 2026-11-27 تنفيذ الدفعة 44 — الموجة 10 (استبدال الأشباح التركيبية بـ 3 دراسات DICOM سريرية حقيقية مجهولة الهوية `DX/CT/MRI` وتخصيص واجهة `OHIF` باسم `Saraya PACS`):
+  - **تخصيص وتنظيف واجهة `OHIF Viewer` ([radiology-viewer.service.ts](server/src/radiology/radiology-viewer.service.ts) و[radiology-viewer.service.spec.ts](server/src/radiology/radiology-viewer.service.spec.ts)):**
+    - إضافة `investigationalUseDialog: { option: 'never' }` لإخفاء الشريط السفلي التجريبي وإتاحة كامل مساحة التشخيص للأطباء.
+    - إضافة `whiteLabeling.createLogoComponentFn` (باستخدام `React.createElement` الصافي دون أي روابط خارجية أو خرق لـ `CSP`) لعرض شعار **`Saraya PACS | السرايا للأشعة`** داخل العارض مع رابط رجوع إلى `/radiology`.
+  - **جلب ودمج 3 دراسات سريرية بشرية حقيقية مجهولة الهوية ([seed-demo-dicom.ts](server/prisma/seed-demo-dicom.ts)):**
+    - **أشعة الصدر (`CR` — 1 صورة عالية الوضوح):** مصدر `ivmartel/dwv` (`gdcm-CR-MONO1-10-chest.dcm`) بـ UID `2.25.20261127000201` (`ACC-DEMO-2026-001` / `MRN-2026-1004`).
+    - **مقطعية الصدر/البطن (`CT` — 40 شريحة متصلة حقيقية):** مصدر `OHIF/viewer-testdata` (`acrin/ct-1-045..084.dcm` التابعة لـ NIH/TCIA) بـ UID `2.25.20261127000202` (`ACC-DEMO-2026-002` / `MRN-2026-1001`) مع دعم كامل لتمرير الشرائح و`3D MPR`.
+    - **رنين الدماغ البنيوي (`MR` — 32 شريحة T1 حقيقية مزالة الملامح):** مصدر `datalad/example-dicom-structural` (`N2D_0120..0244` خطوة `4`) بـ UID `2.25.20261127000203` (`ACC-DEMO-2026-003` / `MRN-2026-1003`).
+    - إزالة الدراسات التركيبية السابقة (`2.25.20261127000101..103`) تلقائياً من `Orthanc` ثم استخدام واجهة `Orthanc /studies/{id}/modify` (`KeepSource: false`) لربط الهويات السريرية وأرقام الطلبات دون المساس بمعايرة البكسلات أو الهنسفيلد، مع تخزين محلي دائم في `/app/data/demo-dicom` (`docker-compose.demo.yml` و`scripts/install-demo.sh`) وتراجع آمن عند انقطاع الشبكة.
+  - **التحقق المنفذ (بعد آخر تعديل):**
+    - تجميع `tsc prisma/seed-demo.ts` بأمر `Dockerfile` (PASS)، `server` `tsc --noEmit` (PASS)، `lint:ci` (PASS، `740` ملفاً، `2448` ديناً تاريخياً، `0` خطأ جديد)، واجتياز جميع اختبارات وحدة الأشعة (**`5/5` مجموعات = `20/20` اختباراً** خلال `7.068 s` شاملة `radiology-viewer.service.spec.ts`).
+    - `docker compose -f docker-compose.demo.yml config --quiet` (PASS)، `production-preflight.cjs` (PASS)، وتأكد `LF` و`bash -n scripts/install-demo.sh` (PASS).
+    - اختبار حي على حاوية `orthancteam/orthanc` معزولة: جلب ورفع وتعديل الـ 3 دراسات الحقيقية (`ORTHANC_STUDY_COUNT: 3`، `CR=1 / CT=40 / MR=32`) والتحقق من `/dicom-web/studies/<uid>/metadata` و`/rendered` (`DX 21635B`، `CT 31084B`، `MR 25961B`) مع معاينة بصرية مؤكدة للصور الثلاث لسلامة التشريح البشري والوضوح.
+
 - 2026-11-27 تنفيذ الدفعة 43 — الموجة 9 (إدراج قسم الأشعة الكامل في حزمة الديمو الإنتاجي: `Orthanc PACS + OHIF Medical Viewer + DICOMweb + MWL`):
   - **توليد ورفع دراسات DICOM Part-10 حقيقية متعددة الوسائط ([seed-demo-dicom.ts](server/prisma/seed-demo-dicom.ts) و[seed-demo.ts](server/prisma/seed-demo.ts)):**
     - بناء مرمّز DICOM Part-10 (`Explicit VR Little Endian`) نقي بـ Node.js يولّد 3 دراسات تشريحية تركيبية معايرة بـ `PixelSpacing` و`ImagePositionPatient` و`WindowCenter/Width`:

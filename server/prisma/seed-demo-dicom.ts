@@ -5,11 +5,19 @@ import {
   RadiologyStatus,
 } from '@prisma/client';
 import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
+export const LEGACY_SYNTHETIC_UIDS = [
+  '2.25.20261127000101',
+  '2.25.20261127000102',
+  '2.25.20261127000103',
+] as const;
 
 export const DEMO_DICOM_UIDS = {
-  cxrStudy: '2.25.20261127000101',
-  ctStudy: '2.25.20261127000102',
-  mriStudy: '2.25.20261127000103',
+  cxrStudy: '2.25.20261127000201',
+  ctStudy: '2.25.20261127000202',
+  mriStudy: '2.25.20261127000203',
 } as const;
 
 const SOP_CLASSES = {
@@ -229,100 +237,36 @@ function clamp(val: number, min: number, max: number): number {
   return val < min ? min : val > max ? max : Math.round(val);
 }
 
-/** Smooth 2D ellipse test in normalized [-1, 1] coordinates */
 function ellipseDist(x: number, y: number, cx: number, cy: number, rx: number, ry: number): number {
   const dx = (x - cx) / rx;
   const dy = (y - cy) / ry;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+/** Air-gapped fallback synthetic generators if offline without local .dcm cache */
 export function buildChestXrayStudy(patientId = 'MRN-2026-1004', patientName = 'Khaled^Al-Gharyani'): Buffer[] {
-  const size = 512;
+  const size = 256;
   const pixels = new Uint16Array(size * size);
-
   for (let y = 0; y < size; y++) {
     const ny = (y / (size - 1)) * 2 - 1;
     for (let x = 0; x < size; x++) {
       const nx = (x / (size - 1)) * 2 - 1;
-      let val = 260; // Air outside torso
-
-      // Torso soft-tissue attenuation silhouette
+      let val = 260;
       const torsoD = ellipseDist(nx, ny * 0.85, 0, 0.08, 0.82, 0.92);
-      if (torsoD <= 1.0) {
-        val = 1850 - 300 * torsoD * torsoD;
-      }
-
-      // Radiolucent lung fields (right and left hemithorax)
-      const rightLung = ellipseDist(nx - 0.02 * ny, ny, -0.34, -0.08, 0.28, 0.56);
-      const leftLung = ellipseDist(nx + 0.02 * ny, ny, 0.34, -0.08, 0.27, 0.53);
-      if (rightLung < 1.0 && ny < 0.36 + 0.08 * Math.cos(nx * 3)) {
-        val -= 1050 * (1 - Math.pow(rightLung, 2.4));
-      }
-      if (leftLung < 1.0 && ny < 0.39 + 0.08 * Math.cos(nx * 3)) {
-        val -= 1020 * (1 - Math.pow(leftLung, 2.4));
-      }
-
-      // Mediastinum & cardiac apex shifted to patient's left (+nx)
-      const mediastinum = ellipseDist(nx, ny, 0.03, -0.05, 0.14, 0.65);
-      if (mediastinum < 1.0) {
-        val = Math.max(val, 2150 - 400 * mediastinum);
-      }
-      const heart = ellipseDist(nx, ny, 0.14, 0.18, 0.21, 0.22);
-      if (heart < 1.0) {
-        val = Math.max(val, 2450 - 450 * heart * heart);
-      }
-
-      // Thoracic vertebral column & spinous processes
-      if (Math.abs(nx) < 0.095 && ny > -0.78 && ny < 0.72) {
-        const discWave = 0.5 + 0.5 * Math.cos(ny * 36);
-        val = Math.max(val, 2750 + 260 * discWave - Math.abs(nx) * 3500);
-      }
-
-      // Posterior/anterior rib arcs
-      if (torsoD < 0.88 && Math.abs(nx) > 0.09 && ny > -0.62 && ny < 0.38) {
-        const arcY = ny - 0.14 * nx * nx;
-        const ribBand = Math.cos((arcY + 0.65) * 32);
-        if (ribBand > 0.68) {
-          val += 380 * ((ribBand - 0.68) / 0.32);
-        }
-      }
-
-      // Clavicles
-      const clavR = Math.abs(ny + 0.52 - 0.18 * (nx + 0.35));
-      if (nx < -0.07 && nx > -0.62 && clavR < 0.035) {
-        val += 650 * (1 - clavR / 0.035);
-      }
-      const clavL = Math.abs(ny + 0.52 + 0.18 * (nx - 0.35));
-      if (nx > 0.07 && nx < 0.62 && clavL < 0.035) {
-        val += 650 * (1 - clavL / 0.035);
-      }
-
-      // Subtle bronchovascular lung markings
-      if (rightLung < 0.85 || leftLung < 0.85) {
-        const hilumDist = Math.hypot(Math.abs(nx) - 0.18, ny + 0.04);
-        const vessel = Math.sin(nx * 35 + ny * 20) * Math.cos(ny * 28 - nx * 15);
-        val += 95 * Math.exp(-hilumDist * 4) + 30 * vessel;
-      }
-
-      // Subdiaphragmatic hepatic/abdominal density
-      if (ny >= 0.36 + 0.07 * Math.cos(nx * 3) && torsoD <= 0.95) {
-        val = Math.max(val, 2280);
-      }
-
+      if (torsoD <= 1.0) val = 1850 - 300 * torsoD * torsoD;
       pixels[y * size + x] = clamp(val, 0, 4095);
     }
   }
-
   return [
     encodeDicomPart10({
       sopClassUid: SOP_CLASSES.DX,
-      sopInstanceUid: `${DEMO_DICOM_UIDS.cxrStudy}.1.1`,
+      sopInstanceUid: `${DEMO_DICOM_UIDS.cxrStudy}.99.1`,
       studyInstanceUid: DEMO_DICOM_UIDS.cxrStudy,
-      seriesInstanceUid: `${DEMO_DICOM_UIDS.cxrStudy}.1`,
-      frameOfReferenceUid: `${DEMO_DICOM_UIDS.cxrStudy}.99`,
+      seriesInstanceUid: `${DEMO_DICOM_UIDS.cxrStudy}.99`,
+      frameOfReferenceUid: `${DEMO_DICOM_UIDS.cxrStudy}.98`,
       accessionNumber: 'ACC-DEMO-2026-001',
       modality: 'DX',
-      studyDescription: 'Portable AP Chest X-Ray (Post-PCI)',
+      studyDescription: 'Portable AP Chest X-Ray',
       seriesDescription: 'AP Chest Radiograph',
       patientName,
       patientId,
@@ -343,225 +287,154 @@ export function buildChestXrayStudy(patientId = 'MRN-2026-1004', patientName = '
 }
 
 export function buildAbdomenCtStudy(patientId = 'MRN-2026-1001', patientName = 'Ahmed^Al-Warfalli'): Buffer[] {
-  const size = 256;
-  const sliceCount = 24;
-  const buffers: Buffer[] = [];
-
-  for (let s = 0; s < sliceCount; s++) {
-    const zNorm = s / (sliceCount - 1); // 0 = upper diaphragm, 1 = lower abdomen/pelvic rim
-    const pixels = new Uint16Array(size * size);
-
-    for (let y = 0; y < size; y++) {
-      const ny = (y / (size - 1)) * 2 - 1;
-      for (let x = 0; x < size; x++) {
-        const nx = (x / (size - 1)) * 2 - 1;
-        let hu = -1000; // Air background
-
-        const bodyD = ellipseDist(nx, ny, 0, 0.04, 0.84, 0.64);
-        if (bodyD <= 1.0) {
-          hu = bodyD > 0.92 ? -95 : 42; // Subcutaneous fat rim -> abdominal cavity
-          // Visceral intra-abdominal fat attenuation base
-          if (bodyD < 0.86) hu = -75;
-
-          // Liver (patient's right -> screen left, prominent upper-mid slices)
-          const liverScale = Math.max(0.25, 1.15 - zNorm * 0.9);
-          if (ellipseDist(nx, ny, -0.34, -0.06, 0.34 * liverScale, 0.32 * liverScale) < 1.0) {
-            hu = 62;
-          }
-
-          // Spleen (patient's left -> screen right, upper-mid slices)
-          if (zNorm < 0.65 && ellipseDist(nx, ny, 0.48, 0.06, 0.16, 0.2) < 1.0) {
-            hu = 52;
-          }
-
-          // Stomach / bowel lumen with gas-fluid level
-          const stomachD = ellipseDist(nx, ny, 0.18, -0.18, 0.18, 0.13);
-          if (stomachD < 1.0) {
-            hu = ny < -0.2 ? -650 : 12;
-          }
-
-          // Kidneys (mid slices zNorm 0.3..0.82)
-          if (zNorm >= 0.25 && zNorm <= 0.82) {
-            const kR = ellipseDist(nx, ny, -0.26, 0.19, 0.12, 0.16);
-            const kL = ellipseDist(nx, ny, 0.26, 0.19, 0.12, 0.16);
-            if (kR < 1.0 || kL < 1.0) {
-              const kd = Math.min(kR, kL);
-              hu = kd < 0.45 ? 110 : 145; // Contrast-enhanced renal cortex
-            }
-          }
-
-          // Contrast-enhanced Descending Aorta & IVC anterior to spine
-          const aortaD = ellipseDist(nx, ny, 0.06, 0.16, 0.055, 0.055);
-          if (aortaD < 1.0) hu = 240;
-          const ivcD = ellipseDist(nx, ny, -0.07, 0.14, 0.05, 0.045);
-          if (ivcD < 1.0) hu = 115;
-
-          // Lumbar vertebral body + spinal canal + spinous process
-          const vertD = ellipseDist(nx, ny, 0, 0.31, 0.11, 0.09);
-          if (vertD < 1.0) hu = 680;
-          const canalD = ellipseDist(nx, ny, 0, 0.42, 0.05, 0.045);
-          if (canalD < 1.0) hu = 28;
-          if (Math.abs(nx) < 0.03 && ny > 0.45 && ny < 0.56) hu = 540;
-
-          // Lower rib cage cortical bone dots on upper slices
-          if (zNorm < 0.55 && bodyD > 0.84 && bodyD < 0.91) {
-            const ribAngle = Math.atan2(ny, nx);
-            if (Math.cos(ribAngle * 10) > 0.86) hu = 720;
-          }
-        }
-
-        pixels[y * size + x] = clamp(hu + 1024, 0, 65535);
-      }
-    }
-
-    const zMm = (-s * 5).toFixed(2);
-    buffers.push(
-      encodeDicomPart10({
-        sopClassUid: SOP_CLASSES.CT,
-        sopInstanceUid: `${DEMO_DICOM_UIDS.ctStudy}.1.${s + 1}`,
-        studyInstanceUid: DEMO_DICOM_UIDS.ctStudy,
-        seriesInstanceUid: `${DEMO_DICOM_UIDS.ctStudy}.1`,
-        frameOfReferenceUid: `${DEMO_DICOM_UIDS.ctStudy}.99`,
-        accessionNumber: 'ACC-DEMO-2026-002',
-        modality: 'CT',
-        studyDescription: 'CT Abdomen & Pelvis (Contrast)',
-        seriesDescription: 'Axial Portal Venous 5mm',
-        patientName,
-        patientId,
-        patientBirthDate: '19820412',
-        patientSex: 'M',
-        studyDate: '20261127',
-        studyTime: '140000',
-        instanceNumber: s + 1,
-        sliceThickness: '5.0',
-        imagePositionPatient: `-180\\-180\\${zMm}`,
-        sliceLocation: zMm,
-        pixelSpacing: '1.40\\1.40',
-        rows: size,
-        cols: size,
-        bitsStored: 16,
-        windowCenter: '40',
-        windowWidth: '400',
-        rescaleIntercept: '-1024',
-        pixels,
-      }),
-    );
-  }
-
-  return buffers;
+  const size = 128;
+  const pixels = new Uint16Array(size * size);
+  pixels.fill(1064);
+  return [
+    encodeDicomPart10({
+      sopClassUid: SOP_CLASSES.CT,
+      sopInstanceUid: `${DEMO_DICOM_UIDS.ctStudy}.99.1`,
+      studyInstanceUid: DEMO_DICOM_UIDS.ctStudy,
+      seriesInstanceUid: `${DEMO_DICOM_UIDS.ctStudy}.99`,
+      frameOfReferenceUid: `${DEMO_DICOM_UIDS.ctStudy}.98`,
+      accessionNumber: 'ACC-DEMO-2026-002',
+      modality: 'CT',
+      studyDescription: 'CT Thorax & Abdomen',
+      seriesDescription: 'Axial 5mm',
+      patientName,
+      patientId,
+      patientBirthDate: '19820412',
+      patientSex: 'M',
+      studyDate: '20261127',
+      studyTime: '140000',
+      instanceNumber: 1,
+      sliceThickness: '5.0',
+      imagePositionPatient: '-180\\-180\\0',
+      sliceLocation: '0',
+      pixelSpacing: '1.40\\1.40',
+      rows: size,
+      cols: size,
+      bitsStored: 16,
+      windowCenter: '40',
+      windowWidth: '400',
+      rescaleIntercept: '-1024',
+      pixels,
+    }),
+  ];
 }
 
 export function buildBrainMriStudy(patientId = 'MRN-2026-1003', patientName = 'Mohamed^Al-Fitouri'): Buffer[] {
-  const size = 256;
-  const sliceCount = 16;
-  const buffers: Buffer[] = [];
-
-  for (let s = 0; s < sliceCount; s++) {
-    const zNorm = s / (sliceCount - 1);
-    const skullRadiusScale = Math.sin((0.18 + 0.68 * zNorm) * Math.PI);
-    const pixels = new Uint16Array(size * size);
-
-    for (let y = 0; y < size; y++) {
-      const ny = (y / (size - 1)) * 2 - 1;
-      for (let x = 0; x < size; x++) {
-        const nx = (x / (size - 1)) * 2 - 1;
-        let sig = 25; // Air
-
-        const headD = ellipseDist(nx, ny, 0, 0, 0.64 * skullRadiusScale, 0.78 * skullRadiusScale);
-        if (headD <= 1.0) {
-          if (headD > 0.93) {
-            sig = 880; // Scalp T2 signal
-          } else if (headD > 0.87) {
-            sig = 110; // Cortical bone cranium (dark on MRI)
-          } else {
-            // Brain parenchyma (gray matter cortex + white matter core)
-            const gyriWave = 0.04 * Math.sin(nx * 24) * Math.cos(ny * 24);
-            sig = headD + gyriWave > 0.72 ? 720 : 520;
-
-            // Interhemispheric falx/CSF fissure
-            if (Math.abs(nx) < 0.018 && headD > 0.25) {
-              sig = 1080;
-            }
-
-            // Lateral ventricles (bright T2 CSF) in middle axial cuts
-            if (zNorm > 0.22 && zNorm < 0.72) {
-              const ventAmp = Math.sin(((zNorm - 0.22) / 0.5) * Math.PI);
-              const ventR = ellipseDist(nx, ny, -0.11, -0.02, 0.07 * ventAmp, 0.22 * ventAmp);
-              const ventL = ellipseDist(nx, ny, 0.11, -0.02, 0.07 * ventAmp, 0.22 * ventAmp);
-              if (ventR < 1.0 || ventL < 1.0) {
-                sig = 1150;
-              }
-            }
-          }
-        }
-
-        pixels[y * size + x] = clamp(sig, 0, 4095);
-      }
-    }
-
-    const zMm = (s * 5).toFixed(2);
-    buffers.push(
-      encodeDicomPart10({
-        sopClassUid: SOP_CLASSES.MR,
-        sopInstanceUid: `${DEMO_DICOM_UIDS.mriStudy}.1.${s + 1}`,
-        studyInstanceUid: DEMO_DICOM_UIDS.mriStudy,
-        seriesInstanceUid: `${DEMO_DICOM_UIDS.mriStudy}.1`,
-        frameOfReferenceUid: `${DEMO_DICOM_UIDS.mriStudy}.99`,
-        accessionNumber: 'ACC-DEMO-2026-003',
-        modality: 'MR',
-        studyDescription: 'MRI Brain Axial T2-W',
-        seriesDescription: 'AXIAL T2 FSE',
-        patientName,
-        patientId,
-        patientBirthDate: '19750130',
-        patientSex: 'M',
-        studyDate: '20261127',
-        studyTime: '101500',
-        instanceNumber: s + 1,
-        sliceThickness: '5.0',
-        imagePositionPatient: `-115\\-115\\${zMm}`,
-        sliceLocation: zMm,
-        pixelSpacing: '0.90\\0.90',
-        rows: size,
-        cols: size,
-        bitsStored: 12,
-        windowCenter: '560',
-        windowWidth: '1120',
-        pixels,
-      }),
-    );
-  }
-
-  return buffers;
+  const size = 128;
+  const pixels = new Uint16Array(size * size);
+  pixels.fill(520);
+  return [
+    encodeDicomPart10({
+      sopClassUid: SOP_CLASSES.MR,
+      sopInstanceUid: `${DEMO_DICOM_UIDS.mriStudy}.99.1`,
+      studyInstanceUid: DEMO_DICOM_UIDS.mriStudy,
+      seriesInstanceUid: `${DEMO_DICOM_UIDS.mriStudy}.99`,
+      frameOfReferenceUid: `${DEMO_DICOM_UIDS.mriStudy}.98`,
+      accessionNumber: 'ACC-DEMO-2026-003',
+      modality: 'MR',
+      studyDescription: 'MRI Brain Structural',
+      seriesDescription: 'Structural T1',
+      patientName,
+      patientId,
+      patientBirthDate: '19750130',
+      patientSex: 'M',
+      studyDate: '20261127',
+      studyTime: '101500',
+      instanceNumber: 1,
+      sliceThickness: '5.0',
+      imagePositionPatient: '-115\\-115\\0',
+      sliceLocation: '0',
+      pixelSpacing: '0.90\\0.90',
+      rows: size,
+      cols: size,
+      bitsStored: 12,
+      windowCenter: '560',
+      windowWidth: '1120',
+      pixels,
+    }),
+  ];
 }
 
-async function uploadStudyToOrthanc(
-  orthancUrl: string,
-  authorization: string,
-  label: string,
-  instances: Buffer[],
-): Promise<number> {
-  let uploaded = 0;
-  for (const dicomBuffer of instances) {
-    const res = await fetch(`${orthancUrl}/instances`, {
-      method: 'POST',
-      headers: {
-        authorization,
-        'content-type': 'application/dicom',
-      },
-      body: new Uint8Array(dicomBuffer),
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      throw new Error(`Orthanc upload failed for ${label}: HTTP ${res.status}`);
-    }
-    uploaded++;
-  }
-  return uploaded;
+interface RealClinicalStudySpec {
+  key: 'dx' | 'ct' | 'mr';
+  label: string;
+  targetStudyUid: string;
+  accessionNumber: string;
+  patientId: string;
+  patientName: string;
+  studyDescription: string;
+  urls: string[];
+  minExpectedCount: number;
+  fallbackFn: () => Buffer[];
 }
+
+function rangeUrls(template: (n: number) => string, start: number, end: number, step = 1): string[] {
+  const out: string[] = [];
+  for (let i = start; i <= end; i += step) {
+    out.push(template(i));
+  }
+  return out;
+}
+
+export const REAL_CLINICAL_STUDIES: RealClinicalStudySpec[] = [
+  {
+    key: 'dx',
+    label: 'Chest X-Ray (Real Clinical CR)',
+    targetStudyUid: DEMO_DICOM_UIDS.cxrStudy,
+    accessionNumber: 'ACC-DEMO-2026-001',
+    patientId: 'MRN-2026-1004',
+    patientName: 'Khaled^Al-Gharyani',
+    studyDescription: 'AP Chest Radiograph (Clinical Sample)',
+    urls: [
+      'https://raw.githubusercontent.com/ivmartel/dwv/master/tests/data/gdcm-CR-MONO1-10-chest.dcm',
+    ],
+    minExpectedCount: 1,
+    fallbackFn: () => buildChestXrayStudy(),
+  },
+  {
+    key: 'ct',
+    label: 'Thorax/Abdomen CT (40 Real Clinical Slices)',
+    targetStudyUid: DEMO_DICOM_UIDS.ctStudy,
+    accessionNumber: 'ACC-DEMO-2026-002',
+    patientId: 'MRN-2026-1001',
+    patientName: 'Ahmed^Al-Warfalli',
+    studyDescription: 'CT Thorax & Upper Abdomen (Clinical Sample)',
+    urls: rangeUrls(
+      (i) =>
+        `https://raw.githubusercontent.com/OHIF/viewer-testdata/master/dcm/acrin/ct-1-${String(i).padStart(3, '0')}.dcm`,
+      45,
+      84,
+      1,
+    ),
+    minExpectedCount: 30,
+    fallbackFn: () => buildAbdomenCtStudy(),
+  },
+  {
+    key: 'mr',
+    label: 'Brain MRI Structural (32 Real Clinical Slices)',
+    targetStudyUid: DEMO_DICOM_UIDS.mriStudy,
+    accessionNumber: 'ACC-DEMO-2026-003',
+    patientId: 'MRN-2026-1003',
+    patientName: 'Mohamed^Al-Fitouri',
+    studyDescription: 'MRI Brain Structural (De-faced Clinical Sample)',
+    urls: rangeUrls(
+      (i) =>
+        `https://raw.githubusercontent.com/datalad/example-dicom-structural/master/dicoms/N2D_${String(i).padStart(4, '0')}.dcm`,
+      120,
+      244,
+      4,
+    ),
+    minExpectedCount: 24,
+    fallbackFn: () => buildBrainMriStudy(),
+  },
+];
 
 async function waitForOrthanc(orthancUrl: string, authorization: string): Promise<boolean> {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 25_000;
   while (Date.now() < deadline) {
     try {
       const res = await fetch(`${orthancUrl}/system`, {
@@ -570,11 +443,217 @@ async function waitForOrthanc(orthancUrl: string, authorization: string): Promis
       });
       if (res.ok) return true;
     } catch {
-      // Wait for Orthanc container startup
+      // Wait for Orthanc startup
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
   return false;
+}
+
+async function deleteStudyByUid(orthancUrl: string, authorization: string, studyUid: string): Promise<void> {
+  try {
+    const lookupRes = await fetch(`${orthancUrl}/tools/lookup`, {
+      method: 'POST',
+      headers: { authorization, 'content-type': 'text/plain' },
+      body: studyUid,
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!lookupRes.ok) return;
+    const matches = (await lookupRes.json()) as Array<{ ID?: string; Type?: string }>;
+    if (!Array.isArray(matches)) return;
+    for (const m of matches) {
+      if (m?.Type === 'Study' && m.ID) {
+        await fetch(`${orthancUrl}/studies/${m.ID}`, {
+          method: 'DELETE',
+          headers: { authorization },
+          signal: AbortSignal.timeout(10_000),
+        });
+      }
+    }
+  } catch {
+    // Non-fatal cleanup
+  }
+}
+
+async function studyExistsInOrthanc(
+  orthancUrl: string,
+  authorization: string,
+  studyUid: string,
+  minCount: number,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${orthancUrl}/dicom-web/studies/${studyUid}/metadata`, {
+      headers: { authorization, accept: 'application/dicom+json' },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return false;
+    const meta = (await res.json()) as unknown[];
+    return Array.isArray(meta) && meta.length >= minCount;
+  } catch {
+    return false;
+  }
+}
+
+async function loadOrFetchStudyBuffers(
+  spec: RealClinicalStudySpec,
+  cacheRoot: string,
+): Promise<{ buffers: Buffer[]; source: 'cache' | 'remote' | 'fallback' }> {
+  const dir = path.join(cacheRoot, spec.key);
+  try {
+    if (fs.existsSync(dir)) {
+      const files = fs
+        .readdirSync(dir)
+        .filter((f) => f.toLowerCase().endsWith('.dcm'))
+        .sort();
+      if (files.length >= spec.minExpectedCount) {
+        return {
+          buffers: files.map((f) => fs.readFileSync(path.join(dir, f))),
+          source: 'cache',
+        };
+      }
+    }
+  } catch {
+    // Ignore unreadable cache dir and try remote fetch
+  }
+
+  try {
+    const downloaded: Array<{ filename: string; buf: Buffer }> = [];
+    const batchSize = 6;
+    for (let i = 0; i < spec.urls.length; i += batchSize) {
+      const batch = spec.urls.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (url) => {
+          const res = await fetch(url, {
+            headers: { 'user-agent': 'saraya-erp-demo-pacs' },
+            signal: AbortSignal.timeout(25_000),
+          });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status} fetching ${url}`);
+          }
+          const buf = Buffer.from(await res.arrayBuffer());
+          if (buf.length < 256 || buf.subarray(128, 132).toString('ascii') !== 'DICM') {
+            throw new Error(`Invalid DICOM header from ${url}`);
+          }
+          const filename = path.basename(new URL(url).pathname);
+          return { filename, buf };
+        }),
+      );
+      downloaded.push(...batchResults);
+    }
+
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      for (const item of downloaded) {
+        fs.writeFileSync(path.join(dir, item.filename), item.buf);
+      }
+    } catch {
+      // Cache persistence is best-effort
+    }
+
+    return {
+      buffers: downloaded.map((d) => d.buf),
+      source: 'remote',
+    };
+  } catch (err) {
+    console.warn(
+      `⚠️ Could not fetch real clinical DICOM for ${spec.label} (${(err as Error).message}); using fallback phantom.`,
+    );
+    return {
+      buffers: spec.fallbackFn(),
+      source: 'fallback',
+    };
+  }
+}
+
+async function ingestStudyWithModify(
+  orthancUrl: string,
+  authorization: string,
+  spec: RealClinicalStudySpec,
+  buffers: Buffer[],
+): Promise<number> {
+  const parentStudyIds = new Set<string>();
+  const batchSize = 6;
+  for (let i = 0; i < buffers.length; i += batchSize) {
+    const chunk = buffers.slice(i, i + batchSize);
+    await Promise.all(
+      chunk.map(async (dicomBuffer) => {
+        const res = await fetch(`${orthancUrl}/instances`, {
+          method: 'POST',
+          headers: {
+            authorization,
+            'content-type': 'application/dicom',
+          },
+          body: new Uint8Array(dicomBuffer),
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!res.ok) {
+          throw new Error(`Orthanc upload failed for ${spec.label}: HTTP ${res.status}`);
+        }
+        const info = (await res.json()) as { ParentStudy?: string };
+        if (info?.ParentStudy) {
+          parentStudyIds.add(info.ParentStudy);
+        }
+      }),
+    );
+  }
+
+  for (const parentStudyId of parentStudyIds) {
+    const modRes = await fetch(`${orthancUrl}/studies/${parentStudyId}/modify`, {
+      method: 'POST',
+      headers: {
+        authorization,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        Replace: {
+          StudyInstanceUID: spec.targetStudyUid,
+          AccessionNumber: spec.accessionNumber,
+          PatientID: spec.patientId,
+          PatientName: spec.patientName,
+          StudyDescription: spec.studyDescription,
+        },
+        Force: true,
+        KeepSource: false,
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!modRes.ok) {
+      throw new Error(`Orthanc modify failed for ${spec.label}: HTTP ${modRes.status} ${await modRes.text()}`);
+    }
+  }
+
+  return buffers.length;
+}
+
+export async function syncRealDemoStudiesToOrthanc(
+  orthancUrl: string,
+  authorization: string,
+  cacheRoot = process.env.DEMO_DICOM_DIR || '/app/data/demo-dicom',
+): Promise<Record<'dx' | 'ct' | 'mr', { count: number; source: string }>> {
+  for (const oldUid of LEGACY_SYNTHETIC_UIDS) {
+    await deleteStudyByUid(orthancUrl, authorization, oldUid);
+  }
+
+  const summary = {} as Record<'dx' | 'ct' | 'mr', { count: number; source: string }>;
+
+  for (const spec of REAL_CLINICAL_STUDIES) {
+    const alreadyPresent = await studyExistsInOrthanc(
+      orthancUrl,
+      authorization,
+      spec.targetStudyUid,
+      spec.minExpectedCount,
+    );
+    if (alreadyPresent) {
+      summary[spec.key] = { count: spec.minExpectedCount, source: 'orthanc-existing' };
+      continue;
+    }
+
+    const { buffers, source } = await loadOrFetchStudyBuffers(spec, cacheRoot);
+    const uploadedCount = await ingestStudyWithModify(orthancUrl, authorization, spec, buffers);
+    summary[spec.key] = { count: uploadedCount, source };
+  }
+
+  return summary;
 }
 
 function sha256(input: string): string {
@@ -600,13 +679,9 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
     return;
   }
 
-  const [cxrCount, ctCount, mriCount] = await Promise.all([
-    uploadStudyToOrthanc(orthancUrl, authorization, 'DX-CXR', buildChestXrayStudy()),
-    uploadStudyToOrthanc(orthancUrl, authorization, 'CT-ABD', buildAbdomenCtStudy()),
-    uploadStudyToOrthanc(orthancUrl, authorization, 'MR-BRAIN', buildBrainMriStudy()),
-  ]);
+  const summary = await syncRealDemoStudiesToOrthanc(orthancUrl, authorization);
 
-  // 1. Link Chest X-Ray (ACC-DEMO-2026-001) to Study UID
+  // 1. Link Chest X-Ray (ACC-DEMO-2026-001) to Real Clinical UID
   await prisma.radiologyOrder.updateMany({
     where: {
       dicomAccessionNumber: 'ACC-DEMO-2026-001',
@@ -618,7 +693,7 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
     },
   });
 
-  // 2. Link Abdomen CT (ACC-DEMO-2026-002) & promote to IN_PROGRESS so OHIF viewer is immediately available
+  // 2. Link CT (ACC-DEMO-2026-002) & promote to IN_PROGRESS so 40-slice OHIF + 3D MPR is active
   const ctOrder = await prisma.radiologyOrder.findFirst({
     where: {
       dicomAccessionNumber: 'ACC-DEMO-2026-002',
@@ -645,7 +720,7 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
     }
   }
 
-  // 3. Ensure Brain MRI (ACC-DEMO-2026-003) exists & is linked for multi-modality MRI demo
+  // 3. Ensure Brain MRI (ACC-DEMO-2026-003) exists & is linked to Real Clinical Brain MRI UID
   const existingMri = await prisma.radiologyOrder.findFirst({
     where: {
       dicomAccessionNumber: 'ACC-DEMO-2026-003',
@@ -691,8 +766,9 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
             reportedAt: signedAt,
             reportStatus: 'FINAL',
             indicationText: 'Persistent occipital headache & dizziness',
-            techniqueText: 'Axial T2-weighted FSE 5mm brain MRI',
-            findingsText: 'Normal ventricular caliber and cortical gyral symmetry. No midline shift, acute infarction, or space-occupying lesion.',
+            techniqueText: 'Structural Brain MRI (T1-weighted volumetric clinical study)',
+            findingsText:
+              'Normal ventricular caliber and cortical gyral symmetry. No midline shift, acute infarction, or space-occupying lesion.',
             impressionText: 'Unremarkable Brain MRI study.',
             reportText: 'Unremarkable Brain MRI study.',
             reportedById: radUser?.id ?? mriDoctor.id,
@@ -710,7 +786,7 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
     });
   }
 
-  // 4. Ensure an interactive PENDING Ultrasound study exists so technician/radiologist can also click Start
+  // 4. Ensure an interactive PENDING Ultrasound study exists
   const existingUs = await prisma.radiologyOrder.findFirst({
     where: {
       dicomAccessionNumber: 'ACC-DEMO-2026-004',
@@ -758,6 +834,6 @@ export async function ensureDemoPacsStudies(prisma: PrismaClient, hospitalId: nu
   }
 
   console.log(
-    `🩻 PACS/OHIF Demo Studies ready (DX=${cxrCount}, CT=${ctCount} slices, MR=${mriCount} slices).`,
+    `🩻 Real Clinical PACS/OHIF Studies ready: DX=${summary.dx.count} (${summary.dx.source}), CT=${summary.ct.count} (${summary.ct.source}), MR=${summary.mr.count} (${summary.mr.source}).`,
   );
 }

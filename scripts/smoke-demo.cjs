@@ -292,7 +292,7 @@ async function main() {
     const wl = await request(`${BASE_URL}/api/radiology/worklist`, { cookie: activeAdminCookie });
     if (wl.status !== 200) throw new Error(`Worklist HTTP ${wl.status}`);
     const items = unwrap(wl.json);
-    const itemWithViewer = Array.isArray(items) ? items.find((i) => i.viewerUrl && i.dicomStudyUid) : null;
+    const itemWithViewer = Array.isArray(items) ? items.find((i) => i.viewerUrl) : null;
     if (!itemWithViewer) {
       return 'SKIP (PACS/OHIF not enabled in this environment)';
     }
@@ -304,6 +304,8 @@ async function main() {
     const loc = r1.headers.location;
     if (!loc) throw new Error('Missing redirect Location header from viewer entrypoint');
     const redirectUrl = loc.startsWith('http') ? loc : `${BASE_URL}${loc}`;
+    const studyUid = new URL(redirectUrl).searchParams.get('StudyInstanceUIDs');
+    if (!studyUid) throw new Error(`Missing StudyInstanceUIDs in redirect URL: ${redirectUrl}`);
 
     const r2 = await request(redirectUrl, { cookie: activeAdminCookie });
     if (r2.status !== 200 || !r2.headers['content-type']?.includes('text/html')) {
@@ -321,7 +323,7 @@ async function main() {
       throw new Error(`Invalid OHIF app-config.js response: HTTP ${cfgRes.status}`);
     }
 
-    const qidoUrl = `${BASE_URL}/api/radiology/viewer/${itemWithViewer.id}/dicom-web/studies?StudyInstanceUID=${encodeURIComponent(itemWithViewer.dicomStudyUid)}`;
+    const qidoUrl = `${BASE_URL}/api/radiology/viewer/${itemWithViewer.id}/dicom-web/studies?StudyInstanceUID=${encodeURIComponent(studyUid)}`;
     const qidoRes = await request(qidoUrl, { cookie: viewerCookieJar });
     if (qidoRes.status !== 200 || !Array.isArray(qidoRes.json) || qidoRes.json.length < 1) {
       throw new Error(`DICOMweb study query failed: HTTP ${qidoRes.status} ${qidoRes.text.slice(0, 160)}`);

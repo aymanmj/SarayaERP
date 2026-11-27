@@ -135,6 +135,7 @@ services:
       - ./uploads:/app/uploads
       - ./data/license:/app/data/license
       - ./data/keys:/app/data/keys
+      - ./data/demo-dicom:/app/data/demo-dicom
       - ./backups:/backups
     depends_on:
       postgres:

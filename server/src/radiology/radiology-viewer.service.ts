@@ -161,9 +161,12 @@ export class RadiologyViewerService {
   configuration(id: number) {
     const root = `${viewerRoot}/${id}`;
     const dicom = `${root}/dicom-web`;
-    return `window.config = ${JSON.stringify({
+    const baseConfig = {
       routerBasename: `${root}/`,
       showStudyList: false,
+      investigationalUseDialog: {
+        option: 'never',
+      },
       extensions: [],
       modes: [],
       defaultDataSourceName: 'dicomweb',
@@ -187,7 +190,49 @@ export class RadiologyViewerService {
           },
         },
       ],
-    })};`;
+    };
+
+    const whiteLabelFn = `function (React) {
+      return React.createElement(
+        'a',
+        {
+          href: '/radiology',
+          target: '_self',
+          rel: 'noopener noreferrer',
+          style: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: '#e2e8f0',
+            textDecoration: 'none',
+            fontWeight: 700,
+            fontSize: '14px',
+            letterSpacing: '0.01em',
+          },
+        },
+        React.createElement(
+          'span',
+          {
+            style: {
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: '7px',
+              background: 'linear-gradient(135deg, #0ea5e9 0%, #0f766e 100%)',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 800,
+            },
+          },
+          'S',
+        ),
+        React.createElement('span', null, 'Saraya PACS | السرايا للأشعة'),
+      );
+    }`;
+
+    return `window.config = Object.assign(${JSON.stringify(baseConfig)}, { whiteLabeling: { createLogoComponentFn: ${whiteLabelFn} } });`;
   }
 
   async asset(segments: string[]) {

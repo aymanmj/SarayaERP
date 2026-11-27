@@ -83,7 +83,7 @@ fi
 echo -e "${GREEN}✓ Docker ready ($(docker --version))${NC}"
 
 echo -e "${YELLOW}[3/7] Preparing directory structure at ${INSTALL_DIR}...${NC}"
-mkdir -p "${INSTALL_DIR}"/{production/nginx,scripts,data/license,data/keys,uploads,backups}
+mkdir -p "${INSTALL_DIR}"/{production/nginx,scripts,data/license,data/keys,data/demo-dicom,uploads,backups}
 
 for req_file in \
   "${SOURCE_DIR}/docker-compose.demo.yml" \
