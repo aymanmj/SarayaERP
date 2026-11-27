@@ -288,6 +288,48 @@ async function main() {
     });
   }
 
+  await check('Radiology PACS / OHIF Viewer Flow', async () => {
+    const wl = await request(`${BASE_URL}/api/radiology/worklist`, { cookie: activeAdminCookie });
+    if (wl.status !== 200) throw new Error(`Worklist HTTP ${wl.status}`);
+    const items = unwrap(wl.json);
+    const itemWithViewer = Array.isArray(items) ? items.find((i) => i.viewerUrl && i.dicomStudyUid) : null;
+    if (!itemWithViewer) {
+      return 'SKIP (PACS/OHIF not enabled in this environment)';
+    }
+
+    const r1 = await request(`${BASE_URL}${itemWithViewer.viewerUrl}`, { cookie: activeAdminCookie });
+    if (r1.status !== 303 && r1.status !== 302) {
+      throw new Error(`Expected 303 redirect from ${itemWithViewer.viewerUrl}, got ${r1.status}`);
+    }
+    const loc = r1.headers.location;
+    if (!loc) throw new Error('Missing redirect Location header from viewer entrypoint');
+    const redirectUrl = loc.startsWith('http') ? loc : `${BASE_URL}${loc}`;
+
+    const r2 = await request(redirectUrl, { cookie: activeAdminCookie });
+    if (r2.status !== 200 || !r2.headers['content-type']?.includes('text/html')) {
+      throw new Error(`Expected 200 HTML from OHIF viewer, got HTTP ${r2.status}`);
+    }
+    const viewerCookieJar = mergeCookies(activeAdminCookie, r2.headers['set-cookie']);
+    if (!viewerCookieJar.includes('SarayaDicomView=')) {
+      throw new Error('Missing SarayaDicomView cookie from OHIF launch');
+    }
+
+    const cfgRes = await request(`${BASE_URL}/api/radiology/viewer/${itemWithViewer.id}/app-config.js`, {
+      cookie: viewerCookieJar,
+    });
+    if (cfgRes.status !== 200 || !cfgRes.text.includes('dicom-web')) {
+      throw new Error(`Invalid OHIF app-config.js response: HTTP ${cfgRes.status}`);
+    }
+
+    const qidoUrl = `${BASE_URL}/api/radiology/viewer/${itemWithViewer.id}/dicom-web/studies?StudyInstanceUID=${encodeURIComponent(itemWithViewer.dicomStudyUid)}`;
+    const qidoRes = await request(qidoUrl, { cookie: viewerCookieJar });
+    if (qidoRes.status !== 200 || !Array.isArray(qidoRes.json) || qidoRes.json.length < 1) {
+      throw new Error(`DICOMweb study query failed: HTTP ${qidoRes.status} ${qidoRes.text.slice(0, 160)}`);
+    }
+
+    return `OHIF + DICOMweb PASS (${itemWithViewer.study?.modality || 'DICOM'} / order=${itemWithViewer.id})`;
+  });
+
   await check('Audit Integrity Chain (/api/audit/integrity-check)', async () => {
     const res = await request(`${BASE_URL}/api/audit/integrity-check`, { cookie: activeAdminCookie });
     if (res.status !== 200) throw new Error(`HTTP ${res.status}`);

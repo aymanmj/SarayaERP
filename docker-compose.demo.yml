@@ -1,6 +1,6 @@
 # ==========================================
 # Saraya ERP - Ubuntu VM Full-Production Demo Stack
-# 6 Lightweight Containers (4 GB RAM Friendly) using GHCR Images + Cloudflare Tunnel
+# Lightweight Containers using GHCR Images + Orthanc PACS/OHIF + Cloudflare Tunnel
 # Runs in full NODE_ENV=production mode with real signed license (/app/data/license/saraya.lic)
 # ==========================================
 
@@ -53,6 +53,43 @@ services:
       retries: 5
     logging: *default_logging
 
+  orthanc:
+    image: orthancteam/orthanc@sha256:25738bcd515926ac8d33cacf09729a410a32c0a65d6cb8e61bd86fce81a4cd30
+    container_name: saraya_demo_orthanc
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      ORTHANC__OHIF__DATA_SOURCE: dicom-web
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      ORTHANC__WORKLISTS__ENABLE: "true"
+      ORTHANC__WORKLISTS__SAVE_IN_ORTHANC_DATABASE: "true"
+      ORTHANC__WORKLISTS__FILTER_ISSUER_AET: "true"
+      ORTHANC__WORKLISTS__DELETE_WORKLISTS_ON_STABLE_STUDY: "false"
+      ORTHANC__WORKLISTS__DELETE_WORKLISTS_DELAY: 0
+      ORTHANC__DICOM_AET: ${PACS_DICOM_AET:-SARAYAPACS}
+      ORTHANC__DICOM_ALWAYS_ALLOW_ECHO: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "false"
+      ORTHANC__DICOM_ALWAYS_ALLOW_FIND_WORKLIST: "false"
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REGISTERED_USERS: '{"${PACS_USER:-saraya_pacs}":"${PACS_PASSWORD:-saraya_pacs_demo_2026}"}'
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__EXECUTE_LUA_ENABLED: "false"
+    ports:
+      - "${PACS_DICOM_BIND_IP:-127.0.0.1}:${PACS_DICOM_PORT:-4242}:4242"
+    volumes:
+      - saraya_demo_pacsdata:/var/lib/orthanc/db
+    networks:
+      - saraya_demo_net
+    healthcheck:
+      test: ["CMD", "python3", "/probes/test-aliveness.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+    logging: *default_logging
+
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-aymanmj}/saraya-backend:${IMAGE_TAG:-latest}
     container_name: saraya_demo_backend
@@ -83,6 +120,10 @@ services:
       AV_SCANNER_MODE: ${AV_SCANNER_MODE:-eicar_builtin}
       RUN_DEMO_SEED: "true"
       DISABLE_THROTTLER: "false"
+      RADIOLOGY_OHIF_ENABLED: "${RADIOLOGY_OHIF_ENABLED:-true}"
+      RADIOLOGY_ORTHANC_URL: "${RADIOLOGY_ORTHANC_URL:-http://orthanc:8042}"
+      RADIOLOGY_ORTHANC_USERNAME: "${PACS_USER:-saraya_pacs}"
+      RADIOLOGY_ORTHANC_PASSWORD: "${PACS_PASSWORD:-saraya_pacs_demo_2026}"
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
@@ -99,6 +140,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      orthanc:
         condition: service_healthy
     networks:
       - saraya_demo_net
@@ -169,6 +212,7 @@ services:
 volumes:
   saraya_demo_pgdata:
   saraya_demo_redisdata:
+  saraya_demo_pacsdata:
 
 networks:
   saraya_demo_net:

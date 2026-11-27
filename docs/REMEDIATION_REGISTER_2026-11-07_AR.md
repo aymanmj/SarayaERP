@@ -207,6 +207,20 @@
 
 ## سجل تحديث المراحل
 
+- 2026-11-27 تنفيذ الدفعة 43 — الموجة 9 (إدراج قسم الأشعة الكامل في حزمة الديمو الإنتاجي: `Orthanc PACS + OHIF Medical Viewer + DICOMweb + MWL`):
+  - **توليد ورفع دراسات DICOM Part-10 حقيقية متعددة الوسائط ([seed-demo-dicom.ts](server/prisma/seed-demo-dicom.ts) و[seed-demo.ts](server/prisma/seed-demo.ts)):**
+    - بناء مرمّز DICOM Part-10 (`Explicit VR Little Endian`) نقي بـ Node.js يولّد 3 دراسات تشريحية تركيبية معايرة بـ `PixelSpacing` و`ImagePositionPatient` و`WindowCenter/Width`:
+      1. **أشعة الصدر (`DX` — `512x512`، 1 شريحة):** `ACC-DEMO-2026-001` (`2.25.20261127000101` — مرتبطة بطلب الأشعة المكتمل والجرعة `RDSR`).
+      2. **مقطعية البطن والحوض (`CT-ABD` — `256x256`، 24 شريحة متصلة بـ HU `RescaleIntercept=-1024`):** `ACC-DEMO-2026-002` (`2.25.20261127000102` — مُرقّاة إلى `IN_PROGRESS` لإتاحة استعراض الشرائح في OHIF وتوقيع التقرير حياً).
+      3. **رنين الدماغ (`MRI-BRAIN` — `256x256`، 16 شريحة T2):** `ACC-DEMO-2026-003` (`2.25.20261127000103` — تقرير نهائي معتمد)، إضافةً لطلب سونار (`US-ABD` — `ACC-DEMO-2026-004`) قيد الانتظار.
+    - استدعاء `ensureDemoPacsStudies` بتكرارية آمنة (`Idempotent`) داخل كلٍ من البذر الجديد والمسار السريع للـ VMs القائمة عند توفر `RADIOLOGY_ORTHANC_URL` (مع تخطي آمن في البيئات غير المتصلة بـ Orthanc).
+  - **تكامل البنية وفحص الدخان (`docker-compose.demo.yml` / `install-demo.sh` / `smoke-demo.cjs`):**
+    - إضافة خدمة `orthanc` (`orthancteam/orthanc` بالصورة المثبّتة `sha256:25738bcd...` مع `DICOMweb` و`OHIF` و`Worklists` في قاعدة Orthanc الداخلية ومؤمّنة بحساب `PACS_USER/PACS_PASSWORD`) وتمرير متغيرات `RADIOLOGY_OHIF_ENABLED=true` و`RADIOLOGY_ORTHANC_*` للخادم.
+    - تحديث `scripts/install-demo.sh` لتوليد/استيفاء `PACS_PASSWORD` وربط `orthanc` في جميع أوضاع النشر، وتحديث `scripts/smoke-demo.cjs` لاختبار دورة `303 Redirect -> OHIF HTML -> SarayaDicomView cookie -> app-config.js -> DICOMweb QIDO-RS` تلقائياً عند تفعيل `viewerUrl`، وتوثيق سيناريو العرض والترقية في `CLIENT_DEMO_WALKTHROUGH_AR.md` و`UBUNTU_VM_PRODUCTION_DEMO_GUIDE_AR.md`.
+  - **التحقق المنفذ (بعد آخر تعديل):**
+    - تجميع `tsc prisma/seed-demo.ts` بأمر `Dockerfile` الدقيق (PASS)، `server` `tsc --noEmit` (PASS)، `lint:ci` (PASS، `0` أخطاء جديدة)، `production-preflight.cjs` (PASS)، `docker compose -f docker-compose.demo.yml config --quiet` (PASS مع تحقق `ORTHANC__REGISTERED_USERS` JSON)، `node -c scripts/smoke-demo.cjs` (PASS)، وفحص `LF` و`bash -n scripts/install-demo.sh` داخل `node:24-slim` (PASS).
+    - تشغيل حي فعلي ضد حاوية `orthancteam/orthanc` معزولة: رفع الـ **41** شريحة المولّدة (`DX=1`, `CT=24`, `MR=16`) عبر `/instances`، والتحقق من `/dicom-web/studies/<uid>/metadata`، وتوليد صور العرض `/rendered` (`image/jpeg`: `DX 20241B`، `CT 7512B`، `MR 8158B`) واستجابة `/ohif/viewer` (`HTTP 200 HTML` — `ORTHANC_LIVE_VERIFY_OK`)، ثم إزالة حاوية الاختبار المؤقتة.
+
 - 2026-11-27 تنفيذ الدفعة 42 — الموجة 8 (إعادة هندسة ألوان الوضع النهاري السريري ووضع السرايا الطبي، وإصلاح الأعطال المرئية والترجمة في العرض المباشر `https://demo.alsarayatech.ly`):
   - **التثبت على السيرفر الحي أولاً (`scripts/smoke-demo.cjs`):** إصلاح مسار اختبار الخصوبة في `scripts/smoke-demo.cjs` إلى `/api/obgyn/fertility/cases` وإضافة انتظار/إعادة محاولة تلقائي عند تفعيل محدّد الدخول الإنتاجي `RedisThrottlerStorage` (`HTTP 429`)، ليحقق الفحص الخارجي عبر `HTTPS` **`37/37 PASSED`**.
   - **إعادة هندسة نظام السمات النهارية (`client/src/styles.css`):**

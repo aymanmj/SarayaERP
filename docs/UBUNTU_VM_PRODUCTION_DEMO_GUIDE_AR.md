@@ -109,11 +109,27 @@ node scripts/smoke-demo.cjs http://<VM_IP>
 ```
 
 ### 2) تصفير وإعادة تهيئة بيانات الديمو قبل اجتماع العميل
-يحذف السكربت [reset-demo.sh](file:///d:/SarayaERP/scripts/reset-demo.sh) قاعدة البيانات ويعيد تشغيل الـ migrations + `seed.js` + `seed-demo.js` مع **الحفاظ على الترخيص و`Machine ID`**:
+يحذف السكربت [reset-demo.sh](file:///d:/SarayaERP/scripts/reset-demo.sh) قاعدة البيانات ويعيد تشغيل الـ migrations + `seed.js` + `seed-demo.js` (بما فيها رفع وربط دراسات PACS/OHIF الثلاثة تلقائياً) مع **الحفاظ على الترخيص و`Machine ID`**:
 
 ```bash
 sudo /opt/saraya-demo/scripts/reset-demo.sh
 ```
+
+### 3) ترقية سيرفر VM قائم لإدراج قسم الأشعة (Orthanc PACS + OHIF) دون تصفير البيانات
+إذا كان الديمو شغّالاً بالفعل على الـ VM وتريد تفعيل حاوية `orthanc` والدراسات الطبية التجريبية (`DX / CT 24-slice / MRI 16-slice`) مباشرةً:
+
+```bash
+cd ~/SarayaERP && git pull
+sudo cp docker-compose.demo.yml /opt/saraya-demo/docker-compose.demo.yml
+cd /opt/saraya-demo
+grep -q '^PACS_USER=' .env.demo || echo 'PACS_USER=saraya_pacs' | sudo tee -a .env.demo
+grep -q '^PACS_PASSWORD=' .env.demo || echo "PACS_PASSWORD=$(openssl rand -hex 20)" | sudo tee -a .env.demo
+grep -q '^RADIOLOGY_OHIF_ENABLED=' .env.demo || printf 'RADIOLOGY_OHIF_ENABLED=true\nRADIOLOGY_ORTHANC_URL=http://orthanc:8042\n' | sudo tee -a .env.demo
+sudo docker compose -f docker-compose.demo.yml --env-file .env.demo pull
+sudo docker compose -f docker-compose.demo.yml --env-file .env.demo up -d
+```
+
+> عند إقلاع `backend` مع الصورتين الجديدتين من `main` (Commit ما بعد الدفعة 43)، سيرفع `seed-demo.js` تلقائياً الـ 41 صورة DICOM إلى Orthanc ويربطها بطلبات الأشعة القائمة (`ACC-DEMO-2026-001/002/003`) دون مسح أي بيانات أخرى.
 
 ### 3) حسابات العرض المجهزة مسبقاً
 * **المدير العام:** `admin` / `admin123`

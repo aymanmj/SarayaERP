@@ -213,9 +213,16 @@ if [ -f "$ENV_FILE" ]; then
   upsert_env "$ENV_FILE" "DEMO_HTTP_PORT" "${DEMO_HTTP_PORT_VAL}"
   upsert_env "$ENV_FILE" "TUNNEL_TOKEN" "${TUNNEL_TOKEN}"
   upsert_env "$ENV_FILE" "DEMO_USE_TUNNEL" "${DEMO_USE_TUNNEL}"
+  if ! grep -qE "^PACS_PASSWORD=" "$ENV_FILE"; then
+    upsert_env "$ENV_FILE" "PACS_USER" "saraya_pacs"
+    upsert_env "$ENV_FILE" "PACS_PASSWORD" "$(openssl rand -hex 20)"
+  fi
+  upsert_env "$ENV_FILE" "RADIOLOGY_OHIF_ENABLED" "true"
+  upsert_env "$ENV_FILE" "RADIOLOGY_ORTHANC_URL" "http://orthanc:8042"
 else
   PG_PASS="$(openssl rand -hex 24)"
   REDIS_PASS="$(openssl rand -hex 24)"
+  PACS_PASS="$(openssl rand -hex 20)"
   JWT_SEC="$(openssl rand -hex 48)"
   ENC_KEY="$(openssl rand -hex 32)"
   ENC_SALT="$(openssl rand -hex 16)"
@@ -235,6 +242,11 @@ POSTGRES_DB=saraya_demo
 POSTGRES_PASSWORD=${PG_PASS}
 REDIS_PASSWORD=${REDIS_PASS}
 
+PACS_USER=saraya_pacs
+PACS_PASSWORD=${PACS_PASS}
+RADIOLOGY_OHIF_ENABLED=true
+RADIOLOGY_ORTHANC_URL=http://orthanc:8042
+
 JWT_SECRET=${JWT_SEC}
 ENCRYPTION_KEY=${ENC_KEY}
 ENCRYPTION_SALT=${ENC_SALT}
@@ -252,7 +264,7 @@ if [ "$LOCAL_BUILD" != "true" ]; then
   if [ "$DEMO_USE_TUNNEL" = "true" ]; then
     docker compose -f docker-compose.demo.yml --env-file .env.demo pull
   else
-    docker compose -f docker-compose.demo.yml --env-file .env.demo pull postgres redis backend frontend nginx
+    docker compose -f docker-compose.demo.yml --env-file .env.demo pull postgres redis orthanc backend frontend nginx
   fi
 fi
 
@@ -260,7 +272,7 @@ if [ "$DEMO_USE_TUNNEL" = "true" ]; then
   docker compose -f docker-compose.demo.yml --env-file .env.demo up -d
 else
   docker compose -f docker-compose.demo.yml --env-file .env.demo stop tunnel >/dev/null 2>&1 || true
-  docker compose -f docker-compose.demo.yml --env-file .env.demo up -d postgres redis backend frontend nginx
+  docker compose -f docker-compose.demo.yml --env-file .env.demo up -d postgres redis orthanc backend frontend nginx
 fi
 
 echo -e "${YELLOW}[7/7] Waiting for backend readiness (/api/health/ready — DB + Redis + Seed)...${NC}"

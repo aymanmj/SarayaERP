@@ -39,6 +39,7 @@ import {
 import { createCipheriv, createHash, randomBytes, scryptSync } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 import { appendChainedAudit } from '../src/audit/audit-chain';
+import { ensureDemoPacsStudies } from './seed-demo-dicom';
 
 const prisma = new PrismaClient();
 
@@ -82,6 +83,7 @@ async function main() {
   });
   if (existingMarker?.value === DEMO_SEED_VERSION) {
     console.log('✅ Demo dataset already seeded (skipping duplicate seed).');
+    await ensureDemoPacsStudies(prisma, hospital.id);
     return;
   }
 
@@ -2151,6 +2153,8 @@ async function main() {
       description: 'Marker for live executive client demo dataset',
     },
   });
+
+  await ensureDemoPacsStudies(prisma, hospital.id);
 
   console.log('✅ Libyan Hospital Executive Demo Dataset seeded successfully!');
 }
