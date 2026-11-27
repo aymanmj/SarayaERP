@@ -28,6 +28,7 @@ import {
   parseAdmsAttlogLines,
 } from './biometric-adms.util';
 import type { AdmsAuthenticatedDevice } from './adms-device.guard';
+import { calculateRawPeriods, type HoursPunch } from './biometric-hours.engine';
 
 @Injectable()
 export class BiometricAttendanceService {
@@ -341,17 +342,36 @@ export class BiometricAttendanceService {
     parsed.sort((a, b) => a.punchTime.getTime() - b.punchTime.getTime());
 
     const uniqueBadges = [...new Set(parsed.map((p) => p.biometricId))];
-    const matchedUsers = await this.prisma.user.findMany({
-      where: {
-        hospitalId: device.hospitalId,
-        biometricId: { in: uniqueBadges },
-        isDeleted: false,
-      },
-      select: { id: true, biometricId: true },
-    });
+    const [matchedUsers, matchedEmployees] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          hospitalId: device.hospitalId,
+          biometricId: { in: uniqueBadges },
+          isDeleted: false,
+        },
+        select: { id: true, biometricId: true },
+      }),
+      this.prisma.employee.findMany({
+        where: {
+          hospitalId: device.hospitalId,
+          biometricId: { in: uniqueBadges },
+          deletedAt: null,
+        },
+        select: { id: true, userId: true, biometricId: true },
+      }),
+    ]);
     const badgeToUserId = new Map<string, number>();
     for (const u of matchedUsers) {
       if (u.biometricId) badgeToUserId.set(u.biometricId, u.id);
+    }
+    const badgeToEmployee = new Map<
+      string,
+      { id: number; userId: number | null }
+    >();
+    for (const e of matchedEmployees) {
+      if (e.biometricId) {
+        badgeToEmployee.set(e.biometricId, { id: e.id, userId: e.userId });
+      }
     }
 
     let inserted = 0;
@@ -360,8 +380,11 @@ export class BiometricAttendanceService {
     const unmappedSet = new Set<string>();
 
     for (const p of parsed) {
-      const userId = badgeToUserId.get(p.biometricId) ?? null;
-      if (!userId) unmappedSet.add(p.biometricId);
+      const matchedEmp = badgeToEmployee.get(p.biometricId) ?? null;
+      const userId =
+        matchedEmp?.userId ?? badgeToUserId.get(p.biometricId) ?? null;
+      const employeeId = matchedEmp?.id ?? null;
+      if (!userId && !employeeId) unmappedSet.add(p.biometricId);
 
       // Idempotent insert: duplicate (hospitalId, biometricId, punchTime) is ignored cleanly
       const existing = await this.prisma.biometricPunchLog.findUnique({
@@ -384,6 +407,7 @@ export class BiometricAttendanceService {
           hospitalId: device.hospitalId,
           deviceId: device.id,
           userId,
+          employeeId,
           biometricId: p.biometricId,
           punchTime: p.punchTime,
           punchType: p.punchType,
@@ -395,7 +419,20 @@ export class BiometricAttendanceService {
       });
       inserted += 1;
 
-      if (userId) {
+      if (employeeId) {
+        await this.attendanceService.processEmployeePunch({
+          hospitalId: device.hospitalId,
+          employeeId,
+          userId,
+          timestamp: p.punchTime.toISOString(),
+          source,
+        });
+        await this.prisma.biometricPunchLog.update({
+          where: { id: createdLog.id },
+          data: { processed: true },
+        });
+        mappedToAttendance += 1;
+      } else if (userId) {
         await this.attendanceService.processPunch(
           { userId, timestamp: p.punchTime.toISOString() },
           device.hospitalId,
@@ -500,7 +537,10 @@ export class BiometricAttendanceService {
     const created = await this.prisma.$transaction(async (tx) => {
       committedAudit = null;
       const record = await tx.attendanceRecord.findFirst({
-        where: { id: dto.attendanceRecordId, user: { hospitalId } },
+        where: {
+          id: dto.attendanceRecordId,
+          OR: [{ hospitalId }, { user: { is: { hospitalId } } }],
+        },
         select: { id: true, userId: true },
       });
       if (!record) {
@@ -678,12 +718,14 @@ export class BiometricAttendanceService {
       const saved = await tx.attendanceRecord.upsert({
         where: { userId_date: { userId: dto.userId, date: dayStart } },
         update: {
+          hospitalId,
           status: 'ABSENT',
           absenceAuthorization: dto.classification,
           absenceClassifiedById: classifierId,
           absenceNotes: dto.notes?.trim() || null,
         },
         create: {
+          hospitalId,
           userId: dto.userId,
           date: dayStart,
           status: 'ABSENT',
@@ -724,7 +766,10 @@ export class BiometricAttendanceService {
     const updated = await this.prisma.$transaction(async (tx) => {
       committedAudit = null;
       const existing = await tx.attendanceRecord.findFirst({
-        where: { id: recordId, user: { hospitalId } },
+        where: {
+          id: recordId,
+          OR: [{ hospitalId }, { user: { is: { hospitalId } } }],
+        },
       });
       if (!existing) {
         throw new NotFoundException('سجل الحضور غير موجود في هذه المنشأة.');
@@ -855,5 +900,202 @@ export class BiometricAttendanceService {
 
     if (committedAudit) publishCommittedCriticalAudit(committedAudit);
     return updated;
+  }
+
+  // =========================================================================
+  // 6. BIOMETRIC HOURS REPORT (OVERNIGHT SHIFT AWARE)
+  // =========================================================================
+
+  async getBiometricHoursReport(
+    hospitalId: number,
+    params: {
+      startDate: string;
+      endDate: string;
+      departmentId?: number;
+      debounceMinutes?: number;
+    },
+  ) {
+    const valid = (d: string) =>
+      /^\d{4}-\d{2}-\d{2}$/.test(d || '') &&
+      !Number.isNaN(Date.parse(d)) &&
+      new Date(d).toISOString().slice(0, 10) === d;
+    if (
+      !valid(params.startDate) ||
+      !valid(params.endDate) ||
+      params.endDate < params.startDate
+    ) {
+      throw new BadRequestException('حدد فترة صحيحة من تاريخ إلى تاريخ.');
+    }
+    if (
+      Date.parse(params.endDate) - Date.parse(params.startDate) >
+      366 * 86_400_000
+    ) {
+      throw new BadRequestException('الحد الأقصى للتقرير سنة واحدة.');
+    }
+
+    const debounceMinutes = Math.max(
+      0,
+      Math.min(30, Number(params.debounceMinutes ?? 3)),
+    );
+    const rangeStart = new Date(
+      Date.parse(`${params.startDate}T00:00:00.000Z`) - 86_400_000,
+    );
+    const rangeEnd = new Date(
+      Date.parse(`${params.endDate}T23:59:59.999Z`) + 2 * 86_400_000,
+    );
+
+    const employees = await this.prisma.employee.findMany({
+      where: {
+        hospitalId,
+        deletedAt: null,
+        biometricId: { not: null },
+        ...(params.departmentId ? { departmentId: params.departmentId } : {}),
+      },
+      select: {
+        id: true,
+        employeeNo: true,
+        biometricId: true,
+        userId: true,
+        fullName: true,
+        staffCategory: true,
+        department: { select: { name: true } },
+        section: { select: { name: true } },
+        shiftDays: {
+          where: { rosterDate: { gte: rangeStart, lte: rangeEnd } },
+          include: {
+            shift: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                startTime: true,
+                endTime: true,
+                isOvernight: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { employeeNo: 'asc' },
+    });
+
+    const eligibleEmployees = employees.filter((e) => e.biometricId?.trim());
+    const empIds = eligibleEmployees.map((e) => e.id);
+    const linkedUserIds = eligibleEmployees
+      .map((e) => e.userId)
+      .filter((id): id is number => id !== null);
+
+    const punchLogs =
+      eligibleEmployees.length > 0
+        ? await this.prisma.biometricPunchLog.findMany({
+            where: {
+              hospitalId,
+              punchTime: { gte: rangeStart, lte: rangeEnd },
+              OR: [
+                ...(empIds.length ? [{ employeeId: { in: empIds } }] : []),
+                ...(linkedUserIds.length
+                  ? [{ userId: { in: linkedUserIds } }]
+                  : []),
+              ],
+            },
+            orderBy: [{ punchTime: 'asc' }, { id: 'asc' }],
+          })
+        : [];
+
+    const punchesByEmp = new Map<number, HoursPunch[]>();
+    const empByUserId = new Map(
+      eligibleEmployees
+        .filter((e) => e.userId !== null)
+        .map((e) => [e.userId!, e.id]),
+    );
+
+    for (const log of punchLogs) {
+      const targetEmpId =
+        log.employeeId ??
+        (log.userId !== null ? empByUserId.get(log.userId) : undefined);
+      if (!targetEmpId) continue;
+      const list = punchesByEmp.get(targetEmpId) ?? [];
+      list.push({
+        id: log.id,
+        punchedAt: log.punchTime,
+        declaredType: log.punchType,
+      });
+      punchesByEmp.set(targetEmpId, list);
+    }
+
+    const rows = eligibleEmployees.map((emp) => {
+      const shiftDayMap = new Map(
+        emp.shiftDays.map((sd) => [
+          sd.rosterDate.toISOString().slice(0, 10),
+          sd,
+        ]),
+      );
+
+      const groups = new Map<string, HoursPunch[]>();
+      for (const punch of punchesByEmp.get(emp.id) ?? []) {
+        const punchDay = punch.punchedAt.toISOString().slice(0, 10);
+        const prevDay = new Date(punch.punchedAt.getTime() - 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+        const prevShift = shiftDayMap.get(prevDay)?.shift;
+        let workDate = punchDay;
+        if (prevShift?.isOvernight) {
+          const [eh, em] = prevShift.endTime.split(':').map(Number);
+          const punchMinutes =
+            punch.punchedAt.getUTCHours() * 60 +
+            punch.punchedAt.getUTCMinutes();
+          if (punchMinutes <= eh * 60 + em + 120) {
+            workDate = prevDay;
+          }
+        }
+        const list = groups.get(workDate) ?? [];
+        list.push(punch);
+        groups.set(workDate, list);
+      }
+
+      const sessions = [...groups.entries()]
+        .filter(
+          ([workDate]) =>
+            workDate >= params.startDate && workDate <= params.endDate,
+        )
+        .map(([workDate, group]) => ({
+          workDate,
+          ...calculateRawPeriods(group, debounceMinutes),
+        }))
+        .sort((a, b) => a.workDate.localeCompare(b.workDate));
+
+      const totalMinutes = sessions.reduce((sum, s) => sum + s.totalMinutes, 0);
+      return {
+        employeeId: emp.id,
+        employeeNo: emp.employeeNo,
+        biometricId: emp.biometricId!.trim(),
+        fullName: emp.fullName,
+        department: emp.department?.name ?? 'غير محدد',
+        section: emp.section?.name ?? '',
+        staffCategory: emp.staffCategory,
+        totalMinutes,
+        totalHours: Money.round(totalMinutes / 60, 2),
+        periodCount: sessions.reduce((sum, s) => sum + s.periods.length, 0),
+        issueCount: sessions.reduce((sum, s) => sum + s.issues.length, 0),
+        sessions,
+      };
+    });
+
+    return {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      debounceMinutes,
+      generatedAt: new Date().toISOString(),
+      rows,
+      summary: {
+        employeeCount: rows.length,
+        totalMinutes: rows.reduce((sum, r) => sum + r.totalMinutes, 0),
+        totalHours: Money.round(
+          rows.reduce((sum, r) => sum + r.totalMinutes, 0) / 60,
+          2,
+        ),
+        issueCount: rows.reduce((sum, r) => sum + r.issueCount, 0),
+      },
+    };
   }
 }

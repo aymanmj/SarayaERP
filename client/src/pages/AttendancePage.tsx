@@ -1,3 +1,4 @@
+// client/src/pages/AttendancePage.tsx
 import { useEffect, useState } from "react";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
@@ -9,8 +10,20 @@ import {
   UserPlusIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { FileSpreadsheet, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { BiometricDevicesModal } from "../components/hr/BiometricDevicesModal";
+import {
+  hrService,
+  type BiometricHoursReportResponse,
+} from "../services/hr.service";
+import {
+  exportBiometricHoursToExcel,
+  exportBiometricHoursToWord,
+  formatMinutesToHoursText,
+  STAFF_CATEGORY_LABELS,
+} from "../utils/hrExport";
 
 type AttendanceRecord = {
   id: number;
@@ -19,7 +32,8 @@ type AttendanceRecord = {
   checkOut: string | null;
   status: "PRESENT" | "LATE" | "ABSENT";
   lateMinutes: number;
-  user: { id: number; fullName: string; username: string };
+  user?: { id: number; fullName: string; username: string } | null;
+  employee?: { id: number; employeeNo: string; fullName: string } | null;
 };
 
 type UserLite = { id: number; fullName: string };
@@ -27,6 +41,7 @@ type UserLite = { id: number; fullName: string };
 export default function AttendancePage() {
   const { t, i18n } = useTranslation();
   const isRtl = i18n.language === "ar";
+  const [activeTab, setActiveTab] = useState<"daily" | "hours">("daily");
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [users, setUsers] = useState<UserLite[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +50,14 @@ export default function AttendancePage() {
     new Date().toISOString().slice(0, 10),
   );
   const [dateTo, setDateTo] = useState(new Date().toISOString().slice(0, 10));
+
+  // Hours report state
+  const [deptId, setDeptId] = useState("");
+  const [debounceMinutes, setDebounceMinutes] = useState("3");
+  const [hoursReport, setHoursReport] =
+    useState<BiometricHoursReportResponse | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [expandedEmpId, setExpandedEmpId] = useState<number | null>(null);
 
   const [showManualModal, setShowManualModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -46,6 +69,18 @@ export default function AttendancePage() {
     userId: "",
     time: "",
     date: new Date().toISOString().slice(0, 10),
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments"],
+    queryFn: hrService.listDepartments,
+  });
+
+  const { data: orgInfo } = useQuery({
+    queryKey: ["org-settings-basic"],
+    queryFn: async () =>
+      (await apiClient.get<{ hospitalName?: string; name?: string }>("/settings/organization"))
+        .data,
   });
 
   const loadRecords = async () => {
@@ -62,6 +97,25 @@ export default function AttendancePage() {
     }
   };
 
+  const loadHoursReport = async () => {
+    setLoadingReport(true);
+    try {
+      const res = await hrService.getBiometricHoursReport({
+        startDate: dateFrom,
+        endDate: dateTo,
+        departmentId: deptId ? Number(deptId) : undefined,
+        debounceMinutes: Number(debounceMinutes) || 3,
+      });
+      setHoursReport(res);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || "تعذر تحميل تقرير ساعات البصمة.",
+      );
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
   const loadUsers = async () => {
     try {
       const res = await apiClient.get("/cashier/users");
@@ -74,8 +128,15 @@ export default function AttendancePage() {
   useEffect(() => {
     loadRecords();
     loadUsers();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (activeTab === "hours") {
+      void loadHoursReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, dateFrom, dateTo, deptId]);
 
   const handleManualPunch = async () => {
     if (!manualData.userId || !manualData.time)
@@ -142,15 +203,17 @@ export default function AttendancePage() {
       className="p-6 text-slate-100 h-full flex flex-col space-y-6"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <div className="flex justify-between items-center bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
+      <div className="flex flex-wrap justify-between items-center gap-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-sky-500/20 rounded-2xl border border-sky-500/40">
             <ClockIcon className="w-8 h-8 text-sky-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-black">{t("hr.attendance.title", "سجل الحضور الذكي")}</h1>
+            <h1 className="text-2xl font-black">
+              {t("hr.attendance.title", "سجل الحضور الذكي وساعات البصمة")}
+            </h1>
             <p className="text-slate-400 text-xs mt-1">
-              {t("hr.attendance.subtitle", "تتبع دقيق لمواعيد العمل")}
+              {t("hr.attendance.subtitle", "تتبع دقيق لمواعيد العمل وساعات المناوبات الفعلية")}
             </p>
           </div>
         </div>
@@ -167,7 +230,8 @@ export default function AttendancePage() {
             onClick={() => setShowUploadModal(true)}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2"
           >
-            <DocumentArrowDownIcon className="w-4 h-4" /> {t("hr.attendance.importBtn", "استيراد من ملف")}
+            <DocumentArrowDownIcon className="w-4 h-4" />{" "}
+            {t("hr.attendance.importBtn", "استيراد من ملف")}
           </button>
           <button
             onClick={() => setShowManualModal(true)}
@@ -178,8 +242,35 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
+      {/* Tabs */}
+      <div className="flex gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveTab("daily")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "daily"
+              ? "bg-sky-600 text-white"
+              : "text-slate-400 hover:bg-slate-800"
+          }`}
+        >
+          سجل الحضور اليومي
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("hours")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "hours"
+              ? "bg-sky-600 text-white"
+              : "text-slate-400 hover:bg-slate-800"
+          }`}
+        >
+          تقرير ساعات البصمة الفعلية (Excel / Word)
+        </button>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
           <DatePicker
             date={new Date(dateFrom)}
             onChange={(d) => d && setDateFrom(d.toISOString().slice(0, 10))}
@@ -188,67 +279,309 @@ export default function AttendancePage() {
             date={new Date(dateTo)}
             onChange={(d) => d && setDateTo(d.toISOString().slice(0, 10))}
           />
-          <button onClick={loadRecords} className="p-2 bg-slate-900 rounded-lg">
+          {activeTab === "hours" && (
+            <>
+              <select
+                value={deptId}
+                onChange={(e) => setDeptId(e.target.value)}
+                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
+              >
+                <option value="">كل الأقسام</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span>مهلة التكرار (د):</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  value={debounceMinutes}
+                  onChange={(e) => setDebounceMinutes(e.target.value)}
+                  className="w-16 bg-slate-900 border border-slate-700 rounded-xl px-2 py-1.5 text-center font-mono text-white"
+                />
+              </div>
+            </>
+          )}
+          <button
+            onClick={activeTab === "daily" ? loadRecords : loadHoursReport}
+            className="p-2 bg-slate-900 rounded-lg hover:bg-slate-800"
+          >
             <ArrowPathIcon
-              className={`w-5 h-5 ${loading ? "animate-spin" : ""}`}
+              className={`w-5 h-5 ${
+                loading || loadingReport ? "animate-spin" : ""
+              }`}
             />
           </button>
         </div>
-        <div className="text-xs text-slate-400">
-          {t("hr.attendance.recordCountLabel", "سجل:")} <span className="text-sky-400 font-bold">{records.length}</span>
-        </div>
+
+        {activeTab === "daily" ? (
+          <div className="text-xs text-slate-400">
+            {t("hr.attendance.recordCountLabel", "سجل:")}{" "}
+            <span className="text-sky-400 font-bold">{records.length}</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={!hoursReport}
+              onClick={() =>
+                hoursReport && exportBiometricHoursToExcel(hoursReport)
+              }
+              className="px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
+            </button>
+            <button
+              type="button"
+              disabled={!hoursReport}
+              onClick={() =>
+                hoursReport &&
+                exportBiometricHoursToWord(hoursReport, {
+                  hospitalName:
+                    orgInfo?.hospitalName ||
+                    orgInfo?.name ||
+                    "منظومة السرايا الطبي",
+                })
+              }
+              className="px-3.5 py-2 rounded-xl bg-blue-600/90 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5"
+            >
+              <FileText className="w-4 h-4" /> تصدير Word (.docx)
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-        <div className="overflow-y-auto custom-scrollbar h-full">
-          <table className="w-full text-sm text-right">
-            <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
-              <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">{t("hr.attendance.employeeHeader", "الموظف")}</th>
-                <th className="px-6 py-4 font-bold">{t("hr.attendance.dateHeader", "التاريخ")}</th>
-                <th className="px-6 py-4 text-center font-bold">{t("hr.attendance.checkInHeader", "دخول")}</th>
-                <th className="px-6 py-4 text-center font-bold">{t("hr.attendance.checkOutHeader", "خروج")}</th>
-                <th className="px-6 py-4 text-center font-bold">{t("hr.attendance.delayHeader", "التأخير")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {records.map((rec) => (
-                <tr key={rec.id} className="hover:bg-white/[0.02]">
-                  <td className="px-6 py-4">
-                    <div className="font-bold">{rec.user.fullName}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">
-                      @{rec.user.username}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-400 text-xs">
-                    {formatDate(rec.date)}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg text-xs border border-emerald-500/20">
-                      {formatTime(rec.checkIn)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-lg text-xs border border-rose-500/20">
-                      {formatTime(rec.checkOut)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center font-bold text-rose-400">
-                    {rec.lateMinutes > 0 ? t("hr.attendance.delayMinutes", "{{minutes}} د", { minutes: rec.lateMinutes }) : "--"}
-                  </td>
+      {activeTab === "daily" ? (
+        <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+          <div className="overflow-y-auto custom-scrollbar h-full">
+            <table className="w-full text-sm text-right">
+              <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
+                <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
+                  <th className="px-6 py-4 font-bold">
+                    {t("hr.attendance.employeeHeader", "الموظف")}
+                  </th>
+                  <th className="px-6 py-4 font-bold">
+                    {t("hr.attendance.dateHeader", "التاريخ")}
+                  </th>
+                  <th className="px-6 py-4 text-center font-bold">
+                    {t("hr.attendance.checkInHeader", "دخول")}
+                  </th>
+                  <th className="px-6 py-4 text-center font-bold">
+                    {t("hr.attendance.checkOutHeader", "خروج")}
+                  </th>
+                  <th className="px-6 py-4 text-center font-bold">
+                    {t("hr.attendance.delayHeader", "التأخير")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {records.map((rec) => (
+                  <tr key={rec.id} className="hover:bg-white/[0.02]">
+                    <td className="px-6 py-4">
+                      <div className="font-bold">
+                        {rec.employee?.fullName || rec.user?.fullName || "—"}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono flex gap-2">
+                        {rec.employee?.employeeNo && (
+                          <span className="text-sky-400">
+                            {rec.employee.employeeNo}
+                          </span>
+                        )}
+                        {rec.user?.username && <span>@{rec.user.username}</span>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-400 text-xs">
+                      {formatDate(rec.date)}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-lg text-xs border border-emerald-500/20">
+                        {formatTime(rec.checkIn)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="bg-rose-500/10 text-rose-400 px-3 py-1 rounded-lg text-xs border border-rose-500/20">
+                        {formatTime(rec.checkOut)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center font-bold text-rose-400">
+                      {rec.lateMinutes > 0
+                        ? t("hr.attendance.delayMinutes", "{{minutes}} د", {
+                            minutes: rec.lateMinutes,
+                          })
+                        : "--"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex-1 flex flex-col space-y-4 min-h-0">
+          {hoursReport && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-slate-400">الموظفون المشمولون (بصمة)</div>
+                <div className="text-2xl font-black text-white mt-1">
+                  {hoursReport.summary.employeeCount}
+                </div>
+              </div>
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-slate-400">إجمالي الساعات الفعلية</div>
+                <div className="text-2xl font-black text-sky-400 mt-1">
+                  {formatMinutesToHoursText(hoursReport.summary.totalMinutes)}
+                </div>
+              </div>
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+                <div className="text-slate-400">بصمات ناقصة للمراجعة</div>
+                <div className="text-2xl font-black text-amber-400 mt-1">
+                  {hoursReport.summary.issueCount}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 bg-slate-900/40 border border-slate-800 rounded-3xl overflow-auto shadow-2xl">
+            <table className="w-full text-xs text-right">
+              <thead className="bg-slate-950/70 text-slate-400 border-b border-slate-800 sticky top-0">
+                <tr>
+                  <th className="px-4 py-3.5">الموظف والرقم الوظيفي</th>
+                  <th className="px-4 py-3.5">كود البصمة</th>
+                  <th className="px-4 py-3.5">القسم / التصنيف</th>
+                  <th className="px-4 py-3.5 text-center">الفترات المكتملة</th>
+                  <th className="px-4 py-3.5 text-center">بصمات ناقصة</th>
+                  <th className="px-4 py-3.5 text-center">إجمالي الساعات</th>
+                  <th className="px-4 py-3.5 text-center">التفاصيل</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {(hoursReport?.rows ?? []).map((row) => {
+                  const isOpen = expandedEmpId === row.employeeId;
+                  return (
+                    <>
+                      <tr
+                        key={row.employeeId}
+                        className="hover:bg-slate-800/30"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-100">
+                            {row.fullName}
+                          </div>
+                          <div className="text-[11px] font-mono text-sky-400">
+                            {row.employeeNo}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono">{row.biometricId}</td>
+                        <td className="px-4 py-3">
+                          <div>{row.department}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {STAFF_CATEGORY_LABELS[row.staffCategory] ||
+                              row.staffCategory}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono">
+                          {row.periodCount}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {row.issueCount > 0 ? (
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">
+                              {row.issueCount}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">0</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-emerald-400">
+                          {formatMinutesToHoursText(row.totalMinutes)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedEmpId(isOpen ? null : row.employeeId)
+                            }
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"
+                          >
+                            {isOpen ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr key={`${row.employeeId}-details`}>
+                          <td
+                            colSpan={7}
+                            className="bg-slate-950/60 px-6 py-4 space-y-2"
+                          >
+                            {row.sessions.length === 0 ? (
+                              <div className="text-slate-500">
+                                لا توجد فترات مسجلة خلال هذه الفترة.
+                              </div>
+                            ) : (
+                              row.sessions.map((s) => (
+                                <div
+                                  key={s.workDate}
+                                  className="border border-slate-800 rounded-xl p-3 space-y-1.5"
+                                >
+                                  <div className="font-bold text-sky-300 flex justify-between">
+                                    <span>يوم العمل: {s.workDate}</span>
+                                    <span>
+                                      الإجمالي: {formatMinutesToHoursText(s.totalMinutes)}
+                                    </span>
+                                  </div>
+                                  {s.periods.map((p, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="flex justify-between text-slate-300 font-mono text-[11px]"
+                                    >
+                                      <span>
+                                        فترة {idx + 1}:{" "}
+                                        {new Date(p.startTime).toLocaleString("ar-LY")} ←{" "}
+                                        {new Date(p.endTime).toLocaleString("ar-LY")}
+                                      </span>
+                                      <span className="text-emerald-400">
+                                        {formatMinutesToHoursText(p.durationMinutes)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {s.issues.map((issue) => (
+                                    <div
+                                      key={issue.punchId}
+                                      className="text-amber-300 text-[11px]"
+                                    >
+                                      ⚠ {new Date(issue.punchedAt).toLocaleString("ar-LY")} —{" "}
+                                      {issue.reason}
+                                    </div>
+                                  ))}
+                                </div>
+                              ))
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modals for Manual and Punch */}
       {showManualModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 w-full max-w-sm space-y-4">
             <h3 className="text-xl font-bold flex items-center gap-2">
-              <UserPlusIcon className="w-6 h-6 text-emerald-500" /> {t("hr.attendance.manualModalTitle", "تسجيل بصمة")}
+              <UserPlusIcon className="w-6 h-6 text-emerald-500" />{" "}
+              {t("hr.attendance.manualModalTitle", "تسجيل بصمة")}
             </h3>
             <div className="space-y-3">
               <select
@@ -258,7 +591,9 @@ export default function AttendancePage() {
                   setManualData({ ...manualData, userId: e.target.value })
                 }
               >
-                <option value="">{t("hr.attendance.selectEmployeePlaceholder", "اختر الموظف...")}</option>
+                <option value="">
+                  {t("hr.attendance.selectEmployeePlaceholder", "اختر الموظف...")}
+                </option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.fullName}
@@ -267,7 +602,7 @@ export default function AttendancePage() {
               </select>
               <input
                 type="date"
-                className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-xl px-3 py-2 text-sm [&::-webkit-calendar-picker-indicator]:w-5 [&::-webkit-calendar-picker-indicator]:h-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:sepia-0 [&::-webkit-calendar-picker-indicator]:saturate-0 [&::-webkit-calendar-picker-indicator]:hue-rotate-180 [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-100"
+                className="w-full bg-slate-800 border border-slate-600 text-slate-100 rounded-xl px-3 py-2 text-sm"
                 value={manualData.date}
                 onChange={(e) =>
                   setManualData({ ...manualData, date: e.target.value })
@@ -304,7 +639,9 @@ export default function AttendancePage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 w-full max-w-md text-center space-y-6">
             <DocumentArrowDownIcon className="w-12 h-12 text-sky-500 mx-auto" />
-            <h3 className="text-xl font-bold">{t("hr.attendance.importModalTitle", "استيراد بيانات الجهاز")}</h3>
+            <h3 className="text-xl font-bold">
+              {t("hr.attendance.importModalTitle", "استيراد بيانات الجهاز")}
+            </h3>
             <input
               type="file"
               accept=".csv"

@@ -99,6 +99,7 @@ import { CsrfOriginGuard } from './common/security/csrf-origin.guard'; // ✅ [N
 import { RedisThrottlerStorage } from './common/security/redis-throttler.storage';
 import { ConnectivityModule } from './common/services/connectivity.module'; // ✅ [NEW] Offline-First: Internet Connectivity Monitor
 import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality & Patient Safety — Incident/CAPA
+import { ArchiveModule } from './archive/archive.module'; // ✅ [NEW] Electronic Archiving & Official Correspondence DMS
 
 @Module({
   imports: [
@@ -269,6 +270,7 @@ import { QualityModule } from './quality/quality.module'; // ✅ [NEW] Quality &
     IcuModule,
     DischargeSummaryModule, // 👈 Phase 5: Patient Access
     QualityModule, // ✅ [NEW] Quality & Patient Safety — Clinical Incident / CAPA
+    ArchiveModule, // ✅ [NEW] Electronic Archiving & Correspondence DMS
   ],
   controllers: [AppController],
   providers: [

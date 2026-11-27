@@ -453,6 +453,7 @@ describe('CAP11 HR Loans/Advances, Recurring Deductions, Overtime, Payroll Atomi
     await db.attendanceRecord.createMany({
       data: [
         {
+          hospitalId,
           userId: hourlyDoctor.user.id,
           date: new Date('2026-12-05T00:00:00.000Z'),
           checkIn: new Date('2026-12-05T08:00:00.000Z'),
@@ -460,6 +461,7 @@ describe('CAP11 HR Loans/Advances, Recurring Deductions, Overtime, Payroll Atomi
           status: 'PRESENT',
         },
         {
+          hospitalId,
           userId: hourlyDoctor.user.id,
           date: new Date('2026-12-06T00:00:00.000Z'),
           checkIn: new Date('2026-12-06T08:00:00.000Z'),
@@ -467,6 +469,7 @@ describe('CAP11 HR Loans/Advances, Recurring Deductions, Overtime, Payroll Atomi
           status: 'PRESENT',
         },
         {
+          hospitalId,
           userId: shiftNurse.user.id,
           date: new Date('2026-12-05T00:00:00.000Z'),
           checkIn: new Date('2026-12-05T08:00:00.000Z'),
@@ -474,6 +477,7 @@ describe('CAP11 HR Loans/Advances, Recurring Deductions, Overtime, Payroll Atomi
           status: 'PRESENT',
         },
         {
+          hospitalId,
           userId: shiftNurse.user.id,
           date: new Date('2026-12-07T00:00:00.000Z'),
           checkIn: new Date('2026-12-07T08:00:00.000Z'),

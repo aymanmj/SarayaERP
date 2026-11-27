@@ -281,4 +281,22 @@ export class BiometricAttendanceController {
   ) {
     return this.service.deactivateHoliday(user.hospitalId, id, user.sub);
   }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Permissions('attendance:manage', 'hr:attendance:manage', 'hr:view')
+  @Get('attendance/biometric/hours-report')
+  getBiometricHoursReport(
+    @CurrentUser() user: JwtPayload,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('debounceMinutes') debounceMinutes?: string,
+  ) {
+    return this.service.getBiometricHoursReport(user.hospitalId, {
+      startDate,
+      endDate,
+      departmentId: departmentId ? Number(departmentId) : undefined,
+      debounceMinutes: debounceMinutes ? Number(debounceMinutes) : undefined,
+    });
+  }
 }

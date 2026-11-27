@@ -39,11 +39,18 @@ const AttendancePage = lazy(() => import("../pages/AttendancePage"));
 const ShiftsPage = lazy(() => import("../pages/ShiftsPage"));
 const RosterPage = lazy(() => import("../pages/RosterPage"));
 const LeavesPage = lazy(() => import("../pages/LeavesPage"));
+const EmployeesPage = lazy(() => import("../pages/hr/EmployeesPage"));
+const EmployeeFormPage = lazy(() => import("../pages/hr/EmployeeFormPage"));
+const EmployeeDetailsPage = lazy(() => import("../pages/hr/EmployeeDetailsPage"));
+const OrgStructurePage = lazy(() => import("../pages/hr/OrgStructurePage"));
 
 const DoctorSchedulesPage = lazy(() => import("../pages/settings/DoctorSchedulesPage"));
 
 // --- Quality & Patient Safety ---
 const QualityAndSafetyPage = lazy(() => import("../pages/QualityAndSafetyPage"));
+
+// --- Electronic Archive & DMS ---
+const ArchivePage = lazy(() => import("../pages/archive/ArchivePage"));
 
 export const AdminRoutes = (
   <>
@@ -95,7 +102,15 @@ export const AdminRoutes = (
     {/* ✅ Quality & Patient Safety */}
     <Route path="/quality" element={<QualityAndSafetyPage />} />
 
+    {/* ✅ Electronic Archive & Official Correspondence */}
+    <Route path="/archive" element={<ArchivePage />} />
+
     {/* HR */}
+    <Route path="/hr/employees" element={<EmployeesPage />} />
+    <Route path="/hr/employees/new" element={<EmployeeFormPage />} />
+    <Route path="/hr/employees/:id" element={<EmployeeDetailsPage />} />
+    <Route path="/hr/employees/:id/edit" element={<EmployeeFormPage />} />
+    <Route path="/hr/org" element={<OrgStructurePage />} />
     <Route path="/hr/shifts" element={<ShiftsPage />} />
     <Route path="/hr/roster" element={<RosterPage />} />
     <Route path="/hr/leaves" element={<LeavesPage />} />

@@ -106,6 +106,7 @@ async function main() {
 
   await prisma.attendanceRecord.create({
     data: {
+      hospitalId: doctor.hospitalId,
       userId: doctor.id,
       date: today,
       checkIn: checkInTime,

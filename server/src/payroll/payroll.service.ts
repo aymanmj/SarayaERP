@@ -577,6 +577,280 @@ export class PayrollService {
           totalNetDec = Money.sumPosted(totalNetDec, netSlipDec);
         }
 
+        // الموظفون المسجلون دون حساب مستخدم (userId IS NULL)
+        const standaloneEmployees = await tx.employee.findMany({
+          where: {
+            hospitalId,
+            userId: null,
+            isActive: true,
+            deletedAt: null,
+          },
+          orderBy: { id: 'asc' },
+        });
+
+        for (const emp of standaloneEmployees) {
+          const payBasis = emp.payBasis || 'MONTHLY';
+          let basicDec = Money.roundDecimal(emp.basicSalary ?? 0);
+          let workedHoursDec = Money.decimal(0);
+          let workedShiftsCount = 0;
+
+          if (payBasis === 'HOURLY' || payBasis === 'FIXED_SHIFT') {
+            const monthAttendance = await tx.attendanceRecord.findMany({
+              where: {
+                hospitalId,
+                employeeId: emp.id,
+                date: { gte: startDate, lte: endDate },
+                checkIn: { not: null },
+              },
+              orderBy: { date: 'asc' },
+            });
+            const shiftDays = await tx.employeeShiftDay.findMany({
+              where: {
+                hospitalId,
+                employeeId: emp.id,
+                rosterDate: { gte: startDate, lte: endDate },
+              },
+              include: { shift: true },
+            });
+            const shiftByDay = new Map(
+              shiftDays.map((s) => [
+                s.rosterDate.toISOString().slice(0, 10),
+                s,
+              ]),
+            );
+
+            let shiftEarningsDec = Money.decimal(0);
+            for (const att of monthAttendance) {
+              workedShiftsCount += 1;
+              let hoursNum = 0;
+              if (att.checkIn && att.checkOut && att.checkOut > att.checkIn) {
+                hoursNum =
+                  (att.checkOut.getTime() - att.checkIn.getTime()) / 3600000;
+              } else {
+                const sd = shiftByDay.get(att.date.toISOString().slice(0, 10));
+                if (sd?.shift) {
+                  hoursNum = computeShiftDurationHours(
+                    sd.shift.startTime,
+                    sd.shift.endTime,
+                  );
+                }
+              }
+              if (hoursNum > 0) {
+                workedHoursDec = workedHoursDec.plus(
+                  Money.roundDecimal(hoursNum, 3),
+                );
+              }
+              if (payBasis === 'FIXED_SHIFT') {
+                const sd = shiftByDay.get(att.date.toISOString().slice(0, 10));
+                const shiftHours = sd?.shift
+                  ? computeShiftDurationHours(
+                      sd.shift.startTime,
+                      sd.shift.endTime,
+                    )
+                  : hoursNum || 8;
+                const rateStr = resolveFixedShiftRate(shiftHours, {
+                  fixedShift6hRate: emp.fixedShift6hRate,
+                  fixedShift12hRate: emp.fixedShift12hRate,
+                  fixedShift24hRate: emp.fixedShift24hRate,
+                });
+                shiftEarningsDec = Money.sumPosted(shiftEarningsDec, rateStr);
+              }
+            }
+            if (payBasis === 'HOURLY') {
+              const hrDec = Money.decimal(emp.hourlyRate ?? 0);
+              basicDec = Money.roundDecimal(
+                Money.multiply(workedHoursDec, hrDec),
+              );
+            } else {
+              basicDec = shiftEarningsDec;
+            }
+          }
+
+          const housingDec = Money.roundDecimal(emp.housingAllowance ?? 0);
+          const transportDec = Money.roundDecimal(emp.transportAllowance ?? 0);
+          const otherBaseDec = Money.roundDecimal(emp.otherAllowance ?? 0);
+          const hourlyRateDec =
+            payBasis === 'HOURLY'
+              ? Money.decimal(emp.hourlyRate ?? 0)
+              : Money.divide(Money.divide(basicDec, 30), 8);
+
+          const compItems = await tx.employeeDeduction.findMany({
+            where: {
+              hospitalId,
+              employeeId: emp.id,
+              isActive: true,
+              effectiveFrom: { lte: endDate },
+              OR: [{ effectiveTo: null }, { effectiveTo: { gte: startDate } }],
+            },
+            select: {
+              id: true,
+              kind: true,
+              category: true,
+              amount: true,
+              isRecurring: true,
+              appliedInPayrollRunId: true,
+            },
+          });
+          const applicableComp = compItems.filter(
+            (c) =>
+              (c.isRecurring || c.appliedInPayrollRunId === null) &&
+              !(
+                emp.isSocialInsuranceExempt && c.category === 'SOCIAL_SECURITY'
+              ),
+          );
+          const recurringAllowanceDec = applicableComp
+            .filter((c) => c.kind === 'ALLOWANCE')
+            .reduce(
+              (acc, item) => Money.sumPosted(acc, item.amount),
+              Money.decimal(0),
+            );
+          const recurringDeductionDec = applicableComp
+            .filter((c) => c.kind === 'DEDUCTION')
+            .reduce(
+              (acc, item) => Money.sumPosted(acc, item.amount),
+              Money.decimal(0),
+            );
+          const socialSecurityDec = applicableComp
+            .filter(
+              (c) => c.kind === 'DEDUCTION' && c.category === 'SOCIAL_SECURITY',
+            )
+            .reduce(
+              (acc, item) => Money.sumPosted(acc, item.amount),
+              Money.decimal(0),
+            );
+
+          const activeAdvances = await tx.employeeAdvance.findMany({
+            where: {
+              hospitalId,
+              employeeId: emp.id,
+              status: 'APPROVED',
+              remainingAmount: { gt: 0 },
+            },
+            orderBy: { id: 'asc' },
+            select: {
+              id: true,
+              advanceNumber: true,
+              monthlyDeduction: true,
+              remainingAmount: true,
+            },
+          });
+          const loanInstallments: Array<{
+            advanceId: number;
+            advanceNumber: string;
+            amount: string;
+          }> = [];
+          let advanceDeductionDec = Money.decimal(0);
+          for (const adv of activeAdvances) {
+            const remDec = Money.roundDecimal(adv.remainingAmount, 3);
+            const monDec = Money.roundDecimal(adv.monthlyDeduction, 3);
+            const installmentDec = remDec.lt(monDec) ? remDec : monDec;
+            if (installmentDec.gt(0)) {
+              advanceDeductionDec = Money.sumPosted(
+                advanceDeductionDec,
+                installmentDec,
+              );
+              loanInstallments.push({
+                advanceId: adv.id,
+                advanceNumber: adv.advanceNumber,
+                amount: Money.toDbString(installmentDec),
+              });
+            }
+          }
+
+          const approvedOvertimes = await tx.overtimeRequest.findMany({
+            where: {
+              hospitalId,
+              employeeId: emp.id,
+              status: 'APPROVED',
+              appliedInPayrollRunId: null,
+              date: { gte: startDate, lte: endDate },
+            },
+            select: { approvedHours: true, multiplier: true },
+          });
+          let overtimePayDec = Money.decimal(0);
+          for (const ot of approvedOvertimes) {
+            if (ot.approvedHours) {
+              overtimePayDec = Money.sumPosted(
+                overtimePayDec,
+                Money.roundDecimal(
+                  Money.multiply(
+                    Money.multiply(ot.approvedHours, hourlyRateDec),
+                    ot.multiplier,
+                  ),
+                ),
+              );
+            }
+          }
+
+          const otherAllowanceDec = Money.roundDecimal(
+            Money.sumDecimal(
+              otherBaseDec,
+              overtimePayDec,
+              recurringAllowanceDec,
+            ),
+          );
+          const totalAdditionsSlipDec = Money.roundDecimal(
+            Money.sumDecimal(housingDec, transportDec, otherAllowanceDec),
+          );
+
+          const grossDec = Money.addDecimal(basicDec, totalAdditionsSlipDec);
+          const taxableIncomeDec = grossDec.gt(socialSecurityDec)
+            ? Money.subtractDecimal(grossDec, socialSecurityDec)
+            : Money.decimal(0);
+          const taxDeductionDec =
+            !emp.isTaxExempt && activeTaxBrackets.length > 0
+              ? Money.decimal(
+                  calculateProgressiveTax(taxableIncomeDec, activeTaxBrackets),
+                )
+              : Money.decimal(0);
+
+          const finalDeductionsSlipDec = Money.sumPosted(
+            recurringDeductionDec,
+            advanceDeductionDec,
+            taxDeductionDec,
+          );
+          const netSlipDec = Money.roundDecimal(
+            Money.subtractDecimal(grossDec, finalDeductionsSlipDec),
+          );
+
+          await tx.payrollSlip.create({
+            data: {
+              payrollRunId: run.id,
+              userId: null,
+              employeeId: emp.id,
+              basicSalary: Money.toDbString(basicDec),
+              housingAllowance: Money.toDbString(housingDec),
+              transportAllowance: Money.toDbString(transportDec),
+              otherAllowance: Money.toDbString(otherAllowanceDec),
+              deductions: Money.toDbString(finalDeductionsSlipDec),
+              netSalary: Money.toDbString(netSlipDec),
+              commissionAmount: '0.000',
+              payBasis,
+              workedHours: Money.toDbString(workedHoursDec),
+              workedShiftsCount,
+              taxDeduction: Money.toDbString(taxDeductionDec),
+              advanceDeduction: Money.toDbString(advanceDeductionDec),
+              recurringDeduction: Money.toDbString(recurringDeductionDec),
+              unpaidLeaveDeduction: '0.000',
+              overtimePay: Money.toDbString(overtimePayDec),
+              loanInstallmentsJson: loanInstallments.length
+                ? (loanInstallments as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            },
+          });
+
+          totalBasicDec = Money.sumPosted(totalBasicDec, basicDec);
+          totalAllowancesDec = Money.sumPosted(
+            totalAllowancesDec,
+            totalAdditionsSlipDec,
+          );
+          totalDeductionsDec = Money.sumPosted(
+            totalDeductionsDec,
+            finalDeductionsSlipDec,
+          );
+          totalNetDec = Money.sumPosted(totalNetDec, netSlipDec);
+        }
+
         const updatedRun = await tx.payrollRun.update({
           where: { id: run.id },
           data: {
@@ -596,7 +870,7 @@ export class PayrollService {
           details: {
             month,
             year,
-            employeesCount: employees.length,
+            employeesCount: employees.length + standaloneEmployees.length,
             totalBasic: Money.toDbString(totalBasicDec),
             totalAllowances: Money.toDbString(totalAllowancesDec),
             totalDeductions: Money.toDbString(totalDeductionsDec),
@@ -726,29 +1000,49 @@ export class PayrollService {
       const monthEnd = new Date(
         Date.UTC(run.year, run.month, 0, 23, 59, 59, 999),
       );
-      const slipUserIds = run.slips.map((s) => s.userId);
-      await tx.employeeDeduction.updateMany({
-        where: {
-          hospitalId,
-          userId: { in: slipUserIds },
-          isActive: true,
-          isRecurring: false,
-          appliedInPayrollRunId: null,
-          effectiveFrom: { lte: monthEnd },
-          OR: [{ effectiveTo: null }, { effectiveTo: { gte: monthStart } }],
-        },
-        data: { appliedInPayrollRunId: run.id },
-      });
-      await tx.overtimeRequest.updateMany({
-        where: {
-          hospitalId,
-          userId: { in: slipUserIds },
-          status: 'APPROVED',
-          appliedInPayrollRunId: null,
-          date: { gte: monthStart, lte: monthEnd },
-        },
-        data: { appliedInPayrollRunId: run.id },
-      });
+      const slipUserIds = run.slips
+        .map((s) => s.userId)
+        .filter((id): id is number => id !== null);
+      const slipEmployeeIds = run.slips
+        .map((s) => s.employeeId)
+        .filter((id): id is number => id !== null);
+      const ownerTargets: Prisma.EmployeeDeductionWhereInput[] = [
+        ...(slipUserIds.length ? [{ userId: { in: slipUserIds } }] : []),
+        ...(slipEmployeeIds.length
+          ? [{ employeeId: { in: slipEmployeeIds } }]
+          : []),
+      ];
+      if (ownerTargets.length) {
+        await tx.employeeDeduction.updateMany({
+          where: {
+            hospitalId,
+            isActive: true,
+            isRecurring: false,
+            appliedInPayrollRunId: null,
+            effectiveFrom: { lte: monthEnd },
+            AND: [
+              { OR: ownerTargets },
+              {
+                OR: [
+                  { effectiveTo: null },
+                  { effectiveTo: { gte: monthStart } },
+                ],
+              },
+            ],
+          },
+          data: { appliedInPayrollRunId: run.id },
+        });
+        await tx.overtimeRequest.updateMany({
+          where: {
+            hospitalId,
+            status: 'APPROVED',
+            appliedInPayrollRunId: null,
+            date: { gte: monthStart, lte: monthEnd },
+            OR: ownerTargets as Prisma.OvertimeRequestWhereInput[],
+          },
+          data: { appliedInPayrollRunId: run.id },
+        });
+      }
 
       const payrollDate = new Date(Date.UTC(run.year, run.month - 1, 28));
       const { financialYear: fy, period } = await financialPeriod(
@@ -888,8 +1182,17 @@ export class PayrollService {
             user: {
               select: { fullName: true, username: true, basicSalary: true },
             },
+            employee: {
+              select: {
+                id: true,
+                employeeNo: true,
+                fullName: true,
+                basicSalary: true,
+                currency: true,
+              },
+            },
           },
-          orderBy: { user: { fullName: 'asc' } },
+          orderBy: { id: 'asc' },
         },
       },
     });

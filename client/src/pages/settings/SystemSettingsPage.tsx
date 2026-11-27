@@ -15,6 +15,7 @@ export const SystemSettingsPage = () => {
   // Moved inside component to fix module-level t() bug
   const GROUP_META: Record<string, { label: string; icon: string; color: string }> = {
     BILLING: { label: t("settings.system.billingAndAccounting", "الفوترة والمحاسبة"), icon: '💰', color: 'text-emerald-400' },
+    HR: { label: t("settings.system.hrSettings", "الموارد البشرية والرواتب"), icon: '👥', color: 'text-indigo-400' },
     INVENTORY: { label: t("settings.system.inventory", "المخزون"), icon: '📦', color: 'text-amber-400' },
     MEDICAL: { label: t("settings.system.medicalSettings", "الإعدادات الطبية"), icon: '🩺', color: 'text-sky-400' },
     MPI: { label: t("settings.system.unifiedNationalRegisterMpi", "السجل الوطني الموحد (MPI)"), icon: '🌐', color: 'text-violet-400' },
@@ -27,6 +28,8 @@ export const SystemSettingsPage = () => {
     'billing.roomTimeZone': t('settings.system.roomTimeZone', 'المنطقة الزمنية لليالي المبيت'),
     'billing.debtLimit': t("settings.system.permissibleDebtLimit", "حد المديونية المسموح"),
     'billing.currency': t("settings.system.virtualCurrency", "العملة الافتراضية"),
+    'hr.altamamIntegrationEnabled': t('settings.system.hrAltamamEnabled', 'إظهار حقل رقم التمام واستيراد موظفي منظومة التمام (Excel)'),
+    'hr.defaultCurrency': t('settings.system.hrDefaultCurrency', 'العملة الافتراضية للرواتب والموارد البشرية'),
     'accounting.allowNegativeStock': t("settings.system.negativeWithdrawalFromStock", "السحب بالسالب من المخزون"),
     'inventory.enableServiceExplosion': t("settings.system.detailOfServiceBundles", "تفصيل الخدمات المجمعة (Service Bundles)"),
     'medical.defaultLanguage': t("settings.system.theLanguageOfMedicalReports", "لغة التقارير الطبية"),
@@ -43,6 +46,8 @@ export const SystemSettingsPage = () => {
   };
 
   const KEY_DESCRIPTIONS: Record<string, string> = {
+    'hr.altamamIntegrationEnabled': t('settings.system.hrAltamamEnabledDesc', 'عند التفعيل، يظهر حقل رقم التمام في ملفات الموظفين وزر استيراد بيانات الموظفين من ملفات إكسل الخاصة بمنظومة التمام.'),
+    'hr.defaultCurrency': t('settings.system.hrDefaultCurrencyDesc', 'العملة الافتراضية المعتمدة عند إضافة الموظفين وإعداد مسيرات الرواتب (الافتراضي: LYD مع إمكانية اختيار عملات أخرى لكل موظف).'),
     'inventory.requireMaterialRequestApproval': t("settings.system.whenActivatedRequestsToDisburseMaterials", "عند التفعيل، ستحتاج طلبات صرف المواد من المخزن إلى موافقة مدير المخزن قبل عملية الصرف."),
     'inventory.autoFefoAllocation': t("settings.system.whenActivatedTheSystemWillAutomaticallyI", "عند التفعيل، سيقوم النظام تلقائياً بتحديد وصرف التشغيلات (Batches) الأقرب لانتهاء الصلاحية دون تدخّل يدوي."),
     'accounting.allowNegativeStock': t("settings.system.allowingTheDisbursementOfUnavailableBook", "السماح بصرف كميات غير متوفرة دفترياً، مما ينتج عنه أرصدة سالبة تُسوّى لاحقاً."),
@@ -57,7 +62,7 @@ export const SystemSettingsPage = () => {
     queryFn: async () => {
       const data = await systemSettingsApi.findAll();
       if (data.length > 0) {
-        const groupOrder = ['MPI', 'OTP', 'BILLING', 'INVENTORY', 'MEDICAL', 'OTHER'];
+        const groupOrder = ['MPI', 'OTP', 'BILLING', 'HR', 'INVENTORY', 'MEDICAL', 'OTHER'];
         const groups = Object.keys(data.reduce((acc: any, s: SystemSetting) => ({ ...acc, [s.group || 'OTHER']: true }), {}));
         const firstGroup = groupOrder.find(g => groups.includes(g)) || groups[0];
         if (firstGroup) setActiveGroup(firstGroup);
@@ -73,7 +78,7 @@ export const SystemSettingsPage = () => {
     return acc;
   }, {} as Record<string, SystemSetting[]>);
 
-  const groupOrder = ['MPI', 'OTP', 'BILLING', 'INVENTORY', 'MEDICAL', 'OTHER'];
+  const groupOrder = ['MPI', 'OTP', 'BILLING', 'HR', 'INVENTORY', 'MEDICAL', 'OTHER'];
   const sortedGroups = Object.entries(groupedSettings).sort(
     ([a], [b]) => (groupOrder.indexOf(a) === -1 ? 99 : groupOrder.indexOf(a)) - (groupOrder.indexOf(b) === -1 ? 99 : groupOrder.indexOf(b))
   );
@@ -88,6 +93,7 @@ export const SystemSettingsPage = () => {
       queryClient.setQueryData(["systemSettings"], (prev: SystemSetting[] | undefined) =>
         (prev || []).map((s) => (s.key === variables.key ? { ...s, ...updated } : s))
       );
+      queryClient.invalidateQueries({ queryKey: ["hr-config"] });
       setSavingKey(null);
     },
     onError: () => {
@@ -102,6 +108,22 @@ export const SystemSettingsPage = () => {
   };
 
   const renderInput = (setting: SystemSetting) => {
+    if (setting.key === 'hr.defaultCurrency') {
+      const currencies = ['LYD', 'USD', 'EUR', 'SAR', 'EGP', 'AED', 'TND', 'GBP'];
+      return (
+        <select
+          aria-label={KEY_LABELS[setting.key]}
+          value={setting.value || 'LYD'}
+          onChange={(event) => handleUpdate(setting.key, event.target.value)}
+          disabled={!canManage || savingKey === setting.key}
+          className="bg-slate-800 border border-slate-600 rounded-xl px-4 py-2 text-white w-full max-w-xs disabled:opacity-60"
+        >
+          {currencies.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      );
+    }
     if (setting.key === 'billing.roomDayPolicy') {
       return <div className="space-y-2 w-full max-w-xl">
         <select aria-label={KEY_LABELS[setting.key]} value={setting.value}

@@ -13,7 +13,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { HrService } from './hr.service';
+import { HrService, type UpsertShiftDayInput } from './hr.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
@@ -30,27 +30,212 @@ type AuthedReq = { user: JwtPayload };
 export class HrController {
   constructor(private readonly hrService: HrService) {}
 
-  // --- Shifts ---
+  // --- Shifts (Static assignment & roster-day routes MUST precede :id routes) ---
+  @Get('shifts/assignments')
+  @Permissions('hr:shifts:manage', 'hr:manage', 'hr:view')
+  listShiftAssignments(
+    @Req() req: AuthedReq,
+    @Query('employeeId') employeeId?: string,
+    @Query('departmentId') departmentId?: string,
+  ) {
+    return this.hrService.listShiftAssignments(req.user.hospitalId, {
+      employeeId: employeeId ? Number(employeeId) : undefined,
+      departmentId: departmentId ? Number(departmentId) : undefined,
+    });
+  }
+
+  @Post('shifts/assignments')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  assignShiftToEmployee(
+    @Req() req: AuthedReq,
+    @Body()
+    body: {
+      employeeId: number;
+      shiftId: number;
+      startDate: string;
+      endDate?: string;
+    },
+  ) {
+    return this.hrService.assignShiftToEmployee(
+      req.user.hospitalId,
+      req.user.sub,
+      body,
+    );
+  }
+
+  @Post('shifts/assignments/bulk')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  bulkAssignShift(
+    @Req() req: AuthedReq,
+    @Body()
+    body: {
+      employeeIds?: number[];
+      departmentId?: number;
+      shiftId: number;
+      startDate: string;
+      endDate?: string;
+    },
+  ) {
+    return this.hrService.bulkAssignShift(
+      req.user.hospitalId,
+      req.user.sub,
+      body,
+    );
+  }
+
+  @Delete('shifts/assignments/:id')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  removeShiftAssignment(
+    @Req() req: AuthedReq,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.hrService.removeShiftAssignment(req.user.hospitalId, id);
+  }
+
+  @Get('shifts/roster-days')
+  @Permissions('hr:shifts:manage', 'hr:manage', 'hr:view')
+  getMonthlyShiftGrid(
+    @Req() req: AuthedReq,
+    @Query('month') month?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('departmentId') departmentId?: string,
+    @Query('employeeId') employeeId?: string,
+  ) {
+    return this.hrService.getMonthlyShiftGrid(req.user.hospitalId, {
+      month,
+      fromDate,
+      toDate,
+      departmentId: departmentId ? Number(departmentId) : undefined,
+      employeeId: employeeId ? Number(employeeId) : undefined,
+    });
+  }
+
+  @Post('shifts/roster-days')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  upsertShiftDay(@Req() req: AuthedReq, @Body() body: UpsertShiftDayInput) {
+    return this.hrService.upsertShiftDay(
+      req.user.hospitalId,
+      req.user.sub,
+      body,
+    );
+  }
+
+  @Post('shifts/roster-days/bulk')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  bulkUpsertShiftDays(
+    @Req() req: AuthedReq,
+    @Body() body: { days: UpsertShiftDayInput[] },
+  ) {
+    return this.hrService.bulkUpsertShiftDays(
+      req.user.hospitalId,
+      req.user.sub,
+      body.days,
+    );
+  }
+
+  @Delete('shifts/roster-days/:id')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  deleteShiftDay(@Req() req: AuthedReq, @Param('id', ParseIntPipe) id: number) {
+    return this.hrService.deleteShiftDay(req.user.hospitalId, id);
+  }
+
+  @Post('shifts/roster-import/preview')
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  previewRosterCsv(@Req() req: AuthedReq, @Body() body: { content: string }) {
+    return this.hrService.previewRosterCsvImport(
+      req.user.hospitalId,
+      body.content,
+    );
+  }
+
+  @Post('shifts/roster-import/apply')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  applyRosterCsv(@Req() req: AuthedReq, @Body() body: { content: string }) {
+    return this.hrService.applyRosterCsvImport(
+      req.user.hospitalId,
+      req.user.sub,
+      body.content,
+    );
+  }
+
   @Post('shifts')
-  @Permissions('hr:manage')
+  @Permissions('hr:shifts:manage', 'hr:manage')
   async createShift(
     @Req() req: AuthedReq,
     @Body()
     body: {
+      code?: string;
       name: string;
+      nameEn?: string;
       type: ShiftType;
       startTime: string;
       endTime: string;
+      breakMinutes?: number;
       graceMinutes?: number;
+      workHours?: number;
+      overtimeMultiplier?: number;
+      holidayMultiplier?: number;
+      nightAllowance?: number;
+      isOvernight?: boolean;
+      isFlexible?: boolean;
+      isScrubShift?: boolean;
+      isActive?: boolean;
     },
   ) {
     return this.hrService.createWorkShift(req.user.hospitalId, body);
   }
 
   @Get('shifts')
-  @Permissions('hr:manage')
+  @Permissions('hr:shifts:manage', 'hr:manage', 'hr:view')
   async getShifts(@Req() req: AuthedReq) {
     return this.hrService.getWorkShifts(req.user.hospitalId);
+  }
+
+  @Patch('shifts/:id')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  async updateShift(
+    @Req() req: AuthedReq,
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    body: {
+      code?: string;
+      name?: string;
+      nameEn?: string;
+      type?: ShiftType;
+      startTime?: string;
+      endTime?: string;
+      breakMinutes?: number;
+      graceMinutes?: number;
+      workHours?: number;
+      overtimeMultiplier?: number;
+      holidayMultiplier?: number;
+      nightAllowance?: number;
+      isOvernight?: boolean;
+      isFlexible?: boolean;
+      isScrubShift?: boolean;
+      isActive?: boolean;
+    },
+  ) {
+    return this.hrService.updateWorkShift(req.user.hospitalId, id, body);
+  }
+
+  @Delete('shifts/:id')
+  @AuditInTransaction()
+  @Permissions('hr:shifts:manage', 'hr:manage')
+  async deleteShift(
+    @Req() req: AuthedReq,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.hrService.deleteWorkShift(req.user.hospitalId, id);
   }
 
   // --- Roster ---

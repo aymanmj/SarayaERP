@@ -248,6 +248,11 @@
     "clinicalEmerald": "سرايا الطبي"
   },
   "menu": {
+    "hrEmployees": "شؤون الموظفين",
+    "hrOrgStructure": "الهيكل الوظيفي والشُعب",
+    "archiveSection": "الأرشيف الإلكتروني",
+    "archiveDocs": "الأرشيف والصادر والوارد",
+    "archiveInbox": "صندوق إحالات المراسلات",
     "obgynSection": "النساء والولادة والخصوبة",
     "about": "حول النظام",
     "accounting": "المحاسبة العامة",

@@ -248,6 +248,11 @@
     "clinicalEmerald": "Saraya Clinical Teal"
   },
   "menu": {
+    "hrEmployees": "Employees",
+    "hrOrgStructure": "Org Structure & Sections",
+    "archiveSection": "Electronic Archive",
+    "archiveDocs": "Archive & Correspondence",
+    "archiveInbox": "Correspondence Inbox",
     "obgynSection": "OB/GYN & Fertility",
     "about": "About System",
     "accounting": "General Ledger",

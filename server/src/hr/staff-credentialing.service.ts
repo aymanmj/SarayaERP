@@ -128,8 +128,9 @@ type PrismaLikeForEligibility = {
 export async function evaluateStaffSchedulingEligibility(
   prismaLike: PrismaLikeForEligibility,
   hospitalId: number,
-  userId: number,
+  userId: number | null,
   asOfDate: Date = new Date(),
+  employeeId?: number,
 ): Promise<StaffEligibilityResult> {
   if (!prismaLike.staffCredential?.findMany) {
     return {
@@ -141,11 +142,18 @@ export async function evaluateStaffSchedulingEligibility(
     };
   }
 
+  const ownerFilter: Prisma.StaffCredentialWhereInput =
+    userId && employeeId
+      ? { OR: [{ userId }, { employeeId }] }
+      : employeeId
+        ? { employeeId }
+        : { userId: userId ?? -1 };
+
   const [credentials, strictSetting] = await Promise.all([
     prismaLike.staffCredential.findMany({
       where: {
         hospitalId,
-        userId,
+        ...ownerFilter,
         status: { not: 'SUPERSEDED' },
       },
       orderBy: { expiryDate: 'desc' },
@@ -236,14 +244,16 @@ export async function evaluateStaffSchedulingEligibility(
 export async function assertStaffSchedulingEligibility(
   prismaLike: PrismaLikeForEligibility,
   hospitalId: number,
-  userId: number,
+  userId: number | null,
   asOfDate: Date = new Date(),
+  employeeId?: number,
 ): Promise<void> {
   const result = await evaluateStaffSchedulingEligibility(
     prismaLike,
     hospitalId,
     userId,
     asOfDate,
+    employeeId,
   );
   if (!result.eligible) {
     throw new ConflictException(

@@ -410,6 +410,9 @@ export class HrFinancialService {
           'لا يمكن اعتماد سلفة ليست في حالة انتظار (PENDING).',
         );
       }
+      if (!advance.user) {
+        throw new ConflictException('سجل المستخدم المرتبط بالسلفة غير موجود.');
+      }
       if (advance.userId === approverId) {
         throw new ForbiddenException(
           'رقابة 4 عيون: لا يمكن للموظف اعتماد سلفة لنفسه.',
@@ -1176,11 +1179,17 @@ export class HrFinancialService {
       if (settlement.status !== 'DRAFT') {
         throw new ConflictException('الاعتماد متاح لمسودة مخالصة (DRAFT) فقط.');
       }
+      if (!settlement.user || settlement.userId === null) {
+        throw new ConflictException(
+          'سجل المستخدم المرتبط بالمخالصة غير موجود.',
+        );
+      }
+      const targetUserId = settlement.userId;
       if (!settlement.user.isActive) {
         throw new ConflictException('الموظف غير نشط بالفعل.');
       }
       if (
-        approverId === settlement.userId ||
+        approverId === targetUserId ||
         approverId === settlement.createdById
       ) {
         throw new ForbiddenException(
@@ -1199,13 +1208,13 @@ export class HrFinancialService {
       }
 
       // Lock user and active advances to guarantee zero balance drift
-      await tx.$executeRaw`SELECT "id" FROM "User" WHERE "id" = ${settlement.userId} FOR UPDATE`;
-      await tx.$executeRaw`SELECT "id" FROM "EmployeeAdvance" WHERE "hospitalId" = ${hospitalId} AND "userId" = ${settlement.userId} ORDER BY "id" FOR UPDATE`;
+      await tx.$executeRaw`SELECT "id" FROM "User" WHERE "id" = ${targetUserId} FOR UPDATE`;
+      await tx.$executeRaw`SELECT "id" FROM "EmployeeAdvance" WHERE "hospitalId" = ${hospitalId} AND "userId" = ${targetUserId} ORDER BY "id" FOR UPDATE`;
 
       const activeAdvances = await tx.employeeAdvance.findMany({
         where: {
           hospitalId,
-          userId: settlement.userId,
+          userId: targetUserId,
           status: 'APPROVED',
           remainingAmount: { gt: 0 },
         },
@@ -1328,7 +1337,7 @@ export class HrFinancialService {
         hospitalId,
         settlementId: settlement.id,
         settlementNo: settlement.settlementNo,
-        userId: settlement.userId,
+        userId: targetUserId,
         terminationType: settlement.terminationType,
         effectiveDateIso: settlement.effectiveDate.toISOString(),
         totalEarnings: Money.toDbString(settlement.totalEarnings),
@@ -1371,7 +1380,7 @@ export class HrFinancialService {
               : 'TERMINATED';
 
       await tx.user.update({
-        where: { id: settlement.userId },
+        where: { id: targetUserId },
         data: {
           isActive: false,
           employmentStatus: nextEmploymentStatus,
@@ -1379,7 +1388,7 @@ export class HrFinancialService {
         },
       });
       await tx.staffSession.updateMany({
-        where: { userId: settlement.userId, revokedAt: null },
+        where: { userId: targetUserId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
 
@@ -1488,7 +1497,7 @@ export class HrFinancialService {
             sourceModule: AccountingSourceModule.PAYROLL,
             sourceId: existing.id,
             postingKey: `hr-eos-pay:${hospitalId}:${existing.id}`,
-            description: `صرف صافي مخالصة نهاية خدمة ${existing.settlementNo} - ${existing.user.fullName}`,
+            description: `صرف صافي مخالصة نهاية خدمة ${existing.settlementNo} - ${existing.user?.fullName ?? ''}`,
             createdById: payerId,
             lines: {
               create: [
@@ -1556,7 +1565,7 @@ export class HrFinancialService {
       hospitalId: s.hospitalId,
       settlementId: s.id,
       settlementNo: s.settlementNo,
-      userId: s.userId,
+      userId: s.userId ?? 0,
       terminationType: s.terminationType,
       effectiveDateIso: s.effectiveDate.toISOString(),
       totalEarnings: Money.toDbString(s.totalEarnings),

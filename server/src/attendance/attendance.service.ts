@@ -1,6 +1,11 @@
 // src/attendance/attendance.service.ts
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { Money } from '../common/utils/money.util';
@@ -20,13 +25,26 @@ export class AttendanceService {
   }
 
   async processPunch(dto: CreatePunchDto, hospitalId?: number) {
-    if (hospitalId !== undefined) {
+    let resolvedHospitalId = hospitalId;
+    if (resolvedHospitalId !== undefined) {
       const user = await this.prisma.user.findFirst({
-        where: { id: dto.userId, hospitalId, isDeleted: false },
+        where: {
+          id: dto.userId,
+          hospitalId: resolvedHospitalId,
+          isDeleted: false,
+        },
         select: { id: true },
       });
       if (!user) {
         throw new NotFoundException('الموظف غير موجود في هذه المنشأة.');
+      }
+    } else if (typeof this.prisma.user?.findUnique === 'function') {
+      const user = await this.prisma.user.findUnique({
+        where: { id: dto.userId },
+        select: { hospitalId: true },
+      });
+      if (user?.hospitalId !== undefined) {
+        resolvedHospitalId = user.hospitalId;
       }
     }
 
@@ -51,7 +69,9 @@ export class AttendanceService {
       where: {
         userId: dto.userId,
         date: startOfDay,
-        ...(hospitalId !== undefined ? { hospitalId } : {}),
+        ...(resolvedHospitalId !== undefined
+          ? { hospitalId: resolvedHospitalId }
+          : {}),
       },
       include: { shift: true },
     });
@@ -78,6 +98,9 @@ export class AttendanceService {
 
       return this.prisma.attendanceRecord.create({
         data: {
+          ...(resolvedHospitalId !== undefined
+            ? { hospitalId: resolvedHospitalId }
+            : {}),
           userId: dto.userId,
           date: startOfDay,
           checkIn: punchTime,
@@ -96,6 +119,9 @@ export class AttendanceService {
         return this.prisma.attendanceRecord.update({
           where: { id: existingRecord.id },
           data: {
+            ...(!existingRecord.hospitalId && resolvedHospitalId !== undefined
+              ? { hospitalId: resolvedHospitalId }
+              : {}),
             checkOut: punchTime,
             workedHours: Money.toDbString(Money.roundDecimal(netHours, 3)),
           },
@@ -141,7 +167,13 @@ export class AttendanceService {
     dateTo?: Date,
     userId?: number,
   ) {
-    const where: any = { user: { hospitalId } };
+    const where: any = {
+      OR: [
+        { hospitalId },
+        { user: { hospitalId } },
+        { employee: { hospitalId } },
+      ],
+    };
     if (userId) where.userId = userId;
     if (dateFrom || dateTo) {
       where.date = {};
@@ -152,6 +184,7 @@ export class AttendanceService {
       where,
       include: {
         user: { select: { id: true, fullName: true, username: true } },
+        employee: { select: { id: true, employeeNo: true, fullName: true } },
       },
       orderBy: { date: 'desc' },
     });
@@ -281,6 +314,112 @@ export class AttendanceService {
       overtimeHours: Math.floor(overtimeMinutes / 60),
       workDaysCount,
     };
+  }
+
+  /**
+   * تسجيل بصمة لموظف (يدعم الموظفين غير المرتبطين بحساب مستخدم userId = null)
+   */
+  async processEmployeePunch(params: {
+    hospitalId: number;
+    employeeId: number;
+    userId?: number | null;
+    timestamp: Date | string;
+    source?: string;
+  }) {
+    const punchTime = new Date(params.timestamp);
+    if (Number.isNaN(punchTime.getTime())) {
+      throw new BadRequestException('وقت البصمة غير صالح.');
+    }
+    const startOfDay = new Date(
+      Date.UTC(
+        punchTime.getUTCFullYear(),
+        punchTime.getUTCMonth(),
+        punchTime.getUTCDate(),
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
+
+    const existingRecord = await this.prisma.attendanceRecord.findFirst({
+      where: {
+        hospitalId: params.hospitalId,
+        date: startOfDay,
+        OR: [
+          { employeeId: params.employeeId },
+          ...(params.userId ? [{ userId: params.userId }] : []),
+        ],
+      },
+    });
+
+    const shiftDay = await this.prisma.employeeShiftDay.findUnique({
+      where: {
+        employeeId_rosterDate: {
+          employeeId: params.employeeId,
+          rosterDate: startOfDay,
+        },
+      },
+      include: { shift: true },
+    });
+
+    if (!existingRecord) {
+      let lateMinutes = 0;
+      let status = 'PRESENT';
+
+      if (shiftDay && shiftDay.dayType === 'WORK' && shiftDay.shift) {
+        const shiftStart = this.parseShiftTime(
+          startOfDay,
+          shiftDay.shift.startTime,
+        );
+        const graceTime = new Date(
+          shiftStart.getTime() + shiftDay.shift.graceMinutes * 60000,
+        );
+        if (punchTime > graceTime) {
+          lateMinutes = Math.floor(
+            (punchTime.getTime() - shiftStart.getTime()) / 60000,
+          );
+          status = 'LATE';
+        }
+      }
+
+      return this.prisma.attendanceRecord.create({
+        data: {
+          hospitalId: params.hospitalId,
+          employeeId: params.employeeId,
+          userId: params.userId ?? null,
+          shiftId: shiftDay?.shiftId ?? null,
+          date: startOfDay,
+          checkIn: punchTime,
+          source: params.source ?? 'ADMS',
+          status,
+          lateMinutes,
+        },
+      });
+    }
+
+    if (existingRecord.checkIn && punchTime > existingRecord.checkIn) {
+      const grossMins =
+        (punchTime.getTime() - existingRecord.checkIn.getTime()) / 60000;
+      const netHours = Math.max(
+        0,
+        (grossMins - (existingRecord.tempLeaveMinutes || 0)) / 60,
+      );
+      return this.prisma.attendanceRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          ...(!existingRecord.employeeId
+            ? { employeeId: params.employeeId }
+            : {}),
+          ...(params.userId && !existingRecord.userId
+            ? { userId: params.userId }
+            : {}),
+          checkOut: punchTime,
+          workedHours: Money.toDbString(Money.roundDecimal(netHours, 3)),
+        },
+      });
+    }
+    return existingRecord;
   }
 }
 

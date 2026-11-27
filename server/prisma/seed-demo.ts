@@ -9,6 +9,7 @@ import {
   BedStatus,
   ChargeSource,
   ClaimStatus,
+  ContractType,
   EncounterStatus,
   EncounterType,
   FinancialYearStatus,
@@ -30,6 +31,9 @@ import {
   PrismaClient,
   ProductType,
   RadiologyStatus,
+  RosterDayType,
+  ShiftType,
+  StaffCategory,
   StockTransactionType,
   SurgeryStatus,
   SystemAccountKey,
@@ -44,7 +48,7 @@ import { ensureDemoPacsStudies } from './seed-demo-dicom';
 const prisma = new PrismaClient();
 
 const DEMO_SEED_KEY = 'demo.seed.version';
-const DEMO_SEED_VERSION = '2026-11-26-v1';
+const DEMO_SEED_VERSION = '2026-11-28-v1';
 
 const encKey =
   process.env.ENCRYPTION_KEY || 'your-secret-key-32-chars-long-!!!';
@@ -2066,6 +2070,251 @@ async function main() {
       createdById: hrMuna.id,
     },
   });
+
+  // 13b. Enterprise HR Separation: JobTitles, Sections, Employees (linked & non-login), WorkShifts & ShiftDays
+  const jtConsultant = await prisma.jobTitle.create({
+    data: { hospitalId: hospital.id, code: 'JT-CON', name: 'استشاري طبي', nameEn: 'Medical Consultant', level: 1 },
+  });
+  const jtNurse = await prisma.jobTitle.create({
+    data: { hospitalId: hospital.id, code: 'JT-NUR', name: 'ممرض / ممرضة قانونية', nameEn: 'Registered Nurse', level: 2 },
+  });
+  const jtSecurity = await prisma.jobTitle.create({
+    data: { hospitalId: hospital.id, code: 'JT-SEC', name: 'فرد أمن وسلامة', nameEn: 'Hospital Security Officer', level: 4 },
+  });
+  const jtHousekeeping = await prisma.jobTitle.create({
+    data: { hospitalId: hospital.id, code: 'JT-HKP', name: 'موظف خدمات ونظافة طبية', nameEn: 'Environmental Services Staff', level: 5 },
+  });
+  const jtBiomedTech = await prisma.jobTitle.create({
+    data: { hospitalId: hospital.id, code: 'JT-BMT', name: 'فني صيانة أجهزة طبية', nameEn: 'Biomedical Maintenance Tech', level: 3 },
+  });
+
+  const secErTriage = await prisma.section.create({
+    data: { hospitalId: hospital.id, departmentId: erDept.id, code: 'SEC-ER-TRG', name: 'فرز الطوارئ والحالات الحرجة', nameEn: 'ER Triage & Critical Bay' },
+  });
+  const secIcuNursing = await prisma.section.create({
+    data: { hospitalId: hospital.id, departmentId: icuDept.id, code: 'SEC-ICU-NRS', name: 'تمريض العناية الفائقة', nameEn: 'ICU Nursing Unit' },
+  });
+
+  // Employees linked to existing User accounts + Non-login hospital employees (userId: null)
+  const empDrAhmed = await prisma.employee.upsert({
+    where: { hospitalId_employeeNo: { hospitalId: hospital.id, employeeNo: 'EMP-0001' } },
+    update: { biometricId: 'BIO-1002', userId: drAhmed.id },
+    create: {
+      hospitalId: hospital.id,
+      employeeNo: 'EMP-0001',
+      biometricId: 'BIO-1002',
+      userId: drAhmed.id,
+      firstNameAr: 'أحمد',
+      secondNameAr: 'علي',
+      thirdNameAr: 'المهدي',
+      lastNameAr: 'الورفلي',
+      firstNameEn: 'Ahmed',
+      lastNameEn: 'Al-Warfalli',
+      fullName: 'د. أحمد علي المهدي الورفلي',
+      gender: Gender.MALE,
+      nationality: 'ليبي',
+      phone: '+218 91 210 1002',
+      departmentId: opdDept.id,
+      jobTitleId: jtConsultant.id,
+      staffCategory: StaffCategory.MEDICAL,
+      contractType: ContractType.PERMANENT,
+      basicSalary: '6500.000',
+      currency: 'LYD',
+      payBasis: 'MONTHLY',
+    },
+  });
+
+  const empNurseLaila = await prisma.employee.upsert({
+    where: { hospitalId_employeeNo: { hospitalId: hospital.id, employeeNo: 'EMP-0002' } },
+    update: { biometricId: 'BIO-1004', userId: nurseLaila.id },
+    create: {
+      hospitalId: hospital.id,
+      employeeNo: 'EMP-0002',
+      biometricId: 'BIO-1004',
+      userId: nurseLaila.id,
+      firstNameAr: 'ليلى',
+      secondNameAr: 'منصور',
+      thirdNameAr: 'سالم',
+      lastNameAr: 'الفيتوري',
+      firstNameEn: 'Laila',
+      lastNameEn: 'Al-Fitouri',
+      fullName: 'ليلى منصور سالم الفيتوري',
+      gender: Gender.FEMALE,
+      nationality: 'ليبية',
+      phone: '+218 92 210 1004',
+      departmentId: icuDept.id,
+      sectionId: secIcuNursing.id,
+      jobTitleId: jtNurse.id,
+      staffCategory: StaffCategory.NURSING,
+      contractType: ContractType.PERMANENT,
+      basicSalary: '2600.000',
+      currency: 'LYD',
+      payBasis: 'MONTHLY',
+    },
+  });
+
+  const empSecurity = await prisma.employee.upsert({
+    where: { hospitalId_employeeNo: { hospitalId: hospital.id, employeeNo: 'EMP-0003' } },
+    update: {},
+    create: {
+      hospitalId: hospital.id,
+      employeeNo: 'EMP-0003',
+      biometricId: 'BIO-2001',
+      userId: null,
+      firstNameAr: 'خالد',
+      secondNameAr: 'عمران',
+      thirdNameAr: 'مفتاح',
+      lastNameAr: 'المصراتي',
+      firstNameEn: 'Khaled',
+      lastNameEn: 'Al-Misrati',
+      fullName: 'خالد عمران مفتاح المصراتي',
+      gender: Gender.MALE,
+      nationality: 'ليبي',
+      phone: '+218 91 555 2001',
+      departmentId: erDept.id,
+      sectionId: secErTriage.id,
+      jobTitleId: jtSecurity.id,
+      staffCategory: StaffCategory.SUPPORT_SERVICES,
+      contractType: ContractType.PERMANENT,
+      basicSalary: '1650.000',
+      currency: 'LYD',
+      payBasis: 'MONTHLY',
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { hospitalId_employeeNo: { hospitalId: hospital.id, employeeNo: 'EMP-0004' } },
+    update: {},
+    create: {
+      hospitalId: hospital.id,
+      employeeNo: 'EMP-0004',
+      biometricId: 'BIO-2002',
+      userId: null,
+      firstNameAr: 'فاطمة',
+      secondNameAr: 'عبدالله',
+      thirdNameAr: 'جمعة',
+      lastNameAr: 'الزنتاني',
+      firstNameEn: 'Fatima',
+      lastNameEn: 'Al-Zintani',
+      fullName: 'فاطمة عبدالله جمعة الزنتاني',
+      gender: Gender.FEMALE,
+      nationality: 'ليبية',
+      phone: '+218 92 555 2002',
+      departmentId: erDept.id,
+      jobTitleId: jtHousekeeping.id,
+      staffCategory: StaffCategory.SUPPORT_SERVICES,
+      contractType: ContractType.PERMANENT,
+      basicSalary: '1450.000',
+      currency: 'LYD',
+      payBasis: 'MONTHLY',
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { hospitalId_employeeNo: { hospitalId: hospital.id, employeeNo: 'EMP-0005' } },
+    update: {},
+    create: {
+      hospitalId: hospital.id,
+      employeeNo: 'EMP-0005',
+      biometricId: 'BIO-2003',
+      userId: null,
+      firstNameAr: 'طارق',
+      secondNameAr: 'محمد',
+      thirdNameAr: 'علي',
+      lastNameAr: 'المجذوب',
+      firstNameEn: 'Tariq',
+      lastNameEn: 'Elmagzoub',
+      fullName: 'طارق محمد علي المجذوب',
+      gender: Gender.MALE,
+      nationality: 'ليبي',
+      phone: '+218 91 555 2003',
+      departmentId: opdDept.id,
+      jobTitleId: jtBiomedTech.id,
+      staffCategory: StaffCategory.TECHNICAL,
+      contractType: ContractType.PERMANENT,
+      basicSalary: '2400.000',
+      currency: 'LYD',
+      payBasis: 'MONTHLY',
+    },
+  });
+
+  // Shift types D, N, 24 + sample monthly ShiftDays
+  const shiftDay = await prisma.workShift.create({
+    data: {
+      hospitalId: hospital.id,
+      code: 'D',
+      name: 'الوردية الصباحية (D)',
+      nameEn: 'Day Shift (D)',
+      type: ShiftType.MORNING,
+      startTime: '08:00',
+      endTime: '16:00',
+      workHours: '8.000',
+      graceMinutes: 15,
+    },
+  });
+  const shiftNight = await prisma.workShift.create({
+    data: {
+      hospitalId: hospital.id,
+      code: 'N',
+      name: 'الوردية الليلية (N)',
+      nameEn: 'Night Shift (N)',
+      type: ShiftType.NIGHT,
+      startTime: '20:00',
+      endTime: '08:00',
+      workHours: '12.000',
+      nightAllowance: '35.000',
+      isOvernight: true,
+      graceMinutes: 15,
+    },
+  });
+  await prisma.workShift.create({
+    data: {
+      hospitalId: hospital.id,
+      code: '24',
+      name: 'مناوبة 24 ساعة',
+      nameEn: '24h On-Call Shift',
+      type: ShiftType.FULL_DAY,
+      startTime: '08:00',
+      endTime: '08:00',
+      workHours: '24.000',
+      nightAllowance: '65.000',
+      isOvernight: true,
+      graceMinutes: 20,
+    },
+  });
+
+  const todayUtc = new Date();
+  const baseUtcDay = new Date(
+    Date.UTC(todayUtc.getUTCFullYear(), todayUtc.getUTCMonth(), todayUtc.getUTCDate()),
+  );
+  for (let offset = 0; offset < 5; offset++) {
+    const d = new Date(baseUtcDay.getTime() + offset * 86_400_000);
+    await prisma.employeeShiftDay.upsert({
+      where: { employeeId_rosterDate: { employeeId: empNurseLaila.id, rosterDate: d } },
+      update: {},
+      create: {
+        hospitalId: hospital.id,
+        employeeId: empNurseLaila.id,
+        rosterDate: d,
+        dayType: offset === 4 ? RosterDayType.REST : RosterDayType.WORK,
+        shiftId: offset === 4 ? null : offset % 2 === 0 ? shiftDay.id : shiftNight.id,
+        createdById: hrMuna.id,
+      },
+    });
+    await prisma.employeeShiftDay.upsert({
+      where: { employeeId_rosterDate: { employeeId: empSecurity.id, rosterDate: d } },
+      update: {},
+      create: {
+        hospitalId: hospital.id,
+        employeeId: empSecurity.id,
+        rosterDate: d,
+        dayType: offset === 3 ? RosterDayType.REST : RosterDayType.WORK,
+        shiftId: offset === 3 ? null : shiftNight.id,
+        createdById: hrMuna.id,
+      },
+    });
+  }
+  void empDrAhmed;
 
   // 14. Quality Incident + Tamper-Evident Audit Chain
   await prisma.clinicalIncident.create({

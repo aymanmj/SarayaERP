@@ -254,6 +254,7 @@ async function main() {
 
     // --- الموارد البشرية (HR) ---
     { code: 'hr:dashboard:view', description: 'عرض لوحة الموارد البشرية' },
+    { code: 'hr:employees:view', description: 'عرض ملفات الموظفين والهيكل الوظيفي' },
     { code: 'hr:employees:manage', description: 'إدارة بيانات الموظفين' },
     { code: 'hr:shifts:manage', description: 'إدارة الورديات والمناوبات' },
     { code: 'hr:leave:manage', description: 'إدارة الإجازات' },
@@ -272,6 +273,15 @@ async function main() {
     },
     { code: 'hr:payroll:manage', description: 'إدارة الرواتب' },
     { code: 'hr:attendance:manage', description: 'إدارة الحضور والانصراف' },
+
+    // --- الأرشفة الإلكترونية والصادر والوارد (Archive DMS) ---
+    { code: 'archive:view', description: 'عرض الأرشيف الإلكتروني والمراسلات' },
+    { code: 'archive:manage', description: 'إدارة المستندات والإصدارات والتصنيفات' },
+    {
+      code: 'archive:correspondence:route',
+      description: 'تسجيل وإحالة المراسلات الصادرة والواردة',
+    },
+    { code: 'archive:delete', description: 'حذف المستندات والتصنيفات المؤرشفة' },
 
     // --- الفوترة والحسابات (Billing & Accounting) ---
     {
@@ -904,6 +914,7 @@ async function main() {
       'departments:view',
       'specialties:view',
       'hr:dashboard:view',
+      'hr:employees:view',
       'hr:employees:manage',
       'hr:shifts:manage',
       'hr:leave:manage',
@@ -912,6 +923,8 @@ async function main() {
       'hr:credentials:view',
       'hr:credentials:manage',
       'hr:credentials:verify',
+      'archive:view',
+      'archive:correspondence:route',
     ],
 
     // 14. مسؤول الأنظمة (IT Admin)

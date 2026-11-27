@@ -254,6 +254,23 @@ model Hospital {
   labSpecimenEvents         LabSpecimenEvent[]
   labCultureReports         LabCultureReport[]
   staffCredentials          StaffCredential[]
+  sections                  Section[]
+  jobTitles                 JobTitle[]
+  employees                 Employee[]
+  employeeQualifications    EmployeeQualification[]
+  employeeTrainingCourses   EmployeeTrainingCourse[]
+  employeeDocuments         EmployeeDocument[]
+  employeeActions           EmployeeAction[]
+  leaveBalances             LeaveBalance[]
+  shiftAssignments          ShiftAssignment[]
+  employeeShiftDays         EmployeeShiftDay[]
+  workPeriods               WorkPeriod[]
+  attendanceRecords         AttendanceRecord[]
+  archiveCategories         ArchiveCategory[]
+  archiveDocuments          ArchiveDocument[]
+  documentVersions          DocumentVersion[]
+  correspondences           Correspondence[]
+  correspondenceRoutings    CorrespondenceRouting[]
 }
 
 model Department {
@@ -275,21 +292,25 @@ model Department {
   hospital         Hospital          @relation(fields: [hospitalId], references: [id])
   encounters       Encounter[]
   purchaseRequests PurchaseRequest[]
-  users            User[]
-  wards            Ward[]
-  resources        Resource[]
-  waitlists        Waitlist[]
-  materialRequests MaterialRequest[]
+  users              User[]
+  wards              Ward[]
+  resources          Resource[]
+  waitlists          Waitlist[]
+  materialRequests   MaterialRequest[]
+  sections           Section[]
+  employees          Employee[] @relation("EmployeePrimaryDepartment")
+  secondaryEmployees Employee[] @relation("EmployeeSecondaryDepartment")
 }
 
 model Specialty {
-  id       Int     @id @default(autoincrement())
-  code     String? @unique
-  name     String
-  nameAr   String?
-  nameEn   String?
-  isActive Boolean @default(true)
-  doctors  User[]
+  id        Int        @id @default(autoincrement())
+  code      String?    @unique
+  name      String
+  nameAr    String?
+  nameEn    String?
+  isActive  Boolean    @default(true)
+  doctors   User[]
+  employees Employee[]
 }
 
 model ServiceCategory {
@@ -874,6 +895,15 @@ model User {
   importedBankStatementLines BankStatementLine[]       @relation("BankStatementImportedBy")
   matchedBankStatementLines  BankStatementLine[]       @relation("BankStatementMatchedBy")
   createdPayerIntegrations   PayerIntegrationProfile[] @relation("PayerIntegrationCreatedBy")
+  employeeProfile            Employee?                 @relation("EmployeeUserAccount")
+  uploadedEmployeeDocuments  EmployeeDocument[]        @relation("EmployeeDocumentUploader")
+  approvedEmployeeActions    EmployeeAction[]          @relation("EmployeeActionApprover")
+  createdShiftDays           EmployeeShiftDay[]        @relation("ShiftDayCreator")
+  createdArchiveDocuments    ArchiveDocument[]         @relation("ArchiveDocumentCreator")
+  createdDocumentVersions    DocumentVersion[]         @relation("DocumentVersionCreator")
+  createdCorrespondences     Correspondence[]          @relation("CorrespondenceCreator")
+  routedCorrespondencesOut   CorrespondenceRouting[]   @relation("CorrespondenceRoutingFrom")
+  routedCorrespondencesIn    CorrespondenceRouting[]   @relation("CorrespondenceRoutingTo")
 
   @@unique([hospitalId, biometricId])
 }
@@ -3952,7 +3982,8 @@ model PayrollRun {
 model PayrollSlip {
   id                   Int        @id @default(autoincrement())
   payrollRunId         Int
-  userId               Int
+  userId               Int?
+  employeeId           Int?
   basicSalary          Decimal    @default(0) @db.Decimal(18, 3)
   housingAllowance     Decimal    @default(0) @db.Decimal(18, 3)
   transportAllowance   Decimal    @default(0) @db.Decimal(18, 3)
@@ -3970,27 +4001,42 @@ model PayrollSlip {
   overtimePay          Decimal    @default(0) @db.Decimal(18, 3)
   loanInstallmentsJson Json?
   payrollRun           PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  user                 User       @relation(fields: [userId], references: [id])
+  user                 User?      @relation(fields: [userId], references: [id])
+  employee             Employee?  @relation(fields: [employeeId], references: [id])
+
+  @@index([payrollRunId, employeeId])
 }
 
 model AttendanceRecord {
   id                    Int                  @id @default(autoincrement())
-  userId                Int
+  hospitalId            Int?
+  userId                Int?
+  employeeId            Int?
+  shiftId               Int?
   date                  DateTime
   checkIn               DateTime?
   checkOut              DateTime?
+  source                String               @default("MANUAL") @db.VarChar(24)
   status                String?
   lateMinutes           Int                  @default(0)
+  earlyLeaveMinutes     Int                  @default(0)
   workedHours           Decimal              @default(0) @db.Decimal(10, 3)
+  overtimeHours         Decimal              @default(0) @db.Decimal(10, 3)
   tempLeaveMinutes      Int                  @default(0)
   absenceAuthorization  String?              @db.VarChar(24)
   absenceClassifiedById Int?
   absenceNotes          String?              @db.VarChar(500)
-  user                  User                 @relation(fields: [userId], references: [id])
+  hospital              Hospital?            @relation(fields: [hospitalId], references: [id])
+  user                  User?                @relation(fields: [userId], references: [id])
+  employee              Employee?            @relation(fields: [employeeId], references: [id])
+  shift                 WorkShift?           @relation(fields: [shiftId], references: [id])
   absenceClassifiedBy   User?                @relation("AttendanceAbsenceClassifier", fields: [absenceClassifiedById], references: [id], onDelete: SetNull)
   movements             AttendanceMovement[]
+  workPeriods           WorkPeriod[]
 
   @@unique([userId, date])
+  @@unique([employeeId, date])
+  @@index([hospitalId, date])
 }
 
 model InsuranceProvider {
@@ -4131,37 +4177,54 @@ model PreAuthorizationAttachment {
 }
 
 model WorkShift {
-  id           Int              @id @default(autoincrement())
-  hospitalId   Int
-  name         String
-  type         ShiftType
-  startTime    String
-  endTime      String
-  breakMinutes Int              @default(0)
-  graceMinutes Int              @default(15)
-  rosters      EmployeeRoster[]
-  hospital     Hospital         @relation(fields: [hospitalId], references: [id])
+  id                 Int                @id @default(autoincrement())
+  hospitalId         Int
+  code               String?            @db.VarChar(16)
+  name               String
+  nameEn             String?
+  type               ShiftType
+  startTime          String
+  endTime            String
+  breakMinutes       Int                @default(0)
+  graceMinutes       Int                @default(15)
+  workHours          Decimal            @default(8) @db.Decimal(6, 3)
+  overtimeMultiplier Decimal            @default(1.5) @db.Decimal(6, 3)
+  holidayMultiplier  Decimal            @default(2.0) @db.Decimal(6, 3)
+  nightAllowance     Decimal            @default(0) @db.Decimal(18, 3)
+  isOvernight        Boolean            @default(false)
+  isFlexible         Boolean            @default(false)
+  isScrubShift       Boolean            @default(false)
+  isActive           Boolean            @default(true)
+  rosters            EmployeeRoster[]
+  assignments        ShiftAssignment[]
+  shiftDays          EmployeeShiftDay[]
+  attendanceRecords  AttendanceRecord[]
+  hospital           Hospital           @relation(fields: [hospitalId], references: [id])
 }
 
 model EmployeeRoster {
   id          Int       @id @default(autoincrement())
   hospitalId  Int
-  userId      Int
+  userId      Int?
+  employeeId  Int?
   workShiftId Int
   date        DateTime
   isOffDay    Boolean   @default(false)
   hospital    Hospital  @relation(fields: [hospitalId], references: [id])
-  user        User      @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id])
+  employee    Employee? @relation(fields: [employeeId], references: [id])
   shift       WorkShift @relation(fields: [workShiftId], references: [id])
 
   @@unique([userId, date])
+  @@unique([employeeId, date])
   @@index([date])
 }
 
 model LeaveRequest {
   id           Int         @id @default(autoincrement())
   hospitalId   Int
-  userId       Int
+  userId       Int?
+  employeeId   Int?
   type         LeaveType
   startDate    DateTime
   endDate      DateTime
@@ -4173,7 +4236,10 @@ model LeaveRequest {
   updatedAt    DateTime    @updatedAt
   approvedBy   User?       @relation("LeaveApprover", fields: [approvedById], references: [id])
   hospital     Hospital    @relation(fields: [hospitalId], references: [id])
-  user         User        @relation(fields: [userId], references: [id])
+  user         User?       @relation(fields: [userId], references: [id])
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
+
+  @@index([hospitalId, employeeId, status])
 }
 
 model OperatingTheatre {
@@ -5690,7 +5756,8 @@ model ClinicalNoteTemplate {
 model StaffCredential {
   id               Int       @id @default(autoincrement())
   hospitalId       Int
-  userId           Int
+  userId           Int?
+  employeeId       Int?
   staffCategory    String    @default("MEDICAL")
   credentialType   String
   title            String    @db.VarChar(200)
@@ -5713,13 +5780,15 @@ model StaffCredential {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  hospital    Hospital @relation(fields: [hospitalId], references: [id])
-  user        User     @relation("StaffCredentialOwner", fields: [userId], references: [id])
-  createdBy   User     @relation("StaffCredentialCreator", fields: [createdById], references: [id])
-  verifiedBy  User?    @relation("StaffCredentialVerifier", fields: [verifiedById], references: [id])
-  suspendedBy User?    @relation("StaffCredentialSuspender", fields: [suspendedById], references: [id])
+  hospital    Hospital  @relation(fields: [hospitalId], references: [id])
+  user        User?     @relation("StaffCredentialOwner", fields: [userId], references: [id])
+  employee    Employee? @relation("StaffCredentialEmployee", fields: [employeeId], references: [id])
+  createdBy   User      @relation("StaffCredentialCreator", fields: [createdById], references: [id])
+  verifiedBy  User?     @relation("StaffCredentialVerifier", fields: [verifiedById], references: [id])
+  suspendedBy User?     @relation("StaffCredentialSuspender", fields: [suspendedById], references: [id])
 
   @@index([hospitalId, userId, credentialType])
+  @@index([hospitalId, employeeId, credentialType])
   @@index([hospitalId, status, expiryDate])
 }
 
@@ -8131,7 +8200,8 @@ model LabResultAmendment {
 model EmployeeAdvance {
   id                  Int       @id @default(autoincrement())
   hospitalId          Int
-  userId              Int
+  userId              Int?
+  employeeId          Int?
   advanceNumber       String    @db.VarChar(48)
   amount              Decimal   @db.Decimal(18, 3)
   installments        Int       @default(1)
@@ -8149,20 +8219,23 @@ model EmployeeAdvance {
   updatedAt           DateTime  @updatedAt
 
   hospital          Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  user              User             @relation("EmployeeAdvanceOwner", fields: [userId], references: [id], onDelete: Restrict)
+  user              User?            @relation("EmployeeAdvanceOwner", fields: [userId], references: [id], onDelete: Restrict)
+  employee          Employee?        @relation("EmployeeAdvanceEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   requestedBy       User             @relation("EmployeeAdvanceRequester", fields: [requestedById], references: [id], onDelete: Restrict)
   approvedBy        User?            @relation("EmployeeAdvanceApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   disbursementEntry AccountingEntry? @relation("AdvanceDisbursementEntry", fields: [disbursementEntryId], references: [id], onDelete: Restrict)
 
   @@unique([hospitalId, advanceNumber])
   @@index([hospitalId, userId, status])
+  @@index([hospitalId, employeeId, status])
   @@index([hospitalId, status])
 }
 
 model EmployeeDeduction {
   id                    Int       @id @default(autoincrement())
   hospitalId            Int
-  userId                Int
+  userId                Int?
+  employeeId            Int?
   kind                  String    @db.VarChar(24)
   category              String    @db.VarChar(32)
   title                 String    @db.VarChar(160)
@@ -8178,18 +8251,21 @@ model EmployeeDeduction {
   updatedAt             DateTime  @updatedAt
 
   hospital            Hospital    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  user                User        @relation("EmployeeDeductionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  user                User?       @relation("EmployeeDeductionOwner", fields: [userId], references: [id], onDelete: Restrict)
+  employee            Employee?   @relation("EmployeeDeductionEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   createdBy           User        @relation("EmployeeDeductionCreator", fields: [createdById], references: [id], onDelete: Restrict)
   appliedInPayrollRun PayrollRun? @relation(fields: [appliedInPayrollRunId], references: [id], onDelete: SetNull)
 
   @@index([hospitalId, userId, isActive])
+  @@index([hospitalId, employeeId, isActive])
   @@index([hospitalId, kind, isActive])
 }
 
 model OvertimeRequest {
   id                    Int       @id @default(autoincrement())
   hospitalId            Int
-  userId                Int
+  userId                Int?
+  employeeId            Int?
   date                  DateTime
   requestedHours        Decimal   @db.Decimal(10, 3)
   approvedHours         Decimal?  @db.Decimal(10, 3)
@@ -8206,19 +8282,22 @@ model OvertimeRequest {
   updatedAt             DateTime  @updatedAt
 
   hospital            Hospital    @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  user                User        @relation("OvertimeOwner", fields: [userId], references: [id], onDelete: Restrict)
+  user                User?       @relation("OvertimeOwner", fields: [userId], references: [id], onDelete: Restrict)
+  employee            Employee?   @relation("OvertimeEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   requestedBy         User        @relation("OvertimeRequester", fields: [requestedById], references: [id], onDelete: Restrict)
   approvedBy          User?       @relation("OvertimeApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   appliedInPayrollRun PayrollRun? @relation(fields: [appliedInPayrollRunId], references: [id], onDelete: SetNull)
 
   @@index([hospitalId, userId, date])
+  @@index([hospitalId, employeeId, date])
   @@index([hospitalId, status, date])
 }
 
 model EmployeeSettlement {
   id                      Int       @id @default(autoincrement())
   hospitalId              Int
-  userId                  Int
+  userId                  Int?
+  employeeId              Int?
   settlementNo            String    @db.VarChar(48)
   terminationType         String    @db.VarChar(24)
   hireDate                DateTime
@@ -8261,7 +8340,8 @@ model EmployeeSettlement {
   updatedAt               DateTime  @updatedAt
 
   hospital     Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  user         User             @relation("SettlementOwner", fields: [userId], references: [id], onDelete: Restrict)
+  user         User?            @relation("SettlementOwner", fields: [userId], references: [id], onDelete: Restrict)
+  employee     Employee?        @relation("SettlementEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   createdBy    User             @relation("SettlementCreator", fields: [createdById], references: [id], onDelete: Restrict)
   approvedBy   User?            @relation("SettlementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   paidBy       User?            @relation("SettlementPayer", fields: [paidById], references: [id], onDelete: Restrict)
@@ -8270,6 +8350,7 @@ model EmployeeSettlement {
 
   @@unique([hospitalId, settlementNo])
   @@index([hospitalId, userId, status])
+  @@index([hospitalId, employeeId, status])
   @@index([hospitalId, status, effectiveDate])
 }
 
@@ -8327,6 +8408,7 @@ model BiometricPunchLog {
   hospitalId  Int
   deviceId    Int?
   userId      Int?
+  employeeId  Int?
   biometricId String   @db.VarChar(64)
   punchTime   DateTime
   punchType   String   @default("UNKNOWN") @db.VarChar(24)
@@ -8339,9 +8421,11 @@ model BiometricPunchLog {
   hospital Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
   device   BiometricDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   user     User?            @relation("PunchLogUser", fields: [userId], references: [id], onDelete: SetNull)
+  employee Employee?        @relation("PunchLogEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
 
   @@unique([hospitalId, biometricId, punchTime])
   @@index([hospitalId, punchTime])
+  @@index([hospitalId, employeeId, punchTime])
   @@index([deviceId, punchTime])
 }
 
@@ -8349,7 +8433,8 @@ model AttendanceMovement {
   id                 Int       @id @default(autoincrement())
   hospitalId         Int
   attendanceRecordId Int
-  userId             Int
+  userId             Int?
+  employeeId         Int?
   movementType       String    @db.VarChar(24)
   movementTime       DateTime
   approvalStatus     String    @default("PENDING") @db.VarChar(24)
@@ -8360,10 +8445,12 @@ model AttendanceMovement {
 
   hospital         Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
   attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
-  user             User             @relation("AttendanceMovementUser", fields: [userId], references: [id], onDelete: Restrict)
+  user             User?            @relation("AttendanceMovementUser", fields: [userId], references: [id], onDelete: Restrict)
+  employee         Employee?        @relation("AttendanceMovementEmployee", fields: [employeeId], references: [id], onDelete: Restrict)
   approvedBy       User?            @relation("AttendanceMovementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
 
   @@index([hospitalId, userId, movementTime])
+  @@index([hospitalId, employeeId, movementTime])
   @@index([attendanceRecordId])
 }
 
@@ -8606,4 +8693,530 @@ model RadiologyDoseRecord {
 
   @@index([hospitalId, patientId, recordedAt])
   @@index([hospitalId, modality])
+}
+
+// =====================================================================
+// Batch 45 (Wave 1): Enterprise HR Employee Separation, Rostering & Archive DMS
+// =====================================================================
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+  RESIGNED
+  PROBATION
+}
+
+enum ContractType {
+  PERMANENT
+  TEMPORARY
+  PART_TIME
+  LOCUM
+  CONSULTANT_CONTRACT
+  PROBATION
+}
+
+enum StaffCategory {
+  MEDICAL
+  NURSING
+  ALLIED_HEALTH
+  PHARMACY
+  LABORATORY
+  RADIOLOGY
+  ADMINISTRATIVE
+  SUPPORT_SERVICES
+  TECHNICAL
+}
+
+enum RosterDayType {
+  WORK
+  REST
+  OFF
+  LEAVE
+}
+
+enum EmployeeActionType {
+  HIRE
+  PROMOTION
+  TRANSFER
+  SALARY_CHANGE
+  WARNING
+  SUSPENSION
+  REINSTATEMENT
+  TERMINATION
+  RESIGNATION
+}
+
+enum CorrespondenceType {
+  INCOMING
+  OUTGOING
+  INTERNAL
+}
+
+enum CorrespondencePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum CorrespondenceStatus {
+  NEW
+  IN_PROGRESS
+  REPLIED
+  ARCHIVED
+  CLOSED
+}
+
+model Section {
+  id           Int      @id @default(autoincrement())
+  hospitalId   Int
+  departmentId Int
+  name         String   @db.VarChar(160)
+  nameEn       String?  @db.VarChar(160)
+  code         String?  @db.VarChar(48)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hospital   Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  employees  Employee[]
+
+  @@index([hospitalId, departmentId])
+}
+
+model JobTitle {
+  id        Int      @id @default(autoincrement())
+  hospitalId Int
+  name      String   @db.VarChar(160)
+  nameEn    String?  @db.VarChar(160)
+  code      String?  @db.VarChar(48)
+  level     Int?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hospital           Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employees          Employee[] @relation("EmployeePrimaryJobTitle")
+  secondaryEmployees Employee[] @relation("EmployeeSecondaryJobTitle")
+
+  @@index([hospitalId, isActive])
+}
+
+model Employee {
+  id                      Int            @id @default(autoincrement())
+  hospitalId              Int
+  employeeNo              String         @db.VarChar(64)
+  altamamEmployeeNo       String?        @db.VarChar(64)
+  biometricId             String?        @db.VarChar(64)
+  userId                  Int?           @unique
+  firstNameAr             String         @db.VarChar(120)
+  secondNameAr            String         @default("") @db.VarChar(120)
+  thirdNameAr             String         @default("") @db.VarChar(120)
+  lastNameAr              String?        @default("") @db.VarChar(120)
+  firstNameEn             String?        @db.VarChar(120)
+  secondNameEn            String?        @db.VarChar(120)
+  thirdNameEn             String?        @db.VarChar(120)
+  lastNameEn              String?        @db.VarChar(120)
+  fullName                String         @db.VarChar(255)
+  photoPath               String?        @db.VarChar(500)
+  dateOfBirth             DateTime?
+  gender                  Gender         @default(MALE)
+  nationality             String?        @db.VarChar(80)
+  religion                String?        @db.VarChar(80)
+  maritalStatus           MaritalStatus?
+  dependentsCount         Int            @default(0)
+  nationalId              String?        @db.VarChar(64)
+  nationalIdExpiry        DateTime?
+  passportNo              String?        @db.VarChar(64)
+  passportExpiry          DateTime?
+  residenceNo             String?        @db.VarChar(64)
+  residenceExpiry         DateTime?
+  phone                   String?        @db.VarChar(64)
+  phone2                  String?        @db.VarChar(64)
+  email                   String?        @db.VarChar(160)
+  address                 String?        @db.VarChar(255)
+  city                    String?        @db.VarChar(120)
+  emergencyContactName    String?        @db.VarChar(160)
+  emergencyContactPhone   String?        @db.VarChar(64)
+  emergencyRelation       String?        @db.VarChar(80)
+  departmentId            Int?
+  sectionId               Int?
+  jobTitleId              Int?
+  secondaryDepartmentId   Int?
+  secondaryJobTitleId     Int?
+  managerId               Int?
+  specialtyId             Int?
+  staffCategory           StaffCategory  @default(ADMINISTRATIVE)
+  medicalRank             JobRank?
+  hireDate                DateTime       @default(now())
+  contractType            ContractType   @default(PERMANENT)
+  contractStartDate       DateTime?
+  contractEndDate         DateTime?
+  probationEndDate        DateTime?
+  status                  EmployeeStatus @default(ACTIVE)
+  terminationDate         DateTime?
+  terminationReason       String?        @db.VarChar(500)
+  payBasis                String         @default("MONTHLY") @db.VarChar(24)
+  basicSalary             Decimal        @default(0) @db.Decimal(18, 3)
+  housingAllowance        Decimal        @default(0) @db.Decimal(18, 3)
+  transportAllowance      Decimal        @default(0) @db.Decimal(18, 3)
+  otherAllowance          Decimal        @default(0) @db.Decimal(18, 3)
+  hourlyRate              Decimal        @default(0) @db.Decimal(19, 4)
+  fixedShift6hRate        Decimal        @default(0) @db.Decimal(19, 4)
+  fixedShift12hRate       Decimal        @default(0) @db.Decimal(19, 4)
+  fixedShift24hRate       Decimal        @default(0) @db.Decimal(19, 4)
+  onCallDailyRate         Decimal        @default(0) @db.Decimal(18, 3)
+  standardMonthlyHours    Int            @default(160)
+  currency                String         @default("LYD") @db.VarChar(12)
+  bankName                String?        @db.VarChar(120)
+  bankAccountNo           String?        @db.VarChar(80)
+  iban                    String?        @db.VarChar(64)
+  socialInsuranceNo       String?        @db.VarChar(64)
+  socialInsuranceRate     Decimal?       @db.Decimal(19, 6)
+  medicalInsuranceNo      String?        @db.VarChar(64)
+  medicalInsuranceClass   String?        @db.VarChar(64)
+  medicalInsuranceExpiry  DateTime?
+  isTaxExempt             Boolean        @default(false)
+  isSocialInsuranceExempt Boolean        @default(false)
+  payrollExemptionReason  String?        @db.VarChar(255)
+  annualLeaveBalance      Int            @default(21)
+  isActive                Boolean        @default(true)
+  deletedAt               DateTime?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  hospital            Hospital                 @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  user                User?                    @relation("EmployeeUserAccount", fields: [userId], references: [id], onDelete: SetNull)
+  department          Department?              @relation("EmployeePrimaryDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  secondaryDepartment Department?              @relation("EmployeeSecondaryDepartment", fields: [secondaryDepartmentId], references: [id], onDelete: SetNull)
+  section             Section?                 @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  jobTitle            JobTitle?                @relation("EmployeePrimaryJobTitle", fields: [jobTitleId], references: [id], onDelete: SetNull)
+  secondaryJobTitle   JobTitle?                @relation("EmployeeSecondaryJobTitle", fields: [secondaryJobTitleId], references: [id], onDelete: SetNull)
+  manager             Employee?                @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates        Employee[]               @relation("EmployeeManager")
+  specialty           Specialty?               @relation(fields: [specialtyId], references: [id], onDelete: SetNull)
+  qualifications      EmployeeQualification[]
+  trainingCourses     EmployeeTrainingCourse[]
+  documents           EmployeeDocument[]
+  actions             EmployeeAction[]
+  leaveBalances       LeaveBalance[]
+  shiftAssignments    ShiftAssignment[]
+  shiftDays           EmployeeShiftDay[]
+  rosters             EmployeeRoster[]
+  attendanceRecords   AttendanceRecord[]
+  biometricPunchLogs  BiometricPunchLog[]      @relation("PunchLogEmployee")
+  attendanceMovements AttendanceMovement[]     @relation("AttendanceMovementEmployee")
+  leaveRequests       LeaveRequest[]
+  overtimeRequests    OvertimeRequest[]        @relation("OvertimeEmployee")
+  advances            EmployeeAdvance[]        @relation("EmployeeAdvanceEmployee")
+  deductions          EmployeeDeduction[]      @relation("EmployeeDeductionEmployee")
+  settlements         EmployeeSettlement[]     @relation("SettlementEmployee")
+  credentials         StaffCredential[]        @relation("StaffCredentialEmployee")
+  payrollSlips        PayrollSlip[]
+
+  @@unique([hospitalId, employeeNo])
+  @@unique([hospitalId, altamamEmployeeNo])
+  @@unique([hospitalId, biometricId])
+  @@index([hospitalId, departmentId])
+  @@index([hospitalId, status, isActive])
+  @@index([hospitalId, staffCategory])
+}
+
+model EmployeeQualification {
+  id             Int      @id @default(autoincrement())
+  hospitalId     Int
+  employeeId     Int
+  degree         String   @db.VarChar(120)
+  major          String?  @db.VarChar(160)
+  institution    String   @db.VarChar(200)
+  graduationYear Int?
+  grade          String?  @db.VarChar(64)
+  documentRef    String?  @db.VarChar(255)
+  notes          String?  @db.VarChar(500)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId, employeeId])
+}
+
+model EmployeeTrainingCourse {
+  id             Int       @id @default(autoincrement())
+  hospitalId     Int
+  employeeId     Int
+  courseName     String    @db.VarChar(200)
+  provider       String    @db.VarChar(200)
+  completionDate DateTime?
+  hoursCount     Int?
+  certificateNo  String?   @db.VarChar(120)
+  documentRef    String?   @db.VarChar(255)
+  notes          String?   @db.VarChar(500)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId, employeeId])
+}
+
+model EmployeeDocument {
+  id              Int       @id @default(autoincrement())
+  hospitalId      Int
+  employeeId      Int
+  title           String    @db.VarChar(200)
+  category        String?   @db.VarChar(80)
+  storagePath     String    @db.VarChar(500)
+  originalName    String    @db.VarChar(255)
+  mimeType        String    @db.VarChar(120)
+  fileSize        Int
+  sha256          String    @db.VarChar(64)
+  isEncrypted     Boolean   @default(true)
+  expiryDate      DateTime?
+  alertDaysBefore Int       @default(30)
+  isVerified      Boolean   @default(false)
+  isMandatory     Boolean   @default(false)
+  notes           String?   @db.VarChar(500)
+  uploadedById    Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation("EmployeeDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([hospitalId, employeeId])
+  @@index([hospitalId, expiryDate])
+}
+
+model EmployeeAction {
+  id            Int                @id @default(autoincrement())
+  hospitalId    Int
+  employeeId    Int
+  actionType    EmployeeActionType
+  fromValue     String?            @db.VarChar(255)
+  toValue       String?            @db.VarChar(255)
+  effectiveDate DateTime
+  notes         String?            @db.VarChar(500)
+  approvedById  Int?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedBy User?    @relation("EmployeeActionApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([hospitalId, employeeId])
+}
+
+model LeaveBalance {
+  id              Int       @id @default(autoincrement())
+  hospitalId      Int
+  employeeId      Int
+  year            Int
+  leaveType       LeaveType
+  entitledDays    Decimal   @default(0) @db.Decimal(6, 2)
+  usedDays        Decimal   @default(0) @db.Decimal(6, 2)
+  carriedOverDays Decimal   @default(0) @db.Decimal(6, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  hospital Hospital @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, employeeId, year, leaveType])
+}
+
+model ShiftAssignment {
+  id         Int       @id @default(autoincrement())
+  hospitalId Int
+  employeeId Int
+  shiftId    Int
+  startDate  DateTime
+  endDate    DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  hospital Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    WorkShift @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, employeeId, startDate])
+}
+
+model EmployeeShiftDay {
+  id          Int           @id @default(autoincrement())
+  hospitalId  Int
+  employeeId  Int
+  rosterDate  DateTime      @db.Date
+  dayType     RosterDayType @default(WORK)
+  shiftId     Int?
+  notes       String?       @db.VarChar(500)
+  createdById Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  hospital  Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift     WorkShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  createdBy User?      @relation("ShiftDayCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, rosterDate])
+  @@index([hospitalId, rosterDate])
+  @@index([shiftId])
+}
+
+model WorkPeriod {
+  id                 Int       @id @default(autoincrement())
+  hospitalId         Int
+  attendanceRecordId Int
+  startTime          DateTime
+  endTime            DateTime?
+  durationMinutes    Int?
+  periodType         String    @default("WORK") @db.VarChar(24)
+  isApproved         Boolean   @default(true)
+  notes              String?   @db.VarChar(500)
+  createdAt          DateTime  @default(now())
+
+  hospital         Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  attendanceRecord AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceRecordId])
+}
+
+model ArchiveCategory {
+  id         Int      @id @default(autoincrement())
+  hospitalId Int
+  name       String   @db.VarChar(160)
+  nameEn     String?  @db.VarChar(160)
+  parentId   Int?
+  code       String   @db.VarChar(48)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  hospital  Hospital          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  parent    ArchiveCategory?  @relation("ArchiveCategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  ArchiveCategory[] @relation("ArchiveCategoryTree")
+  documents ArchiveDocument[]
+
+  @@unique([hospitalId, code])
+  @@index([hospitalId, isActive])
+}
+
+model ArchiveDocument {
+  id                Int       @id @default(autoincrement())
+  hospitalId        Int
+  documentNo        String    @db.VarChar(64)
+  title             String    @db.VarChar(255)
+  categoryId        Int?
+  description       String?   @db.VarChar(1000)
+  date              DateTime  @db.Date
+  storagePath       String?   @db.VarChar(500)
+  originalName      String?   @db.VarChar(255)
+  mimeType          String?   @db.VarChar(120)
+  fileSize          Int?
+  sha256            String?   @db.VarChar(64)
+  isEncrypted       Boolean   @default(true)
+  tags              String[]
+  relatedEntityType String?   @db.VarChar(64)
+  relatedEntityId   Int?
+  isStarred         Boolean   @default(false)
+  createdById       Int
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  hospital       Hospital          @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  category       ArchiveCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy      User              @relation("ArchiveDocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  versions       DocumentVersion[]
+  correspondence Correspondence[]
+
+  @@unique([hospitalId, documentNo])
+  @@index([hospitalId, categoryId])
+  @@index([hospitalId, date])
+  @@index([hospitalId, relatedEntityType, relatedEntityId])
+}
+
+model DocumentVersion {
+  id            Int      @id @default(autoincrement())
+  hospitalId    Int
+  documentId    Int
+  versionNumber Int
+  storagePath   String   @db.VarChar(500)
+  originalName  String?  @db.VarChar(255)
+  mimeType      String?  @db.VarChar(120)
+  fileSize      Int?
+  sha256        String?  @db.VarChar(64)
+  isEncrypted   Boolean  @default(true)
+  notes         String?  @db.VarChar(500)
+  createdById   Int
+  createdAt     DateTime @default(now())
+
+  hospital  Hospital        @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  document  ArchiveDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("DocumentVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, versionNumber])
+}
+
+model Correspondence {
+  id                      Int                    @id @default(autoincrement())
+  hospitalId              Int
+  correspondenceNo        String                 @db.VarChar(64)
+  type                    CorrespondenceType
+  date                    DateTime               @db.Date
+  subject                 String                 @db.VarChar(255)
+  senderName              String?                @db.VarChar(160)
+  senderOrg               String?                @db.VarChar(200)
+  receiverName            String?                @db.VarChar(160)
+  receiverOrg             String?                @db.VarChar(200)
+  referenceNo             String?                @db.VarChar(120)
+  relatedCorrespondenceId Int?
+  priority                CorrespondencePriority @default(NORMAL)
+  status                  CorrespondenceStatus   @default(NEW)
+  notes                   String?                @db.VarChar(1000)
+  documentId              Int?
+  createdById             Int
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  hospital              Hospital                @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  relatedCorrespondence Correspondence?         @relation("CorrespondenceChain", fields: [relatedCorrespondenceId], references: [id], onDelete: SetNull)
+  replies               Correspondence[]        @relation("CorrespondenceChain")
+  document              ArchiveDocument?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdBy             User                    @relation("CorrespondenceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  routing               CorrespondenceRouting[]
+
+  @@unique([hospitalId, correspondenceNo])
+  @@index([hospitalId, type, date])
+  @@index([hospitalId, status])
+}
+
+model CorrespondenceRouting {
+  id               Int       @id @default(autoincrement())
+  hospitalId       Int
+  correspondenceId Int
+  fromUserId       Int
+  toUserId         Int
+  instructions     String?   @db.VarChar(500)
+  sentAt           DateTime  @default(now())
+  readAt           DateTime?
+  actionTaken      String?   @db.VarChar(500)
+  notes            String?   @db.VarChar(500)
+
+  hospital       Hospital       @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  correspondence Correspondence @relation(fields: [correspondenceId], references: [id], onDelete: Cascade)
+  fromUser       User           @relation("CorrespondenceRoutingFrom", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUser         User           @relation("CorrespondenceRoutingTo", fields: [toUserId], references: [id], onDelete: Restrict)
+
+  @@index([hospitalId, toUserId, readAt])
+  @@index([correspondenceId])
 }

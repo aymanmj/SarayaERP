@@ -263,10 +263,26 @@ export default function PayrollPage() {
                         >
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-100">
-                              {slip.user?.fullName}
+                              {slip.employee?.fullName || slip.user?.fullName || "—"}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono">
-                              @{slip.user?.username}
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
+                              {slip.employee?.employeeNo && (
+                                <span className="text-sky-400">
+                                  {slip.employee.employeeNo}
+                                </span>
+                              )}
+                              {slip.user?.username ? (
+                                <span>@{slip.user.username}</span>
+                              ) : (
+                                <span className="text-amber-400 font-sans">
+                                  بدون حساب نظام
+                                </span>
+                              )}
+                              {slip.employee?.currency && (
+                                <span className="text-slate-400">
+                                  ({slip.employee.currency})
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4 font-mono text-slate-300">

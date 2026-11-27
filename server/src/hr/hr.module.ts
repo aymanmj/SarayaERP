@@ -3,6 +3,8 @@
 import { Module } from '@nestjs/common';
 import { HrService } from './hr.service';
 import { HrController } from './hr.controller';
+import { EmployeesService } from './employees.service';
+import { EmployeesController } from './employees.controller';
 import { StaffCredentialingService } from './staff-credentialing.service';
 import { StaffCredentialingController } from './staff-credentialing.controller';
 import { HrFinancialService } from './hr-financial.service';
@@ -15,9 +17,20 @@ import { AccountingModule } from '../accounting/accounting.module';
   controllers: [
     StaffCredentialingController,
     HrFinancialController,
+    EmployeesController,
     HrController,
   ],
-  providers: [HrService, StaffCredentialingService, HrFinancialService],
-  exports: [HrService, StaffCredentialingService, HrFinancialService],
+  providers: [
+    HrService,
+    EmployeesService,
+    StaffCredentialingService,
+    HrFinancialService,
+  ],
+  exports: [
+    HrService,
+    EmployeesService,
+    StaffCredentialingService,
+    HrFinancialService,
+  ],
 })
 export class HrModule {}
