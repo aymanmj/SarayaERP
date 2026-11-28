@@ -1,5 +1,5 @@
 // server/test/e2e/hr-employees-rostering-batch45.e2e-spec.ts
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import type { Server } from 'node:http';
@@ -9,6 +9,7 @@ import * as path from 'node:path';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { registerAppBodyParsers } from '../../src/common/http/body-parsers.config';
+import { createAppValidationPipe } from '../../src/common/http/validation-pipe.config';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AuthHelper } from '../auth-helper';
 import { resetDatabase } from '../db-reset';
@@ -31,9 +32,7 @@ describe('Batch 45 Phase 2 — Enterprise HR Employees Separation, Rostering, Ov
     }).compile();
     app = mod.createNestApplication({ bodyParser: false });
     registerAppBodyParsers(app);
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
+    app.useGlobalPipes(createAppValidationPipe(true));
     await app.init();
     db = app.get(PrismaService);
     auth = new AuthHelper(db, app.get(JwtService));
@@ -427,6 +426,7 @@ describe('Batch 45 Phase 2 — Enterprise HR Employees Separation, Rostering, Ov
       basicSalary: 1500 + (idx % 10) * 50,
       hireDate: 45672, // Excel serial date => 2025-01-15
       qualification: 'بكالوريوس تخصصي',
+      ...(idx === 0 ? { nationalId: 119850123456 } : {}),
     }));
 
     const payloadBytes = Buffer.byteLength(

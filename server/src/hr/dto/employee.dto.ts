@@ -9,7 +9,6 @@ import {
   IsEnum,
   IsInt,
   IsNumber,
-  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -1001,12 +1000,112 @@ export class UpdateEmployeeDto {
   isActive?: boolean;
 }
 
+export class BulkImportEmployeeRowDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  employeeNo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  altamamEmployeeNo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  fullName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  firstNameAr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  secondNameAr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  thirdNameAr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  lastNameAr?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  departmentName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  jobTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  staffCategory?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  nationality?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  qualification?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  basicSalary?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  baseSalary?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  nationalId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  gender?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  hireDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  dateOfBirth?: string;
+}
+
 export class BulkImportEmployeesDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(5000)
-  @IsObject({ each: true })
-  employees!: Record<string, unknown>[];
+  @ValidateNested({ each: true })
+  @Type(() => BulkImportEmployeeRowDto)
+  employees!: BulkImportEmployeeRowDto[];
 }
 
 export class LinkEmployeeUserDto {

@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import './common/bullmq-mock';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe, Logger, BadRequestException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { RequestLifecycleInterceptor } from './common/interceptors/request-lifecycle.interceptor';
@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { registerAppBodyParsers } from './common/http/body-parsers.config';
+import { createAppValidationPipe } from './common/http/validation-pipe.config';
 import {
   buildCspDirectives,
   isCorsOriginAllowed,
@@ -105,24 +106,7 @@ async function bootstrap() {
   // ============================================
   // 🛡️ INPUT VALIDATION
   // ============================================
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // Strip unknown properties
-      transform: true, // Auto-transform types
-      forbidNonWhitelisted: isProduction,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      // Validation error formatting
-      exceptionFactory: (errors) => {
-        const messages = errors.map((error) => ({
-          field: error.property,
-          constraints: Object.values(error.constraints || {}),
-        }));
-        return new BadRequestException(JSON.stringify(messages));
-      },
-    }),
-  );
+  app.useGlobalPipes(createAppValidationPipe(isProduction));
 
   // ============================================
   // 🔗 REQUEST CORRELATION (X-Request-Id)
