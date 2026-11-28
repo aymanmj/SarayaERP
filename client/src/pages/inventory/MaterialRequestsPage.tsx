@@ -1,6 +1,6 @@
 // src/pages/inventory/MaterialRequestsPage.tsx
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -51,17 +51,15 @@ export function MaterialRequestsPage() {
       r.fulfillingWarehouse?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const kpis = useMemo(() => {
-    const pendingCount = requests.filter((r) => r.status === "PENDING_APPROVAL").length;
-    const activeFulfillCount = requests.filter(
-      (r) => r.status === "APPROVED" || r.status === "PARTIALLY_ISSUED",
-    ).length;
-    return {
-      total: requests.length,
-      pendingCount,
-      activeFulfillCount,
-    };
-  }, [requests]);
+  const pendingCount = requests.filter((r) => r.status === "PENDING_APPROVAL").length;
+  const activeFulfillCount = requests.filter(
+    (r) => r.status === "APPROVED" || r.status === "PARTIALLY_ISSUED",
+  ).length;
+  const kpis = {
+    total: requests.length,
+    pendingCount,
+    activeFulfillCount,
+  };
 
   const getStatusLabel = (status: string) => {
     switch (status) {

@@ -190,17 +190,22 @@ export function SarayaFilterSelect({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
+  const closeDropdown = () => {
+    setOpen(false);
+    setQuery("");
+  };
+
   useEffect(() => {
     const handleOutside = (event: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false);
+        closeDropdown();
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeDropdown();
     };
     document.addEventListener("mousedown", handleOutside);
     document.addEventListener("keydown", handleEscape);
@@ -213,8 +218,6 @@ export function SarayaFilterSelect({
   useEffect(() => {
     if (open) {
       setTimeout(() => searchRef.current?.focus(), 0);
-    } else {
-      setQuery("");
     }
   }, [open]);
 
@@ -235,7 +238,13 @@ export function SarayaFilterSelect({
         type="button"
         aria-label={ariaLabel || placeholder}
         aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (open) {
+            closeDropdown();
+          } else {
+            setOpen(true);
+          }
+        }}
         className={`w-full flex items-center justify-between gap-2 bg-slate-950 border rounded-xl px-3 py-2 text-xs transition-all cursor-pointer ${
           open
             ? "border-sky-500 ring-1 ring-sky-500/40"
@@ -258,14 +267,14 @@ export function SarayaFilterSelect({
               onClick={(e) => {
                 e.stopPropagation();
                 onChange("");
-                setOpen(false);
+                closeDropdown();
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   e.stopPropagation();
                   onChange("");
-                  setOpen(false);
+                  closeDropdown();
                 }
               }}
               className="p-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400"
@@ -304,7 +313,7 @@ export function SarayaFilterSelect({
               type="button"
               onClick={() => {
                 onChange("");
-                setOpen(false);
+                closeDropdown();
               }}
               className={`w-full text-right px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                 !value
@@ -329,7 +338,7 @@ export function SarayaFilterSelect({
                     type="button"
                     onClick={() => {
                       onChange(opt.value);
-                      setOpen(false);
+                      closeDropdown();
                     }}
                     className={`w-full text-right px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
                       isSelected
