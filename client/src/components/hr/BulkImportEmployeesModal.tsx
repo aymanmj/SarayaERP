@@ -12,10 +12,14 @@ import {
 } from "lucide-react";
 import { hrService } from "../../services/hr.service";
 import {
+  chunkArray,
   downloadEmployeesImportTemplate,
+  offsetImportRowErrors,
   parseEmployeesExcelRows,
   type ParsedEmployeeImportRow,
 } from "../../utils/hrExport";
+
+const IMPORT_BATCH_SIZE = 150;
 
 interface BulkImportEmployeesModalProps {
   open: boolean;
@@ -36,6 +40,12 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
   const [fileName, setFileName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [progress, setProgress] = useState<{
+    currentBatch: number;
+    totalBatches: number;
+    processedRows: number;
+    totalRows: number;
+  } | null>(null);
 
   if (!open) return null;
 
@@ -43,12 +53,15 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
   const showAltamamCol = altamamEnabled || isAltamamMode;
 
   const handleReset = () => {
+    if (submitting) return;
     setParsedRows([]);
     setFileName("");
     setImportErrors([]);
+    setProgress(null);
   };
 
   const handleClose = () => {
+    if (submitting) return;
     handleReset();
     onClose();
   };
@@ -89,26 +102,76 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
   const handleConfirmImport = async () => {
     if (!parsedRows.length) return;
     setSubmitting(true);
+    setImportErrors([]);
+
+    const batches = chunkArray(parsedRows, IMPORT_BATCH_SIZE);
+    let totalImported = 0;
+    let totalUpdated = 0;
+    let processedRows = 0;
+    const allErrors: string[] = [];
+
     try {
-      const result = await hrService.bulkImportEmployees(
-        parsedRows as unknown as Record<string, unknown>[],
-      );
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batch = batches[batchIdx];
+        setProgress({
+          currentBatch: batchIdx + 1,
+          totalBatches: batches.length,
+          processedRows,
+          totalRows: parsedRows.length,
+        });
+
+        const result = await hrService.bulkImportEmployees(
+          batch as unknown as Record<string, unknown>[],
+        );
+        totalImported += result.imported ?? 0;
+        totalUpdated += result.updated ?? 0;
+        processedRows += batch.length;
+
+        if (result.errors?.length) {
+          allErrors.push(
+            ...offsetImportRowErrors(
+              result.errors,
+              batchIdx * IMPORT_BATCH_SIZE,
+            ),
+          );
+        }
+
+        setProgress({
+          currentBatch: batchIdx + 1,
+          totalBatches: batches.length,
+          processedRows,
+          totalRows: parsedRows.length,
+        });
+      }
+
       toast.success(
-        `اكتمل الاستيراد: جديد ${result.imported} | محدث ${result.updated}`,
+        `اكتمل الاستيراد: جديد ${totalImported} | محدث ${totalUpdated}`,
       );
-      if (result.errors?.length) {
-        setImportErrors(result.errors);
+      if (totalImported > 0 || totalUpdated > 0) {
         onSuccess();
+      }
+      if (allErrors.length) {
+        setImportErrors(allErrors);
       } else {
-        onSuccess();
-        handleClose();
+        setParsedRows([]);
+        setFileName("");
+        setImportErrors([]);
+        onClose();
       }
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message || "فشل استيراد بيانات الموظفين.",
-      );
+      const serverMsg =
+        err?.response?.data?.message || "فشل استيراد بيانات الموظفين.";
+      if (totalImported > 0 || totalUpdated > 0) {
+        onSuccess();
+        toast.error(
+          `${serverMsg} (تم حفظ ${totalImported} جديد و ${totalUpdated} محدث من الدفعات السابقة)`,
+        );
+      } else {
+        toast.error(serverMsg);
+      }
     } finally {
       setSubmitting(false);
+      setProgress(null);
     }
   };
 
@@ -146,7 +209,8 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
           <button
             type="button"
             onClick={handleClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800"
+            disabled={submitting}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-40"
           >
             <X className="w-5 h-5" />
           </button>
@@ -277,12 +341,42 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
           )}
         </div>
 
+        {/* Progress Bar */}
+        {submitting && progress && (
+          <div className="px-6 py-3 border-t border-slate-800 bg-slate-900/90 space-y-2">
+            <div className="flex items-center justify-between text-xs text-sky-300 font-bold">
+              <span>
+                جارِ استيراد الدفعة {progress.currentBatch} من{" "}
+                {progress.totalBatches}...
+              </span>
+              <span className="font-mono">
+                {progress.processedRows} / {progress.totalRows} موظف
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (progress.processedRows / Math.max(1, progress.totalRows)) *
+                        100,
+                    ),
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}
-            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold"
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-xs font-bold"
           >
             إغلاق
           </button>
@@ -292,9 +386,11 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
             onClick={handleConfirmImport}
             className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black shadow-lg"
           >
-            {submitting
-              ? "جارِ الاستيراد..."
-              : `تأكيد واستيراد (${parsedRows.length}) موظف`}
+            {submitting && progress
+              ? `جارِ الاستيراد (${progress.currentBatch}/${progress.totalBatches})...`
+              : submitting
+                ? "جارِ الاستيراد..."
+                : `تأكيد واستيراد (${parsedRows.length}) موظف`}
           </button>
         </div>
       </div>

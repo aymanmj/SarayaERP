@@ -112,7 +112,22 @@ function parseImportedDate(value: unknown): Date | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value !== 'string' && typeof value !== 'number') return null;
 
-  const raw = String(value).trim();
+  // Support Excel serial date numbers (e.g. 45672 -> 2025-01-15)
+  if (typeof value === 'number') {
+    if (Number.isFinite(value) && value >= 10000 && value <= 99999) {
+      return new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 86_400_000);
+    }
+    return null;
+  }
+
+  const raw = value.trim();
+  if (/^\d{5}(\.\d+)?$/.test(raw)) {
+    const serial = Number(raw);
+    if (Number.isFinite(serial) && serial >= 10000 && serial <= 99999) {
+      return new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86_400_000);
+    }
+  }
+
   const slashMatch = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (slashMatch) {
     const day = Number(slashMatch[1]);
@@ -1590,13 +1605,7 @@ export class EmployeesService {
           continue;
         }
 
-        let empNo = normalizeOptionalText(row.employeeNo) ?? '';
-        if (!empNo) {
-          empNo = `EMP-${String(autoSeq++).padStart(4, '0')}`;
-          while (empNoSet.has(empNo)) {
-            empNo = `EMP-${String(autoSeq++).padStart(4, '0')}`;
-          }
-        }
+        const requestedEmpNo = normalizeOptionalText(row.employeeNo);
         const altamamNo = normalizeOptionalText(row.altamamEmployeeNo);
         const nationalId = normalizeOptionalText(row.nationalId);
         const phone = normalizeOptionalText(row.phone);
@@ -1683,7 +1692,7 @@ export class EmployeesService {
         });
 
         const existingMatch =
-          byEmpNo.get(empNo) ||
+          (requestedEmpNo ? byEmpNo.get(requestedEmpNo) : undefined) ||
           (altamamNo ? byAltamam.get(altamamNo) : undefined) ||
           (nationalId ? byNational.get(nationalId) : undefined);
 
@@ -1726,6 +1735,14 @@ export class EmployeesService {
           }
           results.updated += 1;
         } else {
+          let empNo = requestedEmpNo ?? '';
+          if (!empNo) {
+            empNo = `EMP-${String(autoSeq++).padStart(4, '0')}`;
+            while (empNoSet.has(empNo)) {
+              empNo = `EMP-${String(autoSeq++).padStart(4, '0')}`;
+            }
+          }
+
           const created = await this.prisma.employee.create({
             data: {
               hospitalId,

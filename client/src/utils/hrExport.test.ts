@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { Packer } from "docx";
 import {
   buildBiometricHoursWordDocument,
+  chunkArray,
   formatMinutesToHoursText,
+  offsetImportRowErrors,
   parseEmployeesExcelRows,
 } from "./hrExport";
 import type { BiometricHoursReportResponse } from "../services/hr.service";
@@ -114,5 +116,18 @@ describe("hrExport helpers", () => {
     expect(buffer.byteLength).toBeGreaterThan(1000);
     // DOCX is a ZIP archive starting with PK\x03\x04
     expect(buffer.subarray(0, 2).toString("utf8")).toBe("PK");
+  });
+
+  it("chunks large employee imports and offsets Arabic batch row error indices", () => {
+    const rows = Array.from({ length: 576 }, (_, idx) => idx + 1);
+    const batches = chunkArray(rows, 150);
+    expect(batches.map((b) => b.length)).toEqual([150, 150, 150, 126]);
+
+    expect(
+      offsetImportRowErrors(
+        ["السطر 3: اسم الموظف مفقود.", "خطأ عام بدون رقم سطر"],
+        150,
+      ),
+    ).toEqual(["السطر 153: اسم الموظف مفقود.", "خطأ عام بدون رقم سطر"]);
   });
 });

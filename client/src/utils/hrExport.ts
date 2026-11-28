@@ -52,6 +52,25 @@ export function formatMinutesToHoursText(minutes: number): string {
   return `${h} س ${String(m).padStart(2, "0")} د`;
 }
 
+export function chunkArray<T>(items: T[], chunkSize: number): T[][] {
+  const safeSize = Math.max(1, Math.floor(chunkSize));
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += safeSize) {
+    chunks.push(items.slice(i, i + safeSize));
+  }
+  return chunks;
+}
+
+export function offsetImportRowErrors(
+  errors: string[],
+  rowOffset: number,
+): string[] {
+  if (!rowOffset) return errors;
+  return errors.map((msg) =>
+    msg.replace(/^السطر\s+(\d+):/, (_match, num) => `السطر ${Number(num) + rowOffset}:`),
+  );
+}
+
 export interface ParsedEmployeeImportRow {
   employeeNo?: string;
   altamamEmployeeNo?: string;

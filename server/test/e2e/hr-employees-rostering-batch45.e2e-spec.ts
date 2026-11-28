@@ -6,9 +6,9 @@ import type { Server } from 'node:http';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import express from 'express';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
+import { registerAppBodyParsers } from '../../src/common/http/body-parsers.config';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { AuthHelper } from '../auth-helper';
 import { resetDatabase } from '../db-reset';
@@ -29,12 +29,8 @@ describe('Batch 45 Phase 2 — Enterprise HR Employees Separation, Rostering, Ov
     const mod = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = mod.createNestApplication();
-    const expressApp = app.getHttpAdapter().getInstance() as express.Express;
-    expressApp.use(
-      '/iclock',
-      express.text({ type: 'text/plain', limit: '2mb' }),
-    );
+    app = mod.createNestApplication({ bodyParser: false });
+    registerAppBodyParsers(app);
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, transform: true }),
     );
@@ -408,5 +404,93 @@ describe('Batch 45 Phase 2 — Enterprise HR Employees Separation, Rostering, Ov
     expect(slip!.basicSalary.toFixed(3)).toBe('1850.000');
     expect(slip!.housingAllowance.toFixed(3)).toBe('150.000');
     expect(slip!.netSalary.toFixed(3)).toBe('2000.000');
+  });
+
+  it('accepts >100KB JSON bulk-import payloads, parses Excel serial dates, and avoids EMP sequence gaps on Altamam re-imports', async () => {
+    const hrAdmin = await auth.createTestUser('b45-bulk-hr', 'synthetic', {
+      permissions: [
+        'hr:view',
+        'hr:manage',
+        'hr:employees:view',
+        'hr:employees:manage',
+      ],
+    });
+    const hospitalId = hrAdmin.user.hospitalId;
+
+    const bulkRows = Array.from({ length: 420 }, (_, idx) => ({
+      altamamEmployeeNo: `TAM-B-${idx + 1}`,
+      fullName: `موظف اختبار الاستيراد الجماعي رقم ${idx + 1} بن علي الفيتوري السرايا الطبي`,
+      departmentName:
+        idx % 2 === 0 ? 'الخدمات الطبية المساندة' : 'الإدارة العامة',
+      jobTitle: idx % 2 === 0 ? 'فني تشغيل وتجهيزات طبية' : 'منسق شؤون إدارية',
+      staffCategory: idx % 2 === 0 ? 'فني' : 'إداري',
+      basicSalary: 1500 + (idx % 10) * 50,
+      hireDate: 45672, // Excel serial date => 2025-01-15
+      qualification: 'بكالوريوس تخصصي',
+    }));
+
+    const payloadBytes = Buffer.byteLength(
+      JSON.stringify({ employees: bulkRows }),
+      'utf8',
+    );
+    expect(payloadBytes).toBeGreaterThan(150 * 1024);
+
+    const bulkRes = await request(app.getHttpServer())
+      .post('/hr/employees/bulk-import')
+      .auth(hrAdmin.accessToken, { type: 'bearer' })
+      .send({ employees: bulkRows })
+      .expect(201);
+    const bulkBody = bulkRes.body as {
+      total: number;
+      imported: number;
+      updated: number;
+      errors: string[];
+    };
+    expect(bulkBody.total).toBe(420);
+    expect(bulkBody.imported).toBe(420);
+    expect(bulkBody.errors).toEqual([]);
+
+    const sampleImported = await db.employee.findFirst({
+      where: { hospitalId, altamamEmployeeNo: 'TAM-B-1' },
+      select: { hireDate: true, employeeNo: true },
+    });
+    expect(sampleImported).not.toBeNull();
+    expect(sampleImported!.hireDate.toISOString().slice(0, 10)).toBe(
+      '2025-01-15',
+    );
+
+    const nextBeforeReimport = await request(app.getHttpServer())
+      .get('/hr/employees/next-number')
+      .auth(hrAdmin.accessToken, { type: 'bearer' })
+      .expect(200);
+    expect(
+      (nextBeforeReimport.body as { nextEmployeeNo: string }).nextEmployeeNo,
+    ).toBe('EMP-0421');
+
+    // Re-import subset by altamamEmployeeNo without employeeNo
+    const reimportRes = await request(app.getHttpServer())
+      .post('/hr/employees/bulk-import')
+      .auth(hrAdmin.accessToken, { type: 'bearer' })
+      .send({
+        employees: bulkRows.slice(0, 5).map((r) => ({
+          ...r,
+          basicSalary: r.basicSalary + 100,
+        })),
+      })
+      .expect(201);
+    expect(
+      (reimportRes.body as { updated: number; imported: number }).updated,
+    ).toBe(5);
+    expect(
+      (reimportRes.body as { updated: number; imported: number }).imported,
+    ).toBe(0);
+
+    const nextAfterReimport = await request(app.getHttpServer())
+      .get('/hr/employees/next-number')
+      .auth(hrAdmin.accessToken, { type: 'bearer' })
+      .expect(200);
+    expect(
+      (nextAfterReimport.body as { nextEmployeeNo: string }).nextEmployeeNo,
+    ).toBe('EMP-0421');
   });
 });

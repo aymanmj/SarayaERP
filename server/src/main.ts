@@ -11,10 +11,10 @@ import { LocalizationInterceptor } from './common/interceptors/localization.inte
 import { CorrelationMiddleware } from './common/middleware/correlation.middleware';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
-import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { registerAppBodyParsers } from './common/http/body-parsers.config';
 import {
   buildCspDirectives,
   isCorsOriginAllowed,
@@ -50,6 +50,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'], // Production logging levels
+    bodyParser: false,
   });
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', 1);
@@ -66,7 +67,7 @@ async function bootstrap() {
   // ============================================
   // 🌍 GLOBAL PREFIX (exclude ZKTeco ADMS hardware push path /iclock/cdata)
   // ============================================
-  app.use('/iclock', express.text({ type: 'text/plain', limit: '2mb' }));
+  registerAppBodyParsers(app);
   app.setGlobalPrefix('api', { exclude: ['iclock/cdata'] });
 
   // ============================================
