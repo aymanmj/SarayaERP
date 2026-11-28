@@ -99,6 +99,51 @@ if [ "$SKIP_SEED" != "true" ]; then
     else
         echo "✅ Database already contains data. Skipping seed."
     fi
+
+    # --------------------------------------------
+    # 2.1 مزامنة صلاحيات الموارد البشرية والأرشفة (Batch 45 Incremental Permissions)
+    # --------------------------------------------
+    node -e "
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    (async () => {
+      const defs = [
+        { code: 'hr:employees:view', description: 'عرض ملفات الموظفين والهيكل الوظيفي', hr: true },
+        { code: 'archive:view', description: 'عرض الأرشيف الإلكتروني والمراسلات', hr: true },
+        { code: 'archive:manage', description: 'إدارة المستندات والإصدارات والتصنيفات', hr: false },
+        { code: 'archive:correspondence:route', description: 'تسجيل وإحالة المراسلات الصادرة والواردة', hr: true },
+        { code: 'archive:delete', description: 'حذف المستندات والتصنيفات المؤرشفة', hr: false },
+      ];
+      const [adminR, superR, hrR] = await Promise.all([
+        prisma.role.findUnique({ where: { name: 'ADMIN' }, select: { id: true } }),
+        prisma.role.findUnique({ where: { name: 'SUPER_ADMIN' }, select: { id: true } }),
+        prisma.role.findUnique({ where: { name: 'HR' }, select: { id: true } }),
+      ]);
+      for (const d of defs) {
+        const p = await prisma.permission.upsert({
+          where: { code: d.code },
+          update: { description: d.description },
+          create: { code: d.code, description: d.description },
+          select: { id: true },
+        });
+        for (const r of [adminR, superR]) {
+          if (!r) continue;
+          await prisma.rolePermission.upsert({
+            where: { roleId_permissionId: { roleId: r.id, permissionId: p.id } },
+            update: {},
+            create: { roleId: r.id, permissionId: p.id },
+          });
+        }
+        if (d.hr && hrR) {
+          await prisma.rolePermission.upsert({
+            where: { roleId_permissionId: { roleId: hrR.id, permissionId: p.id } },
+            update: {},
+            create: { roleId: hrR.id, permissionId: p.id },
+          });
+        }
+      }
+    })().catch(e => { console.error('⚠️ Batch 45 perm sync warning:', e.message); }).finally(() => prisma.\$disconnect());
+    "
 fi
 
 # --------------------------------------------
