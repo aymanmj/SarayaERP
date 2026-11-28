@@ -55,12 +55,12 @@ export function applyThemeToDocument(theme: ClinicalThemeId): void {
 }
 
 function readStoredTheme(): ClinicalThemeId {
-  if (typeof window === "undefined") return "clinical-dark";
+  if (typeof window === "undefined") return "clinical-light";
   try {
     const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return isValidThemeId(raw) ? raw : "clinical-dark";
+    return isValidThemeId(raw) ? raw : "clinical-light";
   } catch {
-    return "clinical-dark";
+    return "clinical-light";
   }
 }
 
@@ -71,7 +71,7 @@ interface ThemeStoreState {
 }
 
 export const useThemeStore = create<ThemeStoreState>((set) => ({
-  theme: "clinical-dark",
+  theme: "clinical-light",
   setTheme: (theme) => {
     try {
       if (typeof window !== "undefined") {

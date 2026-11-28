@@ -31,6 +31,11 @@ import {
   type CorrespondenceType,
 } from "../../services/archive.service";
 import { DocumentViewerModal } from "../../components/archive/DocumentViewerModal";
+import {
+  SarayaFilterSelect,
+  SarayaKpiCard,
+  SarayaPageHeader,
+} from "../../components/ui/SarayaPrimitives";
 
 type ArchiveTab = "documents" | "correspondence" | "inbox" | "categories";
 
@@ -378,41 +383,32 @@ export default function ArchivePage() {
   return (
     <div className="p-6 text-slate-100 h-full flex flex-col space-y-5" dir="rtl">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-slate-900/60 border border-slate-800 rounded-3xl p-5 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-sky-500/15 border border-sky-500/40 text-sky-400">
-            <FolderArchive className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black">
-              الأرشيف الإلكتروني والصادر والوارد (Archive & DMS)
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              حفظ وتوثيق المستندات المؤسسية والإدارية والعقود والمراسلات الرسمية بتشفير AES-256-GCM وفحص أمني ClamAV
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowCorrModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2"
-          >
-            <Mail className="w-4 h-4" /> تسجيل صادر / وارد
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowDocModal(true)}
-            className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-2 shadow-lg"
-          >
-            <Plus className="w-4 h-4" /> أرشفة مستند جديد
-          </button>
-        </div>
-      </div>
+      <SarayaPageHeader
+        title="الأرشيف الإلكتروني والصادر والوارد (Archive & DMS)"
+        subtitle="حفظ وتوثيق المستندات المؤسسية والإدارية والعقود والمراسلات الرسمية بتشفير AES-256-GCM وفحص أمني ClamAV"
+        icon={<FolderArchive className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCorrModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+            >
+              <Mail className="w-4 h-4" /> تسجيل صادر / وارد
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDocModal(true)}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> أرشفة مستند جديد
+            </button>
+          </>
+        }
+      />
 
       {/* Governance Banner */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 text-xs text-amber-200 flex items-center gap-2.5">
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 text-xs text-amber-200 flex items-center gap-2.5">
         <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
         <span>
           <strong>نطاق الحوكمة:</strong> مخصص للأرشيف الإداري والعقود والتراخيص والمراسلات الرسمية للمؤسسة (منفصل تماماً عن السجل الطبي الإلكتروني للمرضى EMR).
@@ -420,35 +416,39 @@ export default function ArchivePage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-          <div className="text-slate-400">المستندات المؤرشفة</div>
-          <div className="text-2xl font-black mt-1 text-white">
-            {stats?.totalDocuments ?? 0}
-          </div>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-          <div className="text-slate-400">الوارد الرسمي</div>
-          <div className="text-2xl font-black mt-1 text-emerald-400">
-            {stats?.incomingCount ?? 0}
-          </div>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-          <div className="text-slate-400">الصادر والمذكرات</div>
-          <div className="text-2xl font-black mt-1 text-sky-400">
-            {(stats?.outgoingCount ?? 0) + (stats?.internalCount ?? 0)}
-          </div>
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-          <div className="text-slate-400">إحالات واردة بانتظار المراجعة</div>
-          <div className="text-2xl font-black mt-1 text-rose-400">
-            {stats?.unreadInboxCount ?? 0}
-          </div>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SarayaKpiCard
+          label="المستندات المؤرشفة"
+          value={stats?.totalDocuments ?? 0}
+          accent="sky"
+          ltrValue
+          icon={<FileText className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="الوارد الرسمي"
+          value={stats?.incomingCount ?? 0}
+          accent="emerald"
+          ltrValue
+          icon={<Mail className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="الصادر والمذكرات"
+          value={(stats?.outgoingCount ?? 0) + (stats?.internalCount ?? 0)}
+          accent="indigo"
+          ltrValue
+          icon={<Send className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="إحالات واردة بانتظار المراجعة"
+          value={stats?.unreadInboxCount ?? 0}
+          accent="rose"
+          ltrValue
+          icon={<Inbox className="w-5 h-5" />}
+        />
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800 w-fit">
+      <div className="flex flex-wrap gap-1.5 bg-slate-900/70 p-1.5 rounded-xl border border-slate-800 w-fit">
         {[
           {
             id: "documents",
@@ -475,10 +475,10 @@ export default function ArchivePage() {
             key={t.id}
             type="button"
             onClick={() => switchTab(t.id as ArchiveTab)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
               tab === t.id
-                ? "bg-sky-600 text-white"
-                : "text-slate-400 hover:bg-slate-800"
+                ? "bg-sky-600 text-white shadow-sm"
+                : "text-slate-400 hover:bg-slate-800/70"
             }`}
           >
             {t.icon}
@@ -490,7 +490,7 @@ export default function ArchivePage() {
       {/* TAB 1: DOCUMENTS */}
       {tab === "documents" && (
         <div className="flex-1 flex flex-col space-y-4 min-h-0">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 flex flex-wrap gap-3 items-center text-xs">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-wrap gap-3 items-center text-xs shadow-sm">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
               <input
@@ -500,18 +500,19 @@ export default function ArchivePage() {
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl pr-9 pl-3 py-2"
               />
             </div>
-            <select
+            <SarayaFilterSelect
               value={docCategoryId}
-              onChange={(e) => setDocCategoryId(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2"
-            >
-              <option value="">كل التصنيفات</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={setDocCategoryId}
+              options={categories.map((c) => ({
+                value: String(c.id),
+                label: c.name,
+              }))}
+              placeholder="كل التصنيفات"
+              allLabel="كل التصنيفات"
+              searchPlaceholder="ابحث في التصنيفات..."
+              className="min-w-[200px]"
+              ariaLabel="تصفية حسب التصنيف"
+            />
             <label className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl bg-slate-950 border border-slate-700">
               <input
                 type="checkbox"

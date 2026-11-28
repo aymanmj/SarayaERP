@@ -22,6 +22,10 @@ import {
   type ShiftType,
   type WorkShiftItem,
 } from "../services/hr.service";
+import {
+  SarayaFilterSelect,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 type ShiftTab = "grid" | "assignments" | "types";
 
@@ -390,60 +394,51 @@ export default function ShiftsPage() {
   };
 
   return (
-    <div className="p-6 text-slate-100 h-full flex flex-col space-y-5" dir="rtl">
+    <div className="text-slate-100 h-full flex flex-col space-y-4" dir="rtl">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-slate-900/60 border border-slate-800 rounded-3xl p-5 shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-sky-500/15 border border-sky-500/40 text-sky-400">
-            <Clock className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black">
-              إدارة الورديات وجدول المناوبات (Shift Rostering)
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              تعريف أنواع الورديات وتوزيع الكوادر الطبية والتمريضية على المناوبات اليومية وأيام الراحة
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowCsvModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4 text-sky-400" />
-            استيراد جدول المناوبات (CSV)
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAssignModal(true)}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2"
-          >
-            <Users className="w-4 h-4" />
-            تعيين وردية لموظف / قسم
-          </button>
-          <button
-            type="button"
-            onClick={openCreateShift}
-            className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-2 shadow-lg"
-          >
-            <Plus className="w-4 h-4" />
-            إضافة وردية جديدة
-          </button>
-        </div>
-      </div>
+      <SarayaPageHeader
+        title="إدارة الورديات وجدول المناوبات (Shift Rostering)"
+        subtitle="تعريف أنواع الورديات وتوزيع الكوادر الطبية والتمريضية على المناوبات اليومية وأيام الراحة"
+        icon={<Clock className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowCsvModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Upload className="w-4 h-4 text-sky-400" />
+              استيراد جدول المناوبات (CSV)
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAssignModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              تعيين وردية لموظف / قسم
+            </button>
+            <button
+              type="button"
+              onClick={openCreateShift}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              إضافة وردية جديدة
+            </button>
+          </>
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800 w-fit">
+      <div className="flex flex-wrap gap-1.5 bg-slate-900/70 p-1.5 rounded-xl border border-slate-800 w-fit">
         <button
           type="button"
           onClick={() => setActiveTab("grid")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === "grid"
-              ? "bg-sky-600 text-white"
-              : "text-slate-400 hover:bg-slate-800"
+              ? "bg-sky-600 text-white shadow-sm"
+              : "text-slate-400 hover:bg-slate-800/70"
           }`}
         >
           <CalendarDays className="w-4 h-4" />
@@ -452,10 +447,10 @@ export default function ShiftsPage() {
         <button
           type="button"
           onClick={() => setActiveTab("assignments")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === "assignments"
-              ? "bg-sky-600 text-white"
-              : "text-slate-400 hover:bg-slate-800"
+              ? "bg-sky-600 text-white shadow-sm"
+              : "text-slate-400 hover:bg-slate-800/70"
           }`}
         >
           <Users className="w-4 h-4" />
@@ -464,10 +459,10 @@ export default function ShiftsPage() {
         <button
           type="button"
           onClick={() => setActiveTab("types")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === "types"
-              ? "bg-sky-600 text-white"
-              : "text-slate-400 hover:bg-slate-800"
+              ? "bg-sky-600 text-white shadow-sm"
+              : "text-slate-400 hover:bg-slate-800/70"
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -478,7 +473,7 @@ export default function ShiftsPage() {
       {activeTab === "grid" && (
         <div className="space-y-4 flex-1 flex flex-col min-h-0">
           {/* Note */}
-          <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-3.5 text-xs text-sky-200 flex items-start gap-2.5">
+          <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2.5 text-xs text-sky-200 flex items-start gap-2.5">
             <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">الجدول اليومي هو المرجع الفعلي للحضور: </span>
@@ -487,7 +482,7 @@ export default function ShiftsPage() {
           </div>
 
           {/* Inline Control & Edit Bar */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-7 gap-3 items-end text-xs">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 md:grid-cols-7 gap-3 items-end text-xs shadow-sm">
             <div>
               <label className="text-slate-400 block mb-1">الشهر</label>
               <input
@@ -499,18 +494,18 @@ export default function ShiftsPage() {
             </div>
             <div>
               <label className="text-slate-400 block mb-1">القسم</label>
-              <select
+              <SarayaFilterSelect
                 value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2"
-              >
-                <option value="">كل الأقسام</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setDepartmentId}
+                options={departments.map((d) => ({
+                  value: String(d.id),
+                  label: d.name,
+                }))}
+                placeholder="كل الأقسام"
+                allLabel="كل الأقسام"
+                searchPlaceholder="ابحث عن قسم..."
+                ariaLabel="تصفية المناوبات حسب القسم"
+              />
             </div>
             <div>
               <label className="text-slate-400 block mb-1">الموظف *</label>

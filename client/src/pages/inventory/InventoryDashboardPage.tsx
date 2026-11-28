@@ -1,42 +1,35 @@
-import { useTranslation } from "react-i18next";
+// src/pages/inventory/InventoryDashboardPage.tsx
+
 import { useState } from "react";
-import { apiClient } from "@/api/apiClient";
-import { InventoryAlertsWidget } from "../../components/inventory/InventoryAlertsWidget";
-import { formatMoney } from "@/lib/utils"; // Assuming utils has formatMoney
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  Legend
-} from 'recharts';
-import { Package, AlertCircle, RefreshCcw, TrendingUp, Loader2 } from "lucide-react";
-
-import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { AlertCircle, Loader2, Package, RefreshCcw, TrendingUp } from "lucide-react";
+import { apiClient } from "@/api/apiClient";
+import { useAuth } from "@/hooks/useAuth";
+import { InventoryAlertsWidget } from "../../components/inventory/InventoryAlertsWidget";
+import { formatMoney } from "../../utils/money";
+import {
+  SarayaFilterSelect,
+  SarayaKpiCard,
+  SarayaPageHeader,
+} from "../../components/ui/SarayaPrimitives";
 
-const COLORS = ['#10b981', '#0ea5e9', '#f59e0b', '#ef4444'];
-
- 
-const StatCard = ({ title, value, icon: Icon, badgeClass, iconClass }: any) => (
-    <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-sm hover:bg-slate-800/50 transition-colors">
-        <div className={`p-3.5 rounded-xl border ${badgeClass}`}>
-            <Icon className={`w-6 h-6 ${iconClass}`} strokeWidth={1.75} />
-        </div>
-        <div>
-            <div className="text-slate-400 text-sm font-medium">{title}</div>
-            <div className="text-2xl font-black text-white mt-1 tabular-nums">{value}</div>
-        </div>
-    </div>
-);
+const COLORS = ["#10b981", "#0ea5e9", "#f59e0b", "#ef4444"];
 
 export function InventoryDashboardPage() {
   const { t, i18n } = useTranslation();
@@ -47,169 +40,217 @@ export function InventoryDashboardPage() {
 
   // 1. Fetch Warehouses
   const { data: warehouses = [] } = useQuery({
-    queryKey: ['warehouses', user?.hospitalId],
+    queryKey: ["warehouses", user?.hospitalId],
     queryFn: async () => {
-       const res = await apiClient.get('/inventory/warehouses');
-       return res.data;
+      const res = await apiClient.get("/inventory/warehouses");
+      return res.data;
     },
-    enabled: !!user?.hospitalId
+    enabled: !!user?.hospitalId,
   });
 
   // 2. Fetch Stats
-  const { data: stats, isLoading: statsLoading, isError } = useQuery({
-    queryKey: ['inventoryStats', user?.hospitalId, selectedWarehouseId],
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["inventoryStats", user?.hospitalId, selectedWarehouseId],
     queryFn: async () => {
-        let url = `/inventory/counts/dashboard/stats?hospitalId=${user?.hospitalId}`;
-        if (selectedWarehouseId !== "all") {
-            url += `&warehouseId=${selectedWarehouseId}`;
-        }
-        const res = await apiClient.get(url);
-        return res.data;
+      let url = `/inventory/counts/dashboard/stats?hospitalId=${user?.hospitalId}`;
+      if (selectedWarehouseId !== "all") {
+        url += `&warehouseId=${selectedWarehouseId}`;
+      }
+      const res = await apiClient.get(url);
+      return res.data;
     },
     enabled: !!user?.hospitalId,
-    staleTime: 60 * 1000, // Client side cache for 1 min
+    staleTime: 60 * 1000,
   });
 
   if (statsLoading) {
-      return <div className="flex h-full items-center justify-center text-slate-500"><Loader2 className="animate-spin w-8 h-8" /></div>;
+    return (
+      <div className="flex h-full items-center justify-center text-slate-500">
+        <Loader2 className="animate-spin w-8 h-8" />
+      </div>
+    );
   }
-  
-  if (isError) return <div className="p-8 text-center text-rose-500">{t("inventory.failedToLoadData", "فشل تحميل البيانات")}</div>;
-  if (!stats) return null; // Or skeleton
+
+  if (isError) {
+    return (
+      <div className="p-8 text-center text-rose-500">
+        {t("inventory.failedToLoadData", "فشل تحميل البيانات")}
+      </div>
+    );
+  }
+  if (!stats) return null;
 
   return (
-    <div className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6 overflow-y-auto custom-scrollbar" dir={isRtl ? "rtl" : "ltr"}>
+    <div
+      className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-5 overflow-y-auto custom-scrollbar"
+      dir={isRtl ? "rtl" : "ltr"}
+    >
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-           <h1 className="text-3xl font-black text-white tracking-tight">{t("inventory.dashboard.title", "لوحة تحكم المخزون")}</h1>
-           <p className="text-sm text-slate-400">{t("inventory.dashboard.subtitle", "مراقبة التنبيهات، حركة الأصناف، وحالة المستودعات.")}</p>
-        </div>
+      <SarayaPageHeader
+        icon={<Package className="w-5 h-5" />}
+        title={t("inventory.dashboard.title", "لوحة تحكم المخزون")}
+        subtitle={t(
+          "inventory.dashboard.subtitle",
+          "مراقبة التنبيهات، حركة الأصناف، وحالة المستودعات.",
+        )}
+        actions={
+          <div className="min-w-[220px]">
+            <SarayaFilterSelect
+              value={selectedWarehouseId === "all" ? "" : selectedWarehouseId}
+              onChange={(val) => setSelectedWarehouseId(val || "all")}
+              placeholder={t("inventory.dashboard.allWarehouses", "كل المستودعات")}
+              allLabel={t("inventory.dashboard.allWarehouses", "كل المستودعات")}
+              options={warehouses.map((w: any) => ({
+                value: String(w.id),
+                label: w.name,
+              }))}
+            />
+          </div>
+        }
+      />
 
-        {/* Warehouse Filter */}
-        <div className="min-w-[200px]">
-            <select 
-                className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2.5"
-                value={selectedWarehouseId}
-                onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            >
-                <option value="all">{t("inventory.dashboard.allWarehouses", "كل المستودعات")}</option>
-                { }
-                {warehouses.map((w: any) => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-            </select>
-        </div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SarayaKpiCard
+          label={t("inventory.dashboard.totalValue", "إجمالي قيمة المخزون")}
+          value={formatMoney(stats.totalValue)}
+          accent="emerald"
+          icon={<TrendingUp className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("inventory.dashboard.lowStockItems", "أصناف منخفضة الرصيد")}
+          value={`${stats.lowStockCount} ${t("inventory.dashboard.items", "صنف")}`}
+          accent="rose"
+          icon={<AlertCircle className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("inventory.dashboard.pendingOrders", "أوامر شراء معلقة")}
+          value={`${stats.pendingOrders} ${t("inventory.dashboard.requests", "طلبات")}`}
+          accent="amber"
+          icon={<Package className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("inventory.dashboard.activeCounts", "عمليات جرد نشطة")}
+          value={`${stats.activeCounts} ${t("inventory.dashboard.operations", "عمليات")}`}
+          accent="sky"
+          icon={<RefreshCcw className="w-5 h-5" />}
+        />
       </div>
 
-       {/* Stats Grid */}
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <StatCard title={t("inventory.dashboard.totalValue", "إجمالي قيمة المخزون")} value={`${formatMoney(stats.totalValue)} ${t("inventory.currencyDinar", "د.ل")}`} icon={TrendingUp} badgeClass="bg-emerald-500/15 border-emerald-500/30" iconClass="text-emerald-400" />
-            <StatCard title={t("inventory.dashboard.lowStockItems", "أصناف منخفضة الرصيد")} value={`${stats.lowStockCount} ${t("inventory.dashboard.items", "صنف")}`} icon={AlertCircle} badgeClass="bg-rose-500/15 border-rose-500/30" iconClass="text-rose-400" />
-            <StatCard title={t("inventory.dashboard.pendingOrders", "أوامر شراء معلقة")} value={`${stats.pendingOrders} ${t("inventory.dashboard.requests", "طلبات")}`} icon={Package} badgeClass="bg-amber-500/15 border-amber-500/30" iconClass="text-amber-400" />
-            <StatCard title={t("inventory.dashboard.activeCounts", "عمليات جرد نشطة")} value={`${stats.activeCounts} ${t("inventory.dashboard.operations", "عمليات")}`} icon={RefreshCcw} badgeClass="bg-sky-500/15 border-sky-500/30" iconClass="text-sky-400" />
-       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main Charts Area */}
-        <div className="lg:col-span-2 space-y-6">
-            {/* Stock Value Trend */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
-                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-emerald-500" />
-                    {t("inventory.dashboard.stockValueTrend", "تطور قيمة المخزون (آخر 6 أشهر)")}
-                 </h3>
-                 <div className="h-[300px] w-full" dir="ltr">
-                    {stats.stockTrend && stats.stockTrend.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={stats.stockTrend}>
-                            <defs>
-                                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                            <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8'}} />
-                            <YAxis stroke="#64748b" tick={{fill: '#94a3b8'}} orientation="right" />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-                                itemStyle={{ color: '#f8fafc' }}
-                                labelStyle={{ color: '#94a3b8', marginBottom: '0.5rem' }}
-                                formatter={(val: number) => [formatMoney(val), t("inventory.dashboard.chartValue", "القيمة")]}
-                            />
-                            <Area type="monotone" dataKey="value" stroke="#10b981" fillOpacity={1} fill="url(#colorValue)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                        {t("inventory.dashboard.noTrendData", "لا توجد بيانات كافية لعرض التطور التاريخي")}
-                      </div>
-                    )}
-                 </div>
+        <div className="lg:col-span-2 space-y-5">
+          {/* Stock Value Trend */}
+          <div className="saraya-card bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-base font-bold text-slate-100 mb-5 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
+              {t("inventory.dashboard.stockValueTrend", "تطور قيمة المخزون (آخر 6 أشهر)")}
+            </h3>
+            <div className="h-[300px] w-full" dir="ltr">
+              {stats.stockTrend && stats.stockTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.stockTrend}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis orientation="right" />
+                    <Tooltip
+                      formatter={(val: number) => [
+                        formatMoney(val),
+                        t("inventory.dashboard.chartValue", "القيمة"),
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#10b981"
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+                  {t("inventory.dashboard.noTrendData", "لا توجد بيانات كافية لعرض التطور التاريخي")}
+                </div>
+              )}
             </div>
+          </div>
 
-            {/* Low Stock Bar Chart */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
-                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-rose-500" />
-                    {t("inventory.dashboard.topLowStock", "أصناف قاربت على النفاذ (Top 5)")}
-                 </h3>
-                 <div className="h-[250px] w-full" dir="ltr">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={stats.lowStockItems} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-                            <XAxis type="number" stroke="#64748b" orientation="top" />
-                            <YAxis dataKey="name" type="category" width={100} stroke="#64748b" tick={{fill: '#e2e8f0', fontSize: 12}} orientation="right" />
-                            <Tooltip 
-                                cursor={{fill: '#1e293b'}} 
-                                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-                                itemStyle={{ color: '#f8fafc' }}
-                                labelStyle={{ color: '#94a3b8' }}
-                            />
-                            <Bar dataKey="qty" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={20} name={t("inventory.dashboard.currentQty", "الكمية الحالية")} />
-                            <Bar dataKey="limit" fill="#334155" radius={[0, 4, 4, 0]} barSize={20} name={t("inventory.dashboard.reorderLimit", "حد الطلب")} />
-                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                 </div>
+          {/* Low Stock Bar Chart */}
+          <div className="saraya-card bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-base font-bold text-slate-100 mb-5 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-500" />
+              {t("inventory.dashboard.topLowStock", "أصناف قاربت على النفاذ (Top 5)")}
+            </h3>
+            <div className="h-[250px] w-full" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.lowStockItems} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" orientation="top" />
+                  <YAxis dataKey="name" type="category" width={110} orientation="right" />
+                  <Tooltip />
+                  <Bar
+                    dataKey="qty"
+                    fill="#f43f5e"
+                    radius={[0, 4, 4, 0]}
+                    barSize={20}
+                    name={t("inventory.dashboard.currentQty", "الكمية الحالية")}
+                  />
+                  <Bar
+                    dataKey="limit"
+                    fill="#64748b"
+                    radius={[0, 4, 4, 0]}
+                    barSize={20}
+                    name={t("inventory.dashboard.reorderLimit", "حد الطلب")}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: "16px" }} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-        </div>
-
-        {/* Sidebar: Alerts & Pie Chart */}
-        <div className="lg:col-span-1 space-y-6">
-          <InventoryAlertsWidget />
-
-          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 shadow-xl">
-              <h3 className="text-lg font-bold text-white mb-6">{t("inventory.dashboard.countsStatus", "حالة عمليات الجرد")}</h3>
-              <div className="h-[200px] w-full" dir="ltr">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={stats.statusDistribution}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                        >
-                            { }
-                            {stats.statusDistribution.map((entry: any, index: number) => (
-                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                        </Pie>
-                        <Tooltip 
-                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#f8fafc' }}
-                            itemStyle={{ color: '#f8fafc' }}
-                        />
-                        <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-              </div>
           </div>
         </div>
 
+        {/* Sidebar: Alerts & Pie Chart */}
+        <div className="lg:col-span-1 space-y-5">
+          <InventoryAlertsWidget />
+
+          <div className="saraya-card bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-base font-bold text-slate-100 mb-5">
+              {t("inventory.dashboard.countsStatus", "حالة عمليات الجرد")}
+            </h3>
+            <div className="h-[220px] w-full" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.statusDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={58}
+                    outerRadius={78}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {stats.statusDistribution.map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

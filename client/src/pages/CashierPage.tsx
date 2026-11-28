@@ -4,12 +4,24 @@ import { InvoiceRefundsPanel } from '../components/InvoiceRefundsPanel';
 import { RefundWorklistPicker } from '../components/RefundWorklistPicker';
 // src/pages/CashierPage.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { apiClient } from "../api/apiClient";
 import { toast } from "sonner";
 import { HasPermission } from "../components/HasPermission";
 import { Money } from "../utils/money";
+import {
+  Banknote,
+  FileBarChart2,
+  Receipt,
+  RefreshCw,
+  Shield,
+} from "lucide-react";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 type InvoiceStatus =
   | "DRAFT"
@@ -97,6 +109,15 @@ export default function CashierPage() {
   const selectedValues = selectedInvoice
     ? getInvoiceShares(selectedInvoice)
     : null;
+
+  const { totalDueNow, totalInsuranceShare } = useMemo(() => {
+    const dueList = invoices.map((inv) => getInvoiceShares(inv).dueNow);
+    const insList = invoices.map((inv) => getInvoiceShares(inv).insurance);
+    return {
+      totalDueNow: Money.toFixed(Money.sumPosted(...dueList), 3),
+      totalInsuranceShare: Money.toFixed(Money.sumPosted(...insList), 3),
+    };
+  }, [invoices]);
 
   const loadWorklist = async () => {
     setLoading(true);
@@ -259,7 +280,7 @@ export default function CashierPage() {
 
   return (
     <div
-      className="flex flex-col h-full text-slate-100 p-6 space-y-6"
+      className="flex flex-col h-full text-slate-100 space-y-4"
       dir={isRtl ? "rtl" : "ltr"}
       data-testid="cashier-page"
     >
@@ -267,58 +288,86 @@ export default function CashierPage() {
       <RefundWorklistPicker onSelect={setSelectedId} />
       {selectedId !== null && <InvoiceRefundsPanel invoiceId={selectedId} onChanged={() => void loadWorklist()} />}
       {/* الهيدر */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">{t("treasury.cashier.title", "خزينة / الكاشير")}</h1>
-          <p className="text-sm text-slate-400">
-            {t("treasury.cashier.subtitle", "تحصيل الفواتير والخدمات (كشف، مختبر، أشعة).")}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={loadWorklist}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm"
-          >
-            {t("treasury.common.refresh", "تحديث")}
-          </button>
-          <button
-            onClick={() => window.open("/cashier/reports/daily", "_blank")}
-            className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-sm text-white"
-          >
-            {t("treasury.cashier.dailyReportBtn", "التقرير اليومي")}
-          </button>
-        </div>
+      <SarayaPageHeader
+        title={t("treasury.cashier.title", "خزينة / الكاشير")}
+        subtitle={t("treasury.cashier.subtitle", "تحصيل الفواتير والخدمات (كشف، مختبر، أشعة).")}
+        icon={<Banknote className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={loadWorklist}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              {t("treasury.common.refresh", "تحديث")}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.open("/cashier/reports/daily", "_blank")}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs text-white font-bold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+            >
+              <FileBarChart2 className="w-4 h-4" />
+              {t("treasury.cashier.dailyReportBtn", "التقرير اليومي")}
+            </button>
+          </>
+        }
+      />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SarayaKpiCard
+          label="فواتير بانتظار التحصيل"
+          value={invoices.length}
+          accent="sky"
+          ltrValue
+          icon={<Receipt className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="إجمالي المطلوب من المرضى"
+          value={`${totalDueNow} ${t("common.currency.lyd", "د.ل")}`}
+          accent="rose"
+          ltrValue
+          icon={<Banknote className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="إجمالي حصص التأمين"
+          value={`${totalInsuranceShare} ${t("common.currency.lyd", "د.ل")}`}
+          accent="emerald"
+          ltrValue
+          icon={<Shield className="w-5 h-5" />}
+        />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1 min-h-0">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-1 min-h-0">
         {/* القائمة */}
-        <div className="xl:col-span-2 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 flex flex-col overflow-hidden">
+        <div className="xl:col-span-2 rounded-xl border border-slate-800 bg-slate-900/80 p-4 flex flex-col overflow-hidden shadow-sm">
           <div className="flex justify-between items-center mb-3">
-            <h2 className="text-sm font-semibold text-slate-200">
+            <h2 className="text-sm font-bold text-slate-200">
               {t("treasury.cashier.invoicesDue", "الفواتير المستحقة للدفع")}
             </h2>
             {loading && (
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[11px] text-slate-400">
                 {t("treasury.common.loading", "جارِ التحميل...")}
               </span>
             )}
           </div>
 
-          <div className="flex-1 overflow-auto rounded-xl border border-slate-800/50">
+          <div className="flex-1 overflow-auto rounded-xl border border-slate-800 custom-scrollbar">
             <table className="min-w-full text-xs text-right">
-              <thead className="bg-slate-900 text-slate-300 sticky top-0">
+              <thead className="bg-slate-950/70 text-slate-400 sticky top-0 border-b border-slate-800">
                 <tr>
-                  <th className="px-3 py-3">{t("treasury.cashier.table.id", "#")}</th>
-                  <th className="px-3 py-3">{t("treasury.cashier.table.patient", "المريض")}</th>
-                  <th className="px-3 py-3 text-center">{t("treasury.cashier.table.type", "النوع")}</th>
-                  <th className="px-3 py-3">{t("treasury.cashier.table.total", "الإجمالي")}</th>
-                  <th className="px-3 py-3 text-sky-400">{t("treasury.cashier.table.insuranceShare", "حصة التأمين")}</th>
-                  <th className="px-3 py-3 text-emerald-400">{t("treasury.cashier.table.patientShare", "حصة المريض")}</th>
-                  <th className="px-3 py-3 text-rose-400">{t("treasury.cashier.table.dueNow", "المطلوب الآن")}</th>
-                  <th className="px-3 py-3">{t("treasury.cashier.table.action", "إجراء")}</th>
+                  <th className="px-3 py-3 font-bold">{t("treasury.cashier.table.id", "#")}</th>
+                  <th className="px-3 py-3 font-bold">{t("treasury.cashier.table.patient", "المريض")}</th>
+                  <th className="px-3 py-3 font-bold text-center">{t("treasury.cashier.table.type", "النوع")}</th>
+                  <th className="px-3 py-3 font-bold">{t("treasury.cashier.table.total", "الإجمالي")}</th>
+                  <th className="px-3 py-3 font-bold text-sky-400">{t("treasury.cashier.table.insuranceShare", "حصة التأمين")}</th>
+                  <th className="px-3 py-3 font-bold text-emerald-400">{t("treasury.cashier.table.patientShare", "حصة المريض")}</th>
+                  <th className="px-3 py-3 font-bold text-rose-400">{t("treasury.cashier.table.dueNow", "المطلوب الآن")}</th>
+                  <th className="px-3 py-3 font-bold">{t("treasury.cashier.table.action", "إجراء")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-800/60">
                 {invoices.length === 0 && !loading && (
                   <tr>
                     <td colSpan={8} className="text-center py-8 text-slate-500">
@@ -336,46 +385,58 @@ export default function CashierPage() {
                       data-testid={`cashier-invoice-row-${inv.id}`}
                       className={`cursor-pointer transition-colors ${
                         selectedId === inv.id
-                          ? "bg-slate-800/80"
-                          : "hover:bg-slate-900/40"
+                          ? "bg-sky-500/12"
+                          : "hover:bg-slate-800/30"
                       }`}
                     >
                       <td className="px-3 py-3">
-                        <span className="font-mono">#{inv.id}</span>
+                        <SarayaLtrBadge className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-sky-400 font-bold">
+                          #{inv.id}
+                        </SarayaLtrBadge>
                         {inv.prescriptionId != null && (
-                          <div className="text-xs text-slate-400">
+                          <div className="text-[11px] text-slate-400 mt-1">
                             {t("treasury.cashier.prescription", "وصفة صيدلية")} #{inv.prescriptionId}
                           </div>
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="font-semibold text-slate-200">
+                        <div className="font-bold text-slate-100">
                           {inv.patient?.fullName}
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <SarayaLtrBadge className="text-[11px] text-slate-400 mt-0.5">
                           {inv.patient?.mrn}
-                        </div>
+                        </SarayaLtrBadge>
                       </td>
                       <td className="px-3 py-3 text-center">
                         {vals.isInsurance ? (
-                          <span className="px-2 py-0.5 rounded bg-purple-900/30 text-purple-300 border border-purple-500/30 text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[10px] font-bold">
                             {t("treasury.cashier.insurance", "تأمين")}
                           </span>
                         ) : (
-                          <span className="text-slate-500 text-[10px]">
+                          <span className="text-slate-400 text-[11px]">
                             {t("treasury.cashier.cash", "نقدي")}
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-3">{formatMoney(vals.total)}</td>
-                      <td className="px-3 py-3 text-sky-300">
-                        {vals.insurance > 0 ? formatMoney(vals.insurance) : "-"}
+                      <td className="px-3 py-3">
+                        <span dir="ltr" className="font-mono tabular-nums">
+                          {formatMoney(vals.total)}
+                        </span>
                       </td>
-                      <td className="px-3 py-3 text-emerald-300 font-medium">
-                        {formatMoney(vals.patient)}
+                      <td className="px-3 py-3 text-sky-400">
+                        <span dir="ltr" className="font-mono tabular-nums">
+                          {vals.insurance > 0 ? formatMoney(vals.insurance) : "-"}
+                        </span>
                       </td>
-                      <td className="px-3 py-3 font-bold text-rose-400">
-                        {formatMoney(vals.dueNow)}
+                      <td className="px-3 py-3 text-emerald-400 font-semibold">
+                        <span dir="ltr" className="font-mono tabular-nums">
+                          {formatMoney(vals.patient)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3 font-black text-rose-400">
+                        <span dir="ltr" className="font-mono tabular-nums">
+                          {formatMoney(vals.dueNow)}
+                        </span>
                       </td>
                       <td className="px-3 py-3">
                         <button
@@ -383,7 +444,7 @@ export default function CashierPage() {
                             e.stopPropagation();
                             handlePrintPdf(inv.id);
                           }}
-                          className="text-sky-400 hover:text-sky-300 underline"
+                          className="text-sky-400 hover:underline font-semibold cursor-pointer"
                         >
                           {t("treasury.common.print", "طباعة")}
                         </button>
@@ -397,7 +458,7 @@ export default function CashierPage() {
         </div>
 
         {/* نموذج الدفع */}
-        <div className="xl:col-span-1 rounded-2xl border border-slate-800 bg-slate-900/50 p-5 h-fit">
+        <div className="xl:col-span-1 rounded-xl border border-slate-800 bg-slate-900/80 p-4 h-fit shadow-sm">
           <h2 className="text-base font-bold text-slate-100 mb-4 border-b border-slate-800 pb-2">
             {t("treasury.cashier.collectPayment", "تحصيل دفعة")}
           </h2>

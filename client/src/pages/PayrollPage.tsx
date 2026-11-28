@@ -12,7 +12,13 @@ import {
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
+import { Banknote, Briefcase, CheckCircle2 } from "lucide-react";
 import { HrFinancialModal } from "../components/hr/HrFinancialModal";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 const formatMoney = (amount: number | string | null | undefined) =>
   formatLydMoney(amount, false);
@@ -104,47 +110,73 @@ export default function PayrollPage() {
 
   return (
     <div
-      className="p-6 h-full flex flex-col space-y-6 text-slate-100"
+      className="h-full flex flex-col space-y-4 text-slate-100"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      {/* 📊 Summary Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-500 font-bold uppercase mb-1">
-              {t("hr.payroll.lastTotalNetLabel", "إجمالي آخر كشف مرتبات")}
-            </div>
-            <div className="text-2xl font-black text-emerald-400">
-              {formatMoney(runs[0]?.totalNet || 0)}{" "}
-              <span className="text-xs">{t("common.lyd", "د.ل")}</span>
-            </div>
-          </div>
-          <BanknotesIcon className="w-10 h-10 text-slate-700 opacity-50" />
-        </div>
-        <div className="md:col-span-3 flex items-center justify-end">
+      <SarayaPageHeader
+        title={t("hr.payroll.pageTitle", "مسير الرواتب والأجور والاستقطاعات")}
+        subtitle={t(
+          "hr.payroll.pageSubtitle",
+          "إصدار كشوف المرتبات الشهرية للكوادر والترحيل المحاسبي الآلي بدقة ثلاثية",
+        )}
+        icon={<Banknote className="w-6 h-6" />}
+        actions={
           <button
             type="button"
             onClick={() => setShowHrFinancialModal(true)}
             data-testid="payroll-open-cap11-modal"
-            className="px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg"
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm flex items-center gap-2 transition-colors cursor-pointer"
           >
-            💼 {t("hr.payroll.cap11Governance", "تصنيفات الصرف والسلف والاستقطاعات ونهاية الخدمة")}
+            <Briefcase className="w-4 h-4" />
+            {t("hr.payroll.cap11Governance", "تصنيفات الصرف والسلف والاستقطاعات ونهاية الخدمة")}
           </button>
-        </div>
+        }
+      />
+
+      {/* 📊 Summary Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <SarayaKpiCard
+          label={t("hr.payroll.lastTotalNetLabel", "إجمالي آخر كشف مرتبات")}
+          value={`${formatMoney(runs[0]?.totalNet || 0)} ${t("common.lyd", "د.ل")}`}
+          accent="emerald"
+          ltrValue
+          icon={<BanknotesIcon className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="إجمالي الدورات الصادرة"
+          value={runs.length}
+          accent="sky"
+          ltrValue
+          icon={<DocumentTextIcon className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="كشوف معتمدة ومرحّلة"
+          value={runs.filter((r) => r.status === "APPROVED").length}
+          accent="indigo"
+          ltrValue
+          icon={<CheckBadgeIcon className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="مسودات قيد المراجعة"
+          value={runs.filter((r) => r.status === "DRAFT").length}
+          accent="amber"
+          ltrValue
+          icon={<CalculatorIcon className="w-5 h-5" />}
+        />
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
         {/* Sidebar */}
-        <div className="w-80 flex flex-col gap-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 space-y-4 shadow-lg">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <CalculatorIcon className="w-5 h-5 text-sky-500" /> {t("hr.payroll.newPayrollTitle", "كشف مرتبات جديد")}
+        <div className="w-full lg:w-72 flex flex-col gap-3 shrink-0">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">
+            <h3 className="text-xs font-bold flex items-center gap-2 text-slate-200">
+              <CalculatorIcon className="w-4 h-4 text-sky-400" /> {t("hr.payroll.newPayrollTitle", "كشف مرتبات جديد")}
             </h3>
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={month}
                 onChange={(e) => setMonth(+e.target.value)}
-                className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs"
+                className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs font-mono"
               >
                 {Array.from({ length: 12 }).map((_, i) => (
                   <option key={i} value={i + 1}>
@@ -156,39 +188,39 @@ export default function PayrollPage() {
                 type="number"
                 value={year}
                 onChange={(e) => setYear(+e.target.value)}
-                className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-center"
+                className="bg-slate-950 border border-slate-700 rounded-xl px-2 py-2 text-xs text-center font-mono"
               />
             </div>
             <button
               onClick={handleGenerate}
-              className="w-full py-3 bg-sky-600 hover:bg-sky-500 rounded-2xl text-xs font-black shadow-lg shadow-sky-900/20 transition-all active:scale-95"
+              className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-extrabold shadow-sm transition-colors cursor-pointer"
             >
               {t("hr.payroll.generateBtn", "بدء التوليد")}
             </button>
           </div>
 
-          <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl p-5 overflow-y-auto custom-scrollbar">
-            <h3 className="text-xs font-bold text-slate-500 uppercase mb-4">
+          <div className="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl p-4 overflow-y-auto custom-scrollbar shadow-sm">
+            <h3 className="text-xs font-bold text-slate-400 mb-3">
               {t("hr.payroll.historyTitle", "السجل التاريخي")}
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {runs.map((run) => (
                 <div
                   key={run.id}
                   onClick={() => handleViewDetails(run.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all ${selectedRun?.id === run.id ? "bg-sky-900/20 border-sky-500" : "bg-slate-950/40 border-slate-800 hover:bg-slate-800/40"}`}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all ${selectedRun?.id === run.id ? "bg-sky-500/15 border-sky-500/50" : "bg-slate-950/60 border-slate-800 hover:bg-slate-800/40"}`}
                 >
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold">
+                    <span dir="ltr" className="font-bold font-mono text-xs tabular-nums">
                       {run.month} / {run.year}
                     </span>
                     <span
-                      className={`text-[8px] px-2 py-0.5 rounded-full border ${run.status === "APPROVED" ? "bg-emerald-900 text-emerald-400 border-emerald-800/30" : "bg-amber-900 text-amber-400 border-amber-800/30"}`}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${run.status === "APPROVED" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-amber-500/15 text-amber-400 border-amber-500/30"}`}
                     >
                       {getStatusLabel(run.status)}
                     </span>
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div dir="ltr" className={`text-xs text-slate-400 font-mono tabular-nums ${isRtl ? "text-right" : "text-left"}`}>
                     {formatMoney(run.totalNet)} {t("common.lyd", "د.ل")}
                   </div>
                 </div>
@@ -198,20 +230,20 @@ export default function PayrollPage() {
         </div>
 
         {/* Main Details */}
-        <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl flex flex-col overflow-hidden shadow-sm">
           {!selectedRun ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-600">
-              <DocumentTextIcon className="w-16 h-16 opacity-10 mb-4" />
-              <p>{t("hr.payroll.selectPayrollPrompt", "اختر كشف مرتبات للمراجعة")}</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 py-16">
+              <DocumentTextIcon className="w-12 h-12 opacity-20 mb-3" />
+              <p className="text-sm">{t("hr.payroll.selectPayrollPrompt", "اختر كشف مرتبات للمراجعة")}</p>
             </div>
           ) : (
             <>
-              <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/20">
+              <div className="px-5 py-3.5 border-b border-slate-800 flex flex-wrap justify-between items-center gap-3 bg-slate-950/40">
                 <div>
-                  <h2 className="text-xl font-black">
+                  <h2 className="text-base md:text-lg font-extrabold">
                     {t("hr.payroll.detailsTitle", "تفاصيل كشف المرتبات {{month}} / {{year}}", { month: selectedRun.month, year: selectedRun.year })}
                   </h2>
-                  <div className="text-[10px] text-slate-500">
+                  <div className="text-xs text-slate-400 mt-0.5">
                     {t("hr.payroll.detailsSubtitle", "الحالة: {{status}} | إجمالي كشف المرتبات: {{total}}", { status: getStatusLabel(selectedRun.status), total: `${formatMoney(selectedRun.totalNet)} ${t("common.lyd", "د.ل")}` })}
                   </div>
                 </div>
@@ -220,22 +252,23 @@ export default function PayrollPage() {
                     <>
                       <button
                         onClick={() => handleDelete(selectedRun.id)}
-                        className="p-2 bg-rose-900/20 text-rose-500 rounded-xl hover:bg-rose-900/40"
+                        className="p-2 bg-rose-500/15 text-rose-400 border border-rose-500/30 rounded-xl hover:bg-rose-500/25 cursor-pointer"
                       >
-                        <TrashIcon className="w-5 h-5" />
+                        <TrashIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={handleApprove}
                         disabled={approving}
-                        className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center gap-1.5 cursor-pointer"
                       >
-                        {t("hr.payroll.approveBtn", "✔ اعتماد وترحيل مالي")}
+                        <CheckCircle2 className="w-4 h-4" />
+                        {t("hr.payroll.approveBtn", "اعتماد وترحيل مالي")}
                       </button>
                     </>
                   )}
                   {selectedRun.status === "APPROVED" && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-900/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold">
-                      <CheckBadgeIcon className="w-5 h-5" /> {t("hr.payroll.approvedBadge", "تم الترحيل للمالية")}
+                    <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold">
+                      <CheckBadgeIcon className="w-4 h-4" /> {t("hr.payroll.approvedBadge", "تم الترحيل للمالية")}
                     </div>
                   )}
                 </div>
@@ -243,59 +276,69 @@ export default function PayrollPage() {
 
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <table className="w-full text-sm text-right">
-                  <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
-                    <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                      <th className="px-6 py-4">{t("hr.payroll.employeeHeader", "الموظف")}</th>
-                      <th className="px-6 py-4">{t("hr.payroll.basicHeader", "الأساسي")}</th>
-                      <th className="px-6 py-4">{t("hr.payroll.allowanceHeader", "علاوات/عمولات")}</th>
-                      <th className="px-6 py-4 text-rose-400">{t("hr.payroll.deductionsHeader", "خصومات")}</th>
-                      <th className="px-6 py-4 text-emerald-400 font-black">
+                  <thead className="bg-slate-950/70 text-slate-400 sticky top-0 backdrop-blur z-10">
+                    <tr className="text-xs border-b border-slate-800">
+                      <th className="px-4 py-3 font-bold">{t("hr.payroll.employeeHeader", "الموظف")}</th>
+                      <th className="px-4 py-3 font-bold">{t("hr.payroll.basicHeader", "الأساسي")}</th>
+                      <th className="px-4 py-3 font-bold">{t("hr.payroll.allowanceHeader", "علاوات/عمولات")}</th>
+                      <th className="px-4 py-3 font-bold text-rose-400">{t("hr.payroll.deductionsHeader", "خصومات")}</th>
+                      <th className="px-4 py-3 text-emerald-400 font-black">
                         {t("hr.payroll.netHeader", "الصافي")}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/50">
+                  <tbody className="divide-y divide-slate-800/60">
                     {selectedRun.slips &&
                       selectedRun.slips.map((slip: any) => (
                         <tr
                           key={slip.id}
                           className="hover:bg-white/[0.02] transition-colors"
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3">
                             <div className="font-bold text-slate-100">
                               {slip.employee?.fullName || slip.user?.fullName || "—"}
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-1">
                               {slip.employee?.employeeNo && (
-                                <span className="text-sky-400">
+                                <SarayaLtrBadge className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-sky-400">
                                   {slip.employee.employeeNo}
-                                </span>
+                                </SarayaLtrBadge>
                               )}
                               {slip.user?.username ? (
-                                <span>@{slip.user.username}</span>
+                                <SarayaLtrBadge className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  @{slip.user.username}
+                                </SarayaLtrBadge>
                               ) : (
-                                <span className="text-amber-400 font-sans">
+                                <span className="text-amber-400 text-[11px]">
                                   بدون حساب نظام
                                 </span>
                               )}
                               {slip.employee?.currency && (
-                                <span className="text-slate-400">
+                                <span className="text-slate-400 font-mono text-[10px]">
                                   ({slip.employee.currency})
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 font-mono text-slate-300">
-                            {formatMoney(slip.basicSalary)}
+                          <td className="px-4 py-3 text-slate-200">
+                            <span dir="ltr" className="font-mono tabular-nums">
+                              {formatMoney(slip.basicSalary)}
+                            </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-sky-400">
-                            {formatMoney(slip.totalAllowances ?? slip.otherAllowance)}
+                          <td className="px-4 py-3 text-sky-400">
+                            <span dir="ltr" className="font-mono tabular-nums">
+                              {formatMoney(slip.totalAllowances ?? slip.otherAllowance)}
+                            </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-rose-400">
-                            {formatMoney(slip.deductions)}
+                          <td className="px-4 py-3 text-rose-400">
+                            <span dir="ltr" className="font-mono tabular-nums">
+                              {formatMoney(slip.deductions)}
+                            </span>
                           </td>
-                          <td className="px-6 py-4 font-mono text-emerald-400 font-black">
-                            {formatMoney(slip.netSalary)}
+                          <td className="px-4 py-3 text-emerald-400 font-black">
+                            <span dir="ltr" className="font-mono tabular-nums">
+                              {formatMoney(slip.netSalary)}
+                            </span>
                           </td>
                         </tr>
                       ))}

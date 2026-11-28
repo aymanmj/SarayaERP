@@ -180,9 +180,9 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
       dir="rtl"
     >
-      <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/60">
           <div className="flex items-center gap-3">
             <div
               className={`p-2.5 rounded-xl border ${
@@ -303,16 +303,21 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
                   <tbody className="divide-y divide-slate-800/70">
                     {parsedRows.slice(0, 50).map((r, i) => (
                       <tr key={i} className="hover:bg-slate-800/40">
-                        <td className="px-3 py-2 text-slate-500">{i + 1}</td>
-                        <td className="px-3 py-2 font-mono text-sky-300">
-                          {r.employeeNo || (
+                        <td className="px-3 py-2 text-slate-500 tabular-nums">{i + 1}</td>
+                        <td className="px-3 py-2 font-mono text-sky-300 tabular-nums">
+                          {r.employeeNo ? (
+                            <span dir="ltr">{r.employeeNo}</span>
+                          ) : (
                             <span className="text-slate-500">تلقائي</span>
                           )}
                         </td>
                         {showAltamamCol && (
                           <td className="px-3 py-2">
                             {r.altamamEmployeeNo ? (
-                              <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-mono">
+                              <span
+                                dir="ltr"
+                                className="inline-block px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 font-mono tabular-nums"
+                              >
                                 {r.altamamEmployeeNo}
                               </span>
                             ) : (
@@ -329,8 +334,8 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
                         <td className="px-3 py-2 text-slate-300">
                           {r.jobTitle || "—"} ({r.staffCategory || "إداري"})
                         </td>
-                        <td className="px-3 py-2 font-mono text-emerald-400">
-                          {r.basicSalary}
+                        <td className="px-3 py-2 font-mono text-emerald-400 tabular-nums">
+                          <span dir="ltr">{r.basicSalary}</span>
                         </td>
                       </tr>
                     ))}
@@ -371,7 +376,7 @@ export const BulkImportEmployeesModal: React.FC<BulkImportEmployeesModalProps> =
         )}
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex justify-end gap-3">
+        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/60 flex justify-end gap-3">
           <button
             type="button"
             onClick={handleClose}

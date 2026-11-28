@@ -84,7 +84,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <NetworkStatusBanner />
-        <Toaster richColors position="top-center" closeButton />
+        <Toaster richColors position="top-center" closeButton dir="rtl" />
 
         {/* ErrorBoundary + Suspense Wrap the App */}
         <AppErrorBoundary>

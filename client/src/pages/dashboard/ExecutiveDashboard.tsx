@@ -24,6 +24,12 @@ import {
   UserIcon,
   ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline";
+import { Activity, Building2 } from "lucide-react";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../../components/ui/SarayaPrimitives";
 import {
   BarChart,
   Bar,
@@ -156,178 +162,202 @@ export function ExecutiveDashboard() {
 
   if (!stats) return null;
 
-  const cardClass = "bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-slate-700 transition-all duration-200";
+  const cardClass =
+    "bg-slate-900/80 border border-slate-800 p-5 rounded-xl shadow-sm hover:border-slate-700 transition-all duration-150";
 
-  const revenueChange = getChangePercentage(stats?.dailyRevenue || 0, stats?.lastMonthRevenue || 0);
+  const revenueChange = getChangePercentage(
+    stats?.dailyRevenue || 0,
+    stats?.lastMonthRevenue || 0,
+  );
   const occupancyChange = stats?.occupancyRate || 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-5">
       {/* Header */}
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">{t("executiveDashboard.title", "لوحة المعلومات التنفيذية")}</h1>
-          <p className="text-slate-400">{t("executiveDashboard.subtitle", "نظرة شاملة على الأداء اليومي والمالي والمؤشرات الحيوية")}</p>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Period Selector */}
-          <div className="flex bg-slate-800 rounded-lg p-1">
-            {(['today', 'week', 'month'] as const).map((period) => (
-              <button
-                key={period}
-                onClick={() => setSelectedPeriod(period)}
-                className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                  selectedPeriod === period 
-                    ? 'bg-sky-600 text-white' 
-                    : 'text-slate-300 hover:text-white'
-                }`}
-              >
-                {period === 'today' 
-                  ? t("executiveDashboard.periods.today", "اليوم") 
-                  : period === 'week' 
-                    ? t("executiveDashboard.periods.week", "الأسبوع") 
-                    : t("executiveDashboard.periods.month", "الشهر")}
-              </button>
-            ))}
-          </div>
-          
-          {/* Refresh Button */}
-          <button
-            onClick={handleManualRefresh}
-            className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-            title={t("executiveDashboard.refreshData", "تحديث البيانات")}
-          >
-            <ArrowPathIcon className="w-5 h-5 text-slate-300" />
-          </button>
-          
-          {/* Last Updated */}
-          <div className="text-xs text-slate-500 font-mono">
-            {t("executiveDashboard.lastUpdated", "آخر تحديث: ")}
-            {stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleTimeString(i18n.language === 'ar' ? 'ar-LY' : 'en-US') : '--:--'}
-          </div>
-        </div>
-      </header>
+      <SarayaPageHeader
+        title={t("executiveDashboard.title", "لوحة المعلومات التنفيذية")}
+        subtitle={t(
+          "executiveDashboard.subtitle",
+          "نظرة شاملة على الأداء اليومي والمالي والمؤشرات الحيوية",
+        )}
+        icon={<Activity className="w-6 h-6" />}
+        actions={
+          <>
+            {/* Period Selector */}
+            <div className="flex bg-slate-950 border border-slate-800 rounded-xl p-1">
+              {(["today", "week", "month"] as const).map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                    selectedPeriod === period
+                      ? "bg-sky-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {period === "today"
+                    ? t("executiveDashboard.periods.today", "اليوم")
+                    : period === "week"
+                      ? t("executiveDashboard.periods.week", "الأسبوع")
+                      : t("executiveDashboard.periods.month", "الشهر")}
+                </button>
+              ))}
+            </div>
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              className="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors cursor-pointer"
+              title={t("executiveDashboard.refreshData", "تحديث البيانات")}
+            >
+              <ArrowPathIcon className="w-4 h-4 text-slate-300" />
+            </button>
+
+            {/* Last Updated */}
+            <div className="text-[11px] text-slate-400 bg-slate-950/70 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+              <span>{t("executiveDashboard.lastUpdated", "آخر تحديث:")}</span>
+              <span dir="ltr" className="font-mono tabular-nums font-semibold">
+                {stats?.lastUpdated
+                  ? new Date(stats.lastUpdated).toLocaleTimeString(
+                      i18n.language === "ar" ? "ar-LY" : "en-US",
+                    )
+                  : "--:--"}
+              </span>
+            </div>
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Daily Revenue */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.dailyRevenue", "الإيرادات اليومية")}</span>
-            <BanknotesIcon className="w-5 h-5 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold text-emerald-400 mb-2">
-            {(stats?.dailyRevenue || 0).toLocaleString()} {t("common.currency.lyd", "د.ل")}
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            {revenueChange >= 0 ? (
-              <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <ArrowTrendingDownIcon className="w-4 h-4 text-red-400" />
-            )}
-            <span className={revenueChange >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-              {Math.abs(revenueChange).toFixed(1)}% {t("executiveDashboard.kpi.vsLastMonth", "عن الشهر الماضي")}
-            </span>
-          </div>
-        </div>
+        <SarayaKpiCard
+          label={t("executiveDashboard.kpi.dailyRevenue", "الإيرادات اليومية")}
+          value={`${(stats?.dailyRevenue || 0).toLocaleString()} ${t("common.currency.lyd", "د.ل")}`}
+          subtext={`${revenueChange >= 0 ? "▲" : "▼"} ${Math.abs(revenueChange).toFixed(1)}% ${t("executiveDashboard.kpi.vsLastMonth", "عن الشهر الماضي")}`}
+          accent="emerald"
+          ltrValue
+          icon={<BanknotesIcon className="w-5 h-5" />}
+        />
 
-        {/* Daily Visits */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.dailyVisits", "الزيارات اليوم")}</span>
-            <UserGroupIcon className="w-5 h-5 text-sky-500" />
-          </div>
-          <div className="text-2xl font-bold text-white mb-2">
-            {stats?.dailyVisits || 0}
-          </div>
-          <div className="text-xs text-slate-400">
-            {stats?.todayAppointments || 0} {t("executiveDashboard.kpi.scheduledAppointments", "موعد محدد")}
-          </div>
-        </div>
+        <SarayaKpiCard
+          label={t("executiveDashboard.kpi.dailyVisits", "الزيارات اليوم")}
+          value={stats?.dailyVisits || 0}
+          subtext={`${stats?.todayAppointments || 0} ${t("executiveDashboard.kpi.scheduledAppointments", "موعد محدد")}`}
+          accent="sky"
+          ltrValue
+          icon={<UserGroupIcon className="w-5 h-5" />}
+        />
 
-        {/* Occupancy Rate */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.occupancyRate", "نسبة الإشغال")}</span>
-            <BuildingOfficeIcon className="w-5 h-5 text-purple-500" />
-          </div>
-          <div className="text-2xl font-bold text-white mb-2">
-            {(occupancyChange || 0).toFixed(1)}%
-          </div>
-          <div className="text-xs text-slate-400">
-            {stats?.activeInpatients || 0} {t("executiveDashboard.kpi.of", "من")} {stats?.totalBeds || 0} {t("executiveDashboard.kpi.beds", "سرير")}
-          </div>
-        </div>
+        <SarayaKpiCard
+          label={t("executiveDashboard.kpi.occupancyRate", "نسبة الإشغال")}
+          value={`${(occupancyChange || 0).toFixed(1)}%`}
+          subtext={`${stats?.activeInpatients || 0} ${t("executiveDashboard.kpi.of", "من")} ${stats?.totalBeds || 0} ${t("executiveDashboard.kpi.beds", "سرير")}`}
+          accent="purple"
+          ltrValue
+          icon={<Building2 className="w-5 h-5" />}
+        />
 
-        {/* Emergency Cases */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.emergencyCases", "حالات الطوارئ")}</span>
-            <ClockIcon className="w-5 h-5 text-red-500" />
-          </div>
-          <div className="text-2xl font-bold text-red-400 mb-2">
-            {stats?.emergencyCases || 0}
-          </div>
-          <div className="text-xs text-slate-400">
-            {stats?.pendingAdmissions || 0} {t("executiveDashboard.kpi.pending", "في الانتظار")}
-          </div>
-        </div>
+        <SarayaKpiCard
+          label={t("executiveDashboard.kpi.emergencyCases", "حالات الطوارئ")}
+          value={stats?.emergencyCases || 0}
+          subtext={`${stats?.pendingAdmissions || 0} ${t("executiveDashboard.kpi.pending", "في الانتظار")}`}
+          accent="rose"
+          ltrValue
+          icon={<ClockIcon className="w-5 h-5" />}
+        />
       </div>
 
       {/* ✅ [NEW] Enhanced KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Average Length of Stay */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.avgLengthOfStay", "متوسط مدة الإقامة")}</span>
-            <ClockIcon className="w-5 h-5 text-indigo-500" />
+        <div className={`${cardClass} saraya-kpi-top-indigo`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-slate-400 text-xs font-bold">
+              {t("executiveDashboard.kpi.avgLengthOfStay", "متوسط مدة الإقامة")}
+            </span>
+            <ClockIcon className="w-5 h-5 text-indigo-400" />
           </div>
-          <div className="text-2xl font-bold text-indigo-400 mb-2">
-            {stats.avgLengthOfStay || 0} <span className="text-sm text-slate-500">{t("executiveDashboard.kpi.days", "يوم")}</span>
+          <div className="text-2xl font-black text-indigo-400 mb-1.5 tabular-nums">
+            {stats.avgLengthOfStay || 0}{" "}
+            <span className="text-xs font-normal text-slate-400">
+              {t("executiveDashboard.kpi.days", "يوم")}
+            </span>
           </div>
-          <div className="text-xs text-slate-400">{t("executiveDashboard.kpi.ofLastDischarges", "من آخر 100 حالة خروج")}</div>
+          <div className="text-[11px] text-slate-400">
+            {t("executiveDashboard.kpi.ofLastDischarges", "من آخر 100 حالة خروج")}
+          </div>
         </div>
 
         {/* Revenue Growth Rate */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.monthlyRevenueGrowth", "نمو الإيرادات الشهري")}</span>
-            <ChartBarIcon className="w-5 h-5 text-cyan-500" />
+        <div className={`${cardClass} saraya-kpi-top-teal`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-slate-400 text-xs font-bold">
+              {t(
+                "executiveDashboard.kpi.monthlyRevenueGrowth",
+                "نمو الإيرادات الشهري",
+              )}
+            </span>
+            <ChartBarIcon className="w-5 h-5 text-teal-400" />
           </div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-2xl font-bold ${(stats.revenueGrowthRate || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {(stats.revenueGrowthRate || 0) >= 0 ? '+' : ''}{stats.revenueGrowthRate || 0}%
+          <div className="flex items-center gap-2 mb-1.5">
+            <span
+              dir="ltr"
+              className={`text-2xl font-black tabular-nums ${
+                (stats.revenueGrowthRate || 0) >= 0
+                  ? "text-emerald-400"
+                  : "text-rose-400"
+              }`}
+            >
+              {(stats.revenueGrowthRate || 0) >= 0 ? "+" : ""}
+              {stats.revenueGrowthRate || 0}%
             </span>
             {(stats.revenueGrowthRate || 0) >= 0 ? (
               <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-400" />
             ) : (
-              <ArrowTrendingDownIcon className="w-5 h-5 text-red-400" />
+              <ArrowTrendingDownIcon className="w-5 h-5 text-rose-400" />
             )}
           </div>
-          <div className="text-xs text-slate-400">
-            {(stats.currentMonthRevenue || 0).toLocaleString()} {t("common.currency.lyd", "د.ل")} {t("executiveDashboard.kpi.thisMonth", "هذا الشهر")}
+          <div className="text-[11px] text-slate-400">
+            <span dir="ltr" className="font-mono tabular-nums font-semibold">
+              {(stats.currentMonthRevenue || 0).toLocaleString()}
+            </span>{" "}
+            {t("common.currency.lyd", "د.ل")}{" "}
+            {t("executiveDashboard.kpi.thisMonth", "هذا الشهر")}
           </div>
         </div>
 
         {/* Top 5 Diagnoses */}
-        <div className={cardClass}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-slate-400 text-sm">{t("executiveDashboard.kpi.top5Diagnoses", "أعلى 5 تشخيصات")}</span>
-            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-500" />
+        <div className={`${cardClass} saraya-kpi-top-amber`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-slate-400 text-xs font-bold">
+              {t("executiveDashboard.kpi.top5Diagnoses", "أعلى 5 تشخيصات")}
+            </span>
+            <ClipboardDocumentListIcon className="w-5 h-5 text-amber-400" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {(stats.top5Diagnoses || []).length > 0 ? (
               (stats.top5Diagnoses || []).map((d, i) => (
-                <div key={i} className="flex justify-between items-center text-xs">
+                <div
+                  key={i}
+                  className="flex justify-between items-center text-xs"
+                >
                   <div className="flex items-center gap-2 truncate flex-1">
-                    <span className="bg-amber-900/30 text-amber-400 px-1.5 py-0.5 rounded text-[10px] font-mono">{d.code}</span>
-                    <span className="text-slate-300 truncate">{d.name}</span>
+                    <SarayaLtrBadge className="bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded text-[10px]">
+                      {d.code}
+                    </SarayaLtrBadge>
+                    <span className="text-slate-200 truncate">{d.name}</span>
                   </div>
-                  <span className="text-slate-400 font-mono mr-2">{d.count}</span>
+                  <span className="text-slate-400 font-mono tabular-nums mr-2">
+                    {d.count}
+                  </span>
                 </div>
               ))
             ) : (
-              <div className="text-center text-slate-500 py-4">{t("executiveDashboard.noData", "لا توجد بيانات")}</div>
+              <div className="text-center text-slate-500 py-4 text-xs">
+                {t("executiveDashboard.noData", "لا توجد بيانات")}
+              </div>
             )}
           </div>
         </div>
@@ -356,10 +386,7 @@ export function ExecutiveDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="day" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b" }}
-                labelStyle={{ color: "#e2e8f0" }}
-              />
+              <Tooltip />
               <Legend />
               <Area type="monotone" dataKey="revenue" name={t("executiveDashboard.charts.revenue", "الإيرادات")} stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
               <Area type="monotone" dataKey="visits" name={t("executiveDashboard.charts.visits", "الزيارات")} stackId="2" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.6} />
@@ -420,9 +447,7 @@ export function ExecutiveDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="status" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b" }}
-              />
+              <Tooltip />
               <Bar dataKey="count" name={t("executiveDashboard.charts.bedCount", "عدد الأسرة")} fill="#38bdf8" />
             </BarChart>
           </ResponsiveContainer>
@@ -449,9 +474,7 @@ export function ExecutiveDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="hour" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b" }}
-              />
+              <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="visits" name={t("executiveDashboard.charts.visits", "الزيارات")} stroke="#38bdf8" strokeWidth={2} />
               <Line type="monotone" dataKey="appointments" name={t("executiveDashboard.charts.appointments", "المواعيد")} stroke="#10b981" strokeWidth={2} />
@@ -493,7 +516,7 @@ export function ExecutiveDashboard() {
                         {activity.description}
                       </div>
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div dir="ltr" className="text-xs text-slate-400 font-mono tabular-nums">
                       {new Date(activity.timestamp).toLocaleTimeString(i18n.language === 'ar' ? 'ar-LY' : 'en-US', {
                         hour: '2-digit',
                         minute: '2-digit'

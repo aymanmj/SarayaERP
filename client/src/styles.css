@@ -13,19 +13,37 @@ html[data-theme="clinical-dark"] {
   --saraya-text-muted: #94a3b8;
   --saraya-accent: #0284c7;
   --saraya-accent-soft: rgba(14, 165, 233, 0.12);
+  --saraya-sidebar-bg: #070f1e;
+  --saraya-sidebar-surface: #0d1a30;
+  --saraya-sidebar-border: rgba(148, 163, 184, 0.14);
+  --saraya-sidebar-text: #f1f5f9;
+  --saraya-sidebar-muted: #94a3b8;
+  --saraya-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --saraya-sidebar-active-bg: rgba(14, 165, 233, 0.16);
+  --saraya-sidebar-active-text: #38bdf8;
+  --saraya-sidebar-accent: #38bdf8;
 }
 
-/* ── 1. Clinical Daylight (Crisp Epic-Style Light Mode for Clinics, Pharmacy & Nursing) ── */
+/* ── 1. Clinical Daylight (Executive Deep Medical Navy Sidebar + Crisp Clinical Canvas) ── */
 html[data-theme="clinical-light"] {
   color-scheme: light;
-  --saraya-canvas: #f3f6fa;
+  --saraya-canvas: #f4f7fb;
   --saraya-surface: #ffffff;
   --saraya-surface-muted: #f8fafc;
-  --saraya-border: #dbe3ee;
+  --saraya-border: #dde5ef;
   --saraya-text: #0f172a;
   --saraya-text-muted: #475569;
   --saraya-accent: #0284c7;
   --saraya-accent-soft: rgba(2, 132, 199, 0.1);
+  --saraya-sidebar-bg: #0c1a2e;
+  --saraya-sidebar-surface: #12243d;
+  --saraya-sidebar-border: rgba(148, 163, 184, 0.16);
+  --saraya-sidebar-text: #f8fafc;
+  --saraya-sidebar-muted: #94a3b8;
+  --saraya-sidebar-hover: rgba(255, 255, 255, 0.07);
+  --saraya-sidebar-active-bg: rgba(14, 165, 233, 0.18);
+  --saraya-sidebar-active-text: #7dd3fc;
+  --saraya-sidebar-accent: #38bdf8;
 
   /* Neutral scales (slate, gray, zinc, neutral) remapped cleanly for daylight */
   --color-slate-950: #f3f6fa;
@@ -183,7 +201,7 @@ html[data-theme="clinical-light"] {
   --color-pink-200: #9d174d;
 }
 
-/* ── 2. Saraya Medical Signature Daylight (Calm Clinical Sage & Teal Identity) ── */
+/* ── 2. Saraya Medical Signature Daylight (Deep Pine Teal Sidebar + Calm Clinical Surface) ── */
 html[data-theme="clinical-emerald"] {
   color-scheme: light;
   --saraya-canvas: #edf4f2;
@@ -194,6 +212,15 @@ html[data-theme="clinical-emerald"] {
   --saraya-text-muted: #3f5e59;
   --saraya-accent: #0f766e;
   --saraya-accent-soft: rgba(15, 118, 110, 0.12);
+  --saraya-sidebar-bg: #092421;
+  --saraya-sidebar-surface: #0f332f;
+  --saraya-sidebar-border: rgba(148, 163, 184, 0.18);
+  --saraya-sidebar-text: #f0fdfa;
+  --saraya-sidebar-muted: #99c2bc;
+  --saraya-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --saraya-sidebar-active-bg: rgba(20, 184, 166, 0.22);
+  --saraya-sidebar-active-text: #5eead4;
+  --saraya-sidebar-accent: #2dd4bf;
 
   /* Eucalyptus-tinted neutral scales */
   --color-slate-950: #edf4f2;
@@ -515,21 +542,173 @@ html[data-theme="clinical-emerald"] {
   fill: var(--saraya-accent-soft) !important;
 }
 
-/* Distinct sidebar/header polish per daylight theme */
-html[data-theme="clinical-light"] aside {
+/* ── Executive Navigation Shell & Enterprise Polish ── */
+.saraya-exec-sidebar {
+  background-color: var(--saraya-sidebar-bg) !important;
+  color: var(--saraya-sidebar-text) !important;
+  border-color: var(--saraya-sidebar-border) !important;
+  box-shadow: 0 4px 24px -4px rgba(2, 6, 23, 0.28);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-brand {
+  border-color: var(--saraya-sidebar-border);
+  background-color: var(--saraya-sidebar-bg);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-brand-title {
+  color: var(--saraya-sidebar-text) !important;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-brand-eyebrow {
+  color: #d4b158;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-section-btn {
+  color: var(--saraya-sidebar-muted);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-section-btn:hover {
+  color: var(--saraya-sidebar-text);
+  background-color: var(--saraya-sidebar-hover);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-section-btn[data-open="true"] {
+  color: var(--saraya-sidebar-text);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-section-icon {
+  color: var(--saraya-sidebar-muted);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-section-btn[data-open="true"] .saraya-sidebar-section-icon {
+  color: var(--saraya-sidebar-accent);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-rail {
+  border-color: var(--saraya-sidebar-border);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-link {
+  color: var(--saraya-sidebar-muted);
+  border-color: transparent;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-link:hover {
+  color: var(--saraya-sidebar-text);
+  background-color: var(--saraya-sidebar-hover);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-link-active {
+  background-color: var(--saraya-sidebar-active-bg);
+  color: var(--saraya-sidebar-active-text) !important;
+  border-color: var(--saraya-sidebar-accent) !important;
+  font-weight: 600;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-footer {
+  background-color: var(--saraya-sidebar-surface);
+  border-color: var(--saraya-sidebar-border);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-user-name {
+  color: var(--saraya-sidebar-text) !important;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-user-meta {
+  color: var(--saraya-sidebar-muted);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-sessions-link {
+  color: var(--saraya-sidebar-active-text);
+}
+
+.saraya-exec-sidebar .saraya-sidebar-logout {
+  background-color: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.28);
+  color: #fda4af;
+}
+
+.saraya-exec-sidebar .saraya-sidebar-logout:hover {
+  background-color: rgba(244, 63, 94, 0.24);
+  color: #ffe4e6 !important;
+}
+
+.saraya-login-showcase {
+  background: linear-gradient(155deg, #0b1d39 0%, #071327 60%, #060e1f 100%) !important;
+  color: #f8fafc !important;
+}
+
+.saraya-login-showcase .saraya-login-title {
+  color: #ffffff !important;
+}
+
+.saraya-login-showcase .saraya-login-subtitle {
+  color: #cbd5e1 !important;
+}
+
+.saraya-login-showcase .saraya-login-muted {
+  color: #94a3b8 !important;
+}
+
+.saraya-login-showcase .saraya-login-card {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+.saraya-login-showcase .saraya-login-card:hover {
+  background-color: rgba(255, 255, 255, 0.07) !important;
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"]) .saraya-exec-header {
   background-color: var(--saraya-surface);
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+  border-bottom-color: var(--saraya-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-html[data-theme="clinical-emerald"] aside {
-  background-color: #f7fbfa;
-  border-top: 3px solid #0f766e;
-  box-shadow: 0 1px 4px 0 rgba(15, 118, 110, 0.08);
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"])
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus {
+  border-color: var(--saraya-accent);
+  box-shadow: 0 0 0 3px var(--saraya-accent-soft);
+  outline: none;
 }
 
-html[data-theme="clinical-emerald"] header {
-  background-color: #f9fcfb;
-  border-bottom-color: #cde0db;
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"]) tbody tr:hover {
+  background-color: rgba(2, 132, 199, 0.035);
+}
+
+:is(html[data-theme="clinical-light"], html[data-theme="clinical-emerald"]) [data-sonner-toast] {
+  background-color: var(--saraya-surface) !important;
+  border-color: var(--saraya-border) !important;
+  color: var(--saraya-text) !important;
+  box-shadow: 0 10px 30px -8px rgba(15, 23, 42, 0.16) !important;
+}
+
+.saraya-card {
+  background-color: var(--saraya-surface);
+  border-color: var(--saraya-border);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.saraya-kpi-top-sky {
+  border-top: 3px solid #0284c7 !important;
+}
+.saraya-kpi-top-emerald {
+  border-top: 3px solid #059669 !important;
+}
+.saraya-kpi-top-amber {
+  border-top: 3px solid #d97706 !important;
+}
+.saraya-kpi-top-rose {
+  border-top: 3px solid #e11d48 !important;
+}
+.saraya-kpi-top-indigo {
+  border-top: 3px solid #4f46e5 !important;
+}
+.saraya-kpi-top-purple {
+  border-top: 3px solid #7c3aed !important;
+}
+.saraya-kpi-top-teal {
+  border-top: 3px solid #0d9488 !important;
 }
 
 .tabular-nums {

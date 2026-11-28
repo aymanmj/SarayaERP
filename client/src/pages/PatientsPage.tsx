@@ -16,6 +16,25 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { MpiSearchModal } from "@/components/patients/MpiSearchModal";
 import { PatientGovernanceDialog } from "@/components/patients/PatientGovernanceDialog";
+import {
+  ClipboardList,
+  FileSignature,
+  FileText,
+  Globe,
+  Pencil,
+  Plus,
+  Receipt,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UserCheck,
+  Users,
+} from "lucide-react";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "@/components/ui/SarayaPrimitives";
 
 // --- Types ---
 type Gender = "MALE" | "FEMALE" | "OTHER" | null;
@@ -280,39 +299,40 @@ export function PatientsPage() {
       dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            {t("patients.title")}
-          </h1>
-          <p className="text-sm text-slate-400">
-            {t("patients.subTitle")}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setMpiModalOpen(true)}
-            className="px-6 py-2.5 bg-violet-600/20 border border-violet-500/50 hover:bg-violet-600/40 text-violet-300 rounded-2xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2"
-          >
-            🔍 {t("patients.mpiSearch")}
-          </button>
-          <button
-            onClick={() => openModal()}
-            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
-          >
-            + {t("patients.addNew")}
-          </button>
-        </div>
-      </div>
+      <SarayaPageHeader
+        title={t("patients.title")}
+        subtitle={t("patients.subTitle")}
+        icon={<Users className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setMpiModalOpen(true)}
+              className="px-4 py-2 bg-violet-600/15 border border-violet-500/40 hover:bg-violet-600/30 text-violet-400 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Globe className="w-4 h-4" />
+              {t("patients.mpiSearch")}
+            </button>
+            <button
+              type="button"
+              onClick={() => openModal()}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              {t("patients.addNew")}
+            </button>
+          </>
+        }
+      />
 
       {/* Search & Stats */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-        <div className="xl:col-span-3 relative group">
-          <span className={`absolute inset-y-0 ${isRtl ? "right-4" : "left-4"} flex items-center text-slate-500`}>
-            🔍
-          </span>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-3 items-stretch">
+        <div className="xl:col-span-2 relative flex items-center">
+          <Search
+            className={`w-4 h-4 text-slate-400 absolute ${isRtl ? "right-3.5" : "left-3.5"}`}
+          />
           <input
-            className={`w-full bg-slate-900/60 border border-slate-800 rounded-2xl ${isRtl ? "pr-12 pl-4" : "pl-12 pr-4"} py-3 text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-600 shadow-inner`}
+            className={`w-full bg-slate-900/80 border border-slate-800 rounded-xl ${isRtl ? "pr-10 pl-4" : "pl-10 pr-4"} py-2.5 text-sm focus:border-sky-500 outline-none transition-all placeholder:text-slate-500 shadow-sm`}
             placeholder={t("patients.searchPlaceholder")}
             value={search}
             onChange={(e) => {
@@ -321,39 +341,42 @@ export function PatientsPage() {
             }}
           />
         </div>
-        <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-3 flex items-center justify-around text-xs">
-          <div className="text-center">
-            <div className="text-slate-500">{t("patients.statsTotal")}</div>
-            <div className="font-bold text-white">{meta?.totalCount ?? 0}</div>
-          </div>
-          <div className="w-px h-8 bg-slate-800"></div>
-          <div className="text-center">
-            <div className="text-slate-500">{t("patients.statsResults")}</div>
-            <div className="font-bold text-sky-400">{patients.length}</div>
-          </div>
-        </div>
+        <SarayaKpiCard
+          label={t("patients.statsTotal")}
+          value={meta?.totalCount ?? 0}
+          accent="sky"
+          ltrValue
+          icon={<Users className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("patients.statsResults")}
+          value={patients.length}
+          accent="emerald"
+          ltrValue
+          icon={<UserCheck className="w-5 h-5" />}
+        />
       </div>
 
       {/* Main Table */}
-      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+      <div className="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden flex flex-col shadow-sm">
         <div className="overflow-x-auto custom-scrollbar flex-1">
           <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
-            <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
-              <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">{t("patients.tableNo")}</th>
-                <th className="px-6 py-4 font-bold">{t("patients.tableName")}</th>
-                <th className="px-6 py-4 font-bold text-center">
+            <thead className="bg-slate-950/70 text-slate-400 sticky top-0 backdrop-blur z-10">
+              <tr className="text-xs border-b border-slate-800">
+                <th className="px-4 py-3 font-bold">{t("patients.tableNo")}</th>
+                <th className="px-4 py-3 font-bold">{t("patients.tableName")}</th>
+                <th className="px-4 py-3 font-bold text-center">
                   {t("patients.tableAgeGender")}
                 </th>
-                <th className="px-6 py-4 font-bold">{t("patients.tableInsurance")}</th>
-                <th className="px-6 py-4 font-bold">{t("patients.tableStatus")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("patients.tableActions")}</th>
+                <th className="px-4 py-3 font-bold">{t("patients.tableInsurance")}</th>
+                <th className="px-4 py-3 font-bold">{t("patients.tableStatus")}</th>
+                <th className="px-4 py-3 font-bold text-center">{t("patients.tableActions")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-slate-800/60">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10">
+                  <td colSpan={6} className="text-center py-12 text-slate-400">
                     {t("common.loading")}
                   </td>
                 </tr>
@@ -363,129 +386,147 @@ export function PatientsPage() {
                     key={p.id}
                     className="hover:bg-white/[0.02] transition-colors group"
                   >
-                    <td className="px-6 py-4 font-mono text-sky-400 font-bold">
-                      {p.mrn}
+                    <td className="px-4 py-3">
+                      <SarayaLtrBadge className="px-2 py-0.5 rounded-md bg-slate-800 text-sky-400 border border-slate-700 text-xs font-bold">
+                        {p.mrn}
+                      </SarayaLtrBadge>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-100 text-base">
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-100 text-sm">
                         {p.fullName}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-slate-500">
-                          {t("patients.phoneLabel")} {p.phone || "—"}
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <span>{t("patients.phoneLabel")}</span>
+                          <span dir="ltr" className="font-mono tabular-nums">
+                            {p.phone || "—"}
+                          </span>
                         </span>
                         {p.globalPatient && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-900/30 text-violet-400 font-bold border border-violet-800/40">
-                            🌐 MPI
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-400 font-bold border border-violet-500/30">
+                            <Globe className="w-2.5 h-2.5" /> MPI
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-slate-200">
+                        <span className="text-slate-200 text-xs font-semibold tabular-nums">
                           {calculateAge(p.dateOfBirth)} {t("patients.years")}
                         </span>
                         <span
-                          className={`text-[10px] px-1.5 rounded ${p.gender === "MALE" ? "bg-blue-900/30 text-blue-400" : "bg-rose-900/30 text-rose-400"}`}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            p.gender === "MALE"
+                              ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                              : "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                          }`}
                         >
                           {p.gender === "MALE" ? t("patients.genderMale") : t("patients.genderFemale")}
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       {p.insurancePolicy ? (
                         <div className="flex flex-col">
-                          <span className="text-[11px] text-emerald-400 font-bold">
+                          <span className="text-xs text-emerald-400 font-bold">
                             {p.insurancePolicy.provider.name}
                           </span>
-                          <span className="text-[10px] text-slate-500">
+                          <span className="text-[11px] text-slate-400">
                             {p.insurancePolicy.name}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-600 text-[10px]">{t("patients.cash")}</span>
+                        <span className="text-slate-400 text-xs">{t("patients.cash")}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       <span
-                        className={`flex items-center gap-1.5 text-[10px] font-bold ${p.isActive ? "text-emerald-400" : "text-slate-500"}`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                          p.isActive
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                            : "bg-slate-800 text-slate-400 border-slate-700"
+                        }`}
                       >
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${p.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-700"}`}
-                        ></span>
+                          className={`w-1.5 h-1.5 rounded-full ${p.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-600"}`}
+                        />
                         {p.isActive ? t("patients.statusActive") : t("patients.statusArchived")}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-center items-center gap-2">
-                        {/* ✅ إصلاح الرابط هنا باستخدام الـ Backticks */}
+                    <td className="px-4 py-3">
+                      <div className="flex justify-center items-center gap-1.5">
                         <button
+                          type="button"
                           onClick={() =>
                             navigate(`/encounters?patientId=${p.id}`)
                           }
-                          className="p-2 bg-slate-800 hover:bg-sky-900/40 text-sky-400 rounded-xl transition-all border border-slate-700"
+                          className="p-2 bg-slate-800 hover:bg-sky-600/20 text-sky-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.medicalRecord")}
                         >
-                          📑
+                          <FileText className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => openModal(p)}
-                          className="p-2 bg-slate-800 hover:bg-amber-900/40 text-amber-400 rounded-xl transition-all border border-slate-700"
+                          className="p-2 bg-slate-800 hover:bg-amber-600/20 text-amber-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.edit")}
                         >
-                          ✏️
+                          <Pencil className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
                             navigate(`/patients/${p.id}/statement`)
                           }
-                          className="p-2 bg-slate-800 hover:bg-emerald-900/40 text-emerald-400 rounded-xl transition-all border border-slate-700"
+                          className="p-2 bg-slate-800 hover:bg-emerald-600/20 text-emerald-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.statement")}
                         >
-                          💰
+                          <Receipt className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
                             navigate(`/patients/${p.id}/chart`)
                           }
-                          className="p-2 bg-slate-800 hover:bg-sky-900/40 text-sky-400 rounded-xl transition-all border border-slate-700"
+                          className="p-2 bg-slate-800 hover:bg-sky-600/20 text-sky-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.emr")}
                         >
-                          📋
+                          <ClipboardList className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() =>
                             navigate(`/patients/${p.id}/consents`)
                           }
-                          className="p-2 bg-slate-800 hover:bg-rose-900/40 text-rose-400 rounded-xl transition-all border border-slate-700 font-bold"
+                          className="p-2 bg-slate-800 hover:bg-rose-600/20 text-rose-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.consents")}
                         >
-                          ✍️
+                          <FileSignature className="w-4 h-4" />
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => setGovernancePatient(p)}
-                          className="p-2 bg-slate-800 hover:bg-amber-900/40 text-amber-400 rounded-xl transition-all border border-slate-700"
+                          className="p-2 bg-slate-800 hover:bg-amber-600/20 text-amber-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t(
                             "patients.tooltips.governance",
                             "حوكمة الملف (دمج / وفاة)",
                           )}
                         >
-                          🛡️
+                          <ShieldCheck className="w-4 h-4" />
                         </button>
 
-                        {/* 🗑️ زر الأرشفة  */}
                         <button
+                          type="button"
                           onClick={() => handleSoftDelete(p)}
-                          className="p-2 hover:bg-rose-900/30 text-slate-600 hover:text-rose-400 rounded-xl transition-all border hover:border-rose-900/50"
+                          className="p-2 bg-slate-800 hover:bg-rose-600/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors border border-slate-700 cursor-pointer"
                           title={t("patients.tooltips.archive")}
                         >
-                          🗑️
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -497,7 +538,7 @@ export function PatientsPage() {
         </div>
 
         {/* Pagination */}
-        <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 flex justify-between items-center text-xs">
+        <div className="bg-slate-950/80 border-t border-slate-800 px-5 py-3 flex justify-between items-center text-xs">
           <div className="text-slate-500">
             {t("patients.paginationPage")} {page} {t("patients.paginationOf")} {meta?.totalPages || 1}
           </div>

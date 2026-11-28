@@ -10,7 +10,17 @@ import {
   UserPlusIcon,
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
-import { FileSpreadsheet, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  FileSpreadsheet,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+} from "lucide-react";
+import {
+  SarayaFilterSelect,
+  SarayaPageHeader,
+} from "@/components/ui/SarayaPrimitives";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { BiometricDevicesModal } from "../components/hr/BiometricDevicesModal";
@@ -200,57 +210,50 @@ export default function AttendancePage() {
 
   return (
     <div
-      className="p-6 text-slate-100 h-full flex flex-col space-y-6"
+      className="text-slate-100 h-full flex flex-col space-y-4"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-slate-900/50 p-6 rounded-3xl border border-slate-800 shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-sky-500/20 rounded-2xl border border-sky-500/40">
-            <ClockIcon className="w-8 h-8 text-sky-500" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black">
-              {t("hr.attendance.title", "سجل الحضور الذكي وساعات البصمة")}
-            </h1>
-            <p className="text-slate-400 text-xs mt-1">
-              {t("hr.attendance.subtitle", "تتبع دقيق لمواعيد العمل وساعات المناوبات الفعلية")}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setShowBiometricModal(true)}
-            data-testid="attendance-open-biometric-modal"
-            className="px-4 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-lg"
-          >
-            🖥️ {t("hr.attendance.biometricBtn", "أجهزة البصمة ADMS والعطلات")}
-          </button>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2"
-          >
-            <DocumentArrowDownIcon className="w-4 h-4" />{" "}
-            {t("hr.attendance.importBtn", "استيراد من ملف")}
-          </button>
-          <button
-            onClick={() => setShowManualModal(true)}
-            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-black shadow-lg"
-          >
-            {t("hr.attendance.manualBtn", "+ تسجيل يدوي")}
-          </button>
-        </div>
-      </div>
+      <SarayaPageHeader
+        title={t("hr.attendance.title", "سجل الحضور الذكي وساعات البصمة")}
+        subtitle={t("hr.attendance.subtitle", "تتبع دقيق لمواعيد العمل وساعات المناوبات الفعلية")}
+        icon={<ClockIcon className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowBiometricModal(true)}
+              data-testid="attendance-open-biometric-modal"
+              className="px-3.5 py-2 bg-sky-700 hover:bg-sky-600 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Cpu className="w-4 h-4" />
+              {t("hr.attendance.biometricBtn", "أجهزة البصمة ADMS والعطلات")}
+            </button>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold border border-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <DocumentArrowDownIcon className="w-4 h-4" />{" "}
+              {t("hr.attendance.importBtn", "استيراد من ملف")}
+            </button>
+            <button
+              onClick={() => setShowManualModal(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm transition-colors cursor-pointer"
+            >
+              {t("hr.attendance.manualBtn", "+ تسجيل يدوي")}
+            </button>
+          </>
+        }
+      />
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-slate-900/40 p-2 rounded-2xl border border-slate-800 w-fit">
+      <div className="flex gap-1.5 bg-slate-900/70 p-1.5 rounded-xl border border-slate-800 w-fit">
         <button
           type="button"
           onClick={() => setActiveTab("daily")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             activeTab === "daily"
-              ? "bg-sky-600 text-white"
-              : "text-slate-400 hover:bg-slate-800"
+              ? "bg-sky-600 text-white shadow-sm"
+              : "text-slate-400 hover:bg-slate-800/70"
           }`}
         >
           سجل الحضور اليومي
@@ -258,10 +261,10 @@ export default function AttendancePage() {
         <button
           type="button"
           onClick={() => setActiveTab("hours")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+          className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
             activeTab === "hours"
-              ? "bg-sky-600 text-white"
-              : "text-slate-400 hover:bg-slate-800"
+              ? "bg-sky-600 text-white shadow-sm"
+              : "text-slate-400 hover:bg-slate-800/70"
           }`}
         >
           تقرير ساعات البصمة الفعلية (Excel / Word)
@@ -269,7 +272,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+      <div className="bg-slate-900/80 border border-slate-800 p-3.5 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <DatePicker
             date={new Date(dateFrom)}
@@ -281,18 +284,19 @@ export default function AttendancePage() {
           />
           {activeTab === "hours" && (
             <>
-              <select
+              <SarayaFilterSelect
                 value={deptId}
-                onChange={(e) => setDeptId(e.target.value)}
-                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"
-              >
-                <option value="">كل الأقسام</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setDeptId}
+                options={departments.map((d) => ({
+                  value: String(d.id),
+                  label: d.name,
+                }))}
+                placeholder="كل الأقسام"
+                allLabel="كل الأقسام"
+                searchPlaceholder="ابحث عن قسم..."
+                className="min-w-[180px]"
+                ariaLabel="تصفية ساعات البصمة حسب القسم"
+              />
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <span>مهلة التكرار (د):</span>
                 <input

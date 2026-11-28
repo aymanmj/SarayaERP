@@ -1,16 +1,29 @@
 // src/pages/InvoicesListPage.tsx
 
-// src/pages/InvoicesListPage.tsx
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { HasPermission } from "../components/HasPermission";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { apiClient } from "../api/apiClient";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import {
+  CheckCircle2,
+  Eye,
+  FileText,
+  Printer,
+  Receipt,
+  RefreshCw,
+  Search,
+  Wallet,
+} from "lucide-react";
+import { apiClient } from "../api/apiClient";
 import { formatDate } from "@/lib/utils";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { Money, formatMoney } from "../utils/money";
+import {
+  SarayaFilterSelect,
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 // --- Types ---
 interface InvoiceListItem {
@@ -26,7 +39,7 @@ interface InvoiceListItem {
   createdAt: string;
   patient: { id: number; fullName: string; mrn: string };
   encounter: { id: number; type: string };
-  returns?: { id: number }[]; // ✅ [NEW]
+  returns?: { id: number }[];
 }
 
 interface PaginationMeta {
@@ -37,10 +50,9 @@ interface PaginationMeta {
 }
 
 interface InvoiceListResponse {
-    items: InvoiceListItem[];
-    meta: PaginationMeta;
+  items: InvoiceListItem[];
+  meta: PaginationMeta;
 }
-
 
 const statusKeys: Record<string, string> = {
   DRAFT: "treasury.common.draft",
@@ -57,26 +69,25 @@ export default function InvoicesListPage() {
 
   // دالة طباعة PDF بطريقة تتجنب حظر النوافذ المنبثقة
   const handlePrintPdf = async (invoiceId: number) => {
-    // 1. فتح نافذة فارغة فوراً بشكل متزامن مع ضغطة المستخدم لتجنب حظر الـ Popup Blocker
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (printWindow) {
-      printWindow.document.write('<html dir="rtl"><body style="font-family: sans-serif; padding: 2rem; text-align: center;">جاري تجهيز الفاتورة...</body></html>');
+      printWindow.document.write(
+        '<html dir="rtl"><body style="font-family: sans-serif; padding: 2rem; text-align: center;">جاري تجهيز الفاتورة...</body></html>',
+      );
     }
 
     try {
-      // 2. طلب الملف كـ Blob من نفس endpoint المستخدم في InvoiceDetailsPage
       const response = await apiClient.get(`/billing/invoices/${invoiceId}/pdf`, {
         responseType: "blob",
       });
 
-      // 3. إنشاء رابط مؤقت للملف في المتصفح
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/pdf" }),
+      );
 
-      // 4. توجيه النافذة المفتوحة إلى الرابط
       if (printWindow) {
         printWindow.location.href = url;
       } else {
-        // في حال تم الحظر تماماً (لا يفترض أن يحدث الآن)
         const link = document.createElement("a");
         link.href = url;
         link.setAttribute("target", "_blank");
@@ -85,86 +96,117 @@ export default function InvoicesListPage() {
         link.remove();
       }
 
-      // تنظيف الذاكرة بعد فترة لضمان تحميل الملف في النافذة الجديدة
       setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (err) {
-      console.error('Error generating PDF:', err);
+      console.error("Error generating PDF:", err);
       if (printWindow) printWindow.close();
-      toast.error(t("treasury.invoicesList.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."));
+      toast.error(
+        t("treasury.invoicesList.toast.pdfLoadError", "فشل تحميل ملف الـ PDF. تأكد من إعدادات السيرفر."),
+      );
     }
   };
 
-  // --- States ---
   // --- Search & Pagination ---
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  // Debounce Effect
   useEffect(() => {
     const timer = setTimeout(() => {
-        setDebouncedSearch(search);
-        setPage(1); // Reset page on search change
+      setDebouncedSearch(search);
+      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Query
   const { data, isLoading: loading, isError, refetch } = useQuery<InvoiceListResponse>({
-      queryKey: ['invoices', page, debouncedSearch, statusFilter],
-      queryFn: async () => {
-          const res = await apiClient.get<InvoiceListResponse>("/billing/invoices", {
-            params: {
-              page,
-              limit: 15,
-              search: debouncedSearch || undefined,
-              status: statusFilter || undefined,
-            },
-          });
-          return res.data;
-      },
-      placeholderData: keepPreviousData,
+    queryKey: ["invoices", page, debouncedSearch, statusFilter],
+    queryFn: async () => {
+      const res = await apiClient.get<InvoiceListResponse>("/billing/invoices", {
+        params: {
+          page,
+          limit: 15,
+          search: debouncedSearch || undefined,
+          status: statusFilter || undefined,
+        },
+      });
+      return res.data;
+    },
+    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
-      if (isError) {
-          toast.error(t("treasury.invoicesList.toast.loadError", "فشل تحميل قائمة الفواتير"));
-      }
-  }, [isError]);
+    if (isError) {
+      toast.error(t("treasury.invoicesList.toast.loadError", "فشل تحميل قائمة الفواتير"));
+    }
+  }, [isError, t]);
 
-  const invoices = data?.items || [];
+  const invoices = useMemo(() => data?.items || [], [data?.items]);
   const meta = data?.meta;
 
-   
-  const formatMoney = (val: any) => Number(val || 0).toFixed(3);
+  const pageKpis = useMemo(() => {
+    const pageTotal = Money.sumPosted(...invoices.map((inv) => inv.totalAmount || 0));
+    const pagePaid = Money.sumPosted(...invoices.map((inv) => inv.paidAmount || 0));
+    return {
+      pageTotal: pageTotal.toFixed(3),
+      pagePaid: pagePaid.toFixed(3),
+    };
+  }, [invoices]);
 
   return (
     <div
-      className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-6"
+      className="flex flex-col h-full text-slate-100 p-4 md:p-6 space-y-5"
       dir={isRtl ? "rtl" : "ltr"}
     >
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">
-            {t("treasury.invoicesList.title", "سجل الفواتير")}
-          </h1>
-          <p className="text-sm text-slate-400">
-            {t("treasury.invoicesList.subtitle", "إدارة المطالبات المالية، التحصيل، وحالات التأمين.")}
-          </p>
-        </div>
+      <SarayaPageHeader
+        icon={<Receipt className="w-5 h-5" />}
+        title={t("treasury.invoicesList.title", "سجل الفواتير")}
+        subtitle={t(
+          "treasury.invoicesList.subtitle",
+          "إدارة المطالبات المالية، التحصيل، وحالات التأمين.",
+        )}
+      />
+
+      {/* 3 KPI Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SarayaKpiCard
+          label={t("treasury.invoicesList.table.total", "إجمالي الفواتير")}
+          value={meta?.totalCount ?? 0}
+          accent="sky"
+          icon={<FileText className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("treasury.invoicesList.kpiPageTotal", "إجمالي الصفحة الحالية")}
+          value={formatMoney(pageKpis.pageTotal)}
+          accent="indigo"
+          icon={<Wallet className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label={t("treasury.invoicesList.table.paid", "تم دفعه")}
+          value={formatMoney(pageKpis.pagePaid)}
+          accent="emerald"
+          icon={<CheckCircle2 className="w-5 h-5" />}
+        />
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-4 items-end shadow-sm">
+      <div className="saraya-card bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap gap-3 items-center shadow-sm">
         <div className="flex-1 min-w-[250px] relative group">
-          <span className="absolute inset-y-0 right-4 flex items-center text-slate-500 group-focus-within:text-sky-400">
-            🔍
-          </span>
+          <Search
+            className={`w-4 h-4 absolute top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-sky-400 pointer-events-none ${
+              isRtl ? "right-3.5" : "left-3.5"
+            }`}
+          />
           <input
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pr-12 pl-4 py-2.5 text-sm focus:border-sky-500 outline-none transition-all"
-            placeholder={t("treasury.invoicesList.placeholder", "البحث باسم المريض أو رقم الملف أو رقم الفاتورة...")}
+            className={`w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 text-sm focus:border-sky-500 outline-none transition-all ${
+              isRtl ? "pr-10 pl-4" : "pl-10 pr-4"
+            }`}
+            placeholder={t(
+              "treasury.invoicesList.placeholder",
+              "البحث باسم المريض أو رقم الملف أو رقم الفاتورة...",
+            )}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -173,171 +215,226 @@ export default function InvoicesListPage() {
           />
         </div>
 
-        <div className="w-48">
-          <select
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-sky-500"
+        <div className="w-52">
+          <SarayaFilterSelect
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onChange={(val) => {
+              setStatusFilter(val);
               setPage(1);
             }}
-          >
-            <option value="">{t("treasury.invoicesList.filterStatus", "الحالة: الكل")}</option>
-            <option value="ISSUED">{t("treasury.common.issued", "صادرة")}</option>
-            <option value="PARTIALLY_PAID">{t("treasury.common.partiallyPaid", "مدفوعة جزئياً")}</option>
-            <option value="PAID">{t("treasury.common.paid", "مدفوعة")}</option>
-            <option value="CANCELLED">{t("treasury.common.cancelled", "ملغاة")}</option>
-          </select>
+            placeholder={t("treasury.invoicesList.filterStatus", "الحالة: الكل")}
+            allLabel={t("treasury.invoicesList.filterStatus", "الحالة: الكل")}
+            options={[
+              { value: "ISSUED", label: t("treasury.common.issued", "صادرة") },
+              {
+                value: "PARTIALLY_PAID",
+                label: t("treasury.common.partiallyPaid", "مدفوعة جزئياً"),
+              },
+              { value: "PAID", label: t("treasury.common.paid", "مدفوعة") },
+              { value: "CANCELLED", label: t("treasury.common.cancelled", "ملغاة") },
+            ]}
+          />
         </div>
 
         <button
+          type="button"
           onClick={() => refetch()}
-          className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm font-bold border border-slate-700 transition-all"
+          className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl text-sm font-bold border border-slate-700 transition-all inline-flex items-center gap-2"
         >
+          <RefreshCw className="w-4 h-4" />
           {t("treasury.invoicesList.updateBtn", "تحديث")}
         </button>
       </div>
 
       {/* Main Table */}
-      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+      <div className="flex-1 saraya-card bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden flex flex-col shadow-sm">
         <div className="overflow-x-auto flex-1 custom-scrollbar">
-          <table className="w-full text-sm text-right">
-            <thead className="bg-slate-950/50 text-slate-500 sticky top-0 backdrop-blur z-10">
-              <tr className="text-[10px] uppercase tracking-widest border-b border-slate-800">
-                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.id", "رقم الفاتورة")}</th>
-                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.patient", "المريض")}</th>
-                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.date", "تاريخ الإصدار")}</th>
-                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.total", "إجمالي الفاتورة")}</th>
-                <th className="px-6 py-4 font-bold">{t("treasury.invoicesList.table.typeStatus", "النوع / الحالة")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.paid", "تم دفعه")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.remaining", "المتبقي")}</th>
-                <th className="px-6 py-4 font-bold text-center">{t("treasury.invoicesList.table.actions", "الإجراءات")}</th>
+          <table className={`w-full text-sm ${isRtl ? "text-right" : "text-left"}`}>
+            <thead className="bg-slate-950/60 text-slate-400 sticky top-0 z-10 border-b border-slate-800 text-xs">
+              <tr>
+                <th className="px-5 py-3.5 font-semibold">
+                  {t("treasury.invoicesList.table.id", "رقم الفاتورة")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold">
+                  {t("treasury.invoicesList.table.patient", "المريض")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold">
+                  {t("treasury.invoicesList.table.date", "تاريخ الإصدار")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold">
+                  {t("treasury.invoicesList.table.total", "إجمالي الفاتورة")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold text-center">
+                  {t("treasury.invoicesList.table.typeStatus", "النوع / الحالة")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold text-center">
+                  {t("treasury.invoicesList.table.paid", "تم دفعه")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold text-center">
+                  {t("treasury.invoicesList.table.remaining", "المتبقي")}
+                </th>
+                <th className="px-5 py-3.5 font-semibold text-center">
+                  {t("treasury.invoicesList.table.actions", "الإجراءات")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-xs">
               {loading ? (
                 <tr>
-                  <td
-                    colSpan={7}
-                    className="text-center py-20 text-slate-500 animate-pulse"
-                  >
+                  <td colSpan={8} className="text-center py-16 text-slate-500">
                     {t("treasury.invoicesList.loading", "جارِ تحميل الفواتير...")}
                   </td>
                 </tr>
+              ) : invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-16 text-slate-500">
+                    {t("treasury.invoicesList.empty", "لا توجد فواتير مطابقة للبحث.")}
+                  </td>
+                </tr>
               ) : (
-                invoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="hover:bg-white/[0.02] transition-colors group"
-                  >
-                    <td className="px-6 py-4 font-mono text-sky-400 font-bold">
-                      #{inv.id}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-slate-100">
-                        {inv.patient?.fullName}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">
-                        {inv.patient?.mrn}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-400">
-                      {formatDate(inv.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 font-mono text-white font-semibold">
-                      {formatMoney(inv.totalAmount)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-emerald-400 font-bold">
-                        P: {formatMoney(inv.paidAmount)}
-                      </div>
-                      {Number(inv.insuranceShare) > 0 && (
-                        <div className="text-purple-400 text-[10px]">
-                          I: {formatMoney(inv.insuranceShare)} (
-                          {inv.claimStatus || "PENDING"})
+                invoices.map((inv) => {
+                  const hasReturns = Boolean(inv.returns && inv.returns.length > 0);
+                  const hasInsurance = Money.decimal(inv.insuranceShare || 0).gt(0);
+                  const net = Money.decimal(inv.totalAmount || 0).minus(
+                    Money.decimal(inv.discountAmount || 0),
+                  );
+                  const rem = net.minus(Money.decimal(inv.paidAmount || 0));
+                  const due = rem.gt(0) ? rem : Money.decimal(0);
+
+                  return (
+                    <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="px-5 py-3.5">
+                        <SarayaLtrBadge className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-400 border border-sky-500/25 text-xs font-semibold">
+                          #{inv.id}
+                        </SarayaLtrBadge>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="font-semibold text-slate-100">
+                            {inv.patient?.fullName}
+                          </span>
+                          {inv.patient?.mrn && (
+                            <SarayaLtrBadge className="text-[11px] text-slate-400">
+                              {inv.patient.mrn}
+                            </SarayaLtrBadge>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-[9px] font-black border uppercase
-                            ${
-                              inv.returns && inv.returns.length > 0
-                                ? "bg-rose-900/30 text-rose-400 border-rose-500/30 line-through opacity-70"
-                                : inv.status === "PAID"
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-400 tabular-nums">
+                        {formatDate(inv.createdAt)}
+                      </td>
+                      <td
+                        dir="ltr"
+                        className="px-5 py-3.5 font-mono tabular-nums text-slate-100 font-semibold"
+                      >
+                        {formatMoney(inv.totalAmount, false)}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                            hasReturns
+                              ? "bg-rose-900/30 text-rose-400 border-rose-500/30 line-through"
+                              : inv.status === "PAID"
                                 ? "bg-emerald-900/30 text-emerald-400 border-emerald-500/30"
                                 : inv.status === "PARTIALLY_PAID"
-                                ? "bg-amber-900/20 text-amber-400 border-amber-500/30"
-                                : "bg-slate-800 text-slate-400 border-slate-700"
-                            }`}
-                      >
-                        {inv.returns && inv.returns.length > 0 ? t("treasury.invoicesList.creditNote", "MERGED / REFUNDED") : t(statusKeys[inv.status] || inv.status, inv.status)}
-                      </span>
-                      {inv.returns && inv.returns.length > 0 && (
-                        <div className="text-[9px] text-rose-400 font-bold mt-1">
-                          {t("treasury.invoicesList.creditNote", "تم الإرجاع")}
+                                  ? "bg-amber-900/20 text-amber-400 border-amber-500/30"
+                                  : "bg-slate-800 text-slate-300 border-slate-700"
+                          }`}
+                        >
+                          {hasReturns
+                            ? t("treasury.invoicesList.creditNote", "MERGED / REFUNDED")
+                            : t(statusKeys[inv.status] || inv.status, inv.status)}
+                        </span>
+                        {hasReturns && (
+                          <div className="text-[10px] text-rose-400 font-bold mt-1">
+                            {t("treasury.invoicesList.creditNote", "تم الإرجاع")}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <div
+                          dir="ltr"
+                          className="text-emerald-400 font-mono tabular-nums font-semibold"
+                        >
+                          {formatMoney(inv.paidAmount, false)}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() =>
-                            navigate(`/billing/invoices/${inv.id}`)
-                          }
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] transition-all border border-slate-700"
-                        >
-                          {t("treasury.invoicesList.detailsBtn", "التفاصيل")}
-                        </button>
-                        <button
-                          onClick={() => handlePrintPdf(inv.id)}
-                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[10px] font-bold shadow-lg transition-all"
-                        >
-                          {t("treasury.invoicesList.printBtn", "طباعة ⎙")}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        {hasInsurance && (
+                          <div
+                            dir="ltr"
+                            className="inline-block mt-1 px-2 py-0.5 rounded-full bg-purple-900/30 text-purple-400 border border-purple-500/30 text-[10px] font-medium tabular-nums"
+                          >
+                            I: {formatMoney(inv.insuranceShare, false)} (
+                            {inv.claimStatus || "PENDING"})
+                          </div>
+                        )}
+                      </td>
+                      <td
+                        dir="ltr"
+                        className={`px-5 py-3.5 text-center font-mono tabular-nums font-bold ${
+                          due.gt(0) ? "text-amber-400" : "text-slate-500"
+                        }`}
+                      >
+                        {formatMoney(due.toFixed(3), false)}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/billing/invoices/${inv.id}`)}
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-[11px] font-semibold transition-all border border-slate-700 inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {t("treasury.invoicesList.detailsBtn", "التفاصيل")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePrintPdf(inv.id)}
+                            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[11px] font-bold shadow-sm transition-all inline-flex items-center gap-1"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            {t("treasury.invoicesList.printBtn", "طباعة")}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
         {/* Footer & Pagination */}
-        <div className="bg-slate-950/80 border-t border-slate-800 px-6 py-4 flex justify-between items-center text-xs">
-          <div className="text-slate-500">
+        <div className="bg-slate-950/60 border-t border-slate-800 px-5 py-3.5 flex justify-between items-center text-xs">
+          <div className="text-slate-400">
             {t("treasury.invoicesList.table.total", "إجمالي الفواتير")}:{" "}
-            <span className="text-white font-bold">
-              {meta?.totalCount ?? 0}
-            </span>
+            <span className="text-slate-100 font-bold tabular-nums">{meta?.totalCount ?? 0}</span>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="flex gap-2">
-              <button
-                disabled={page === 1 || loading}
-                onClick={() => setPage((p) => p - 1)}
-                className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
-              >
-                {t("treasury.common.previous", "السابق")}
-              </button>
+          <div className="flex gap-2 items-center">
+            <button
+              type="button"
+              disabled={page === 1 || loading}
+              onClick={() => setPage((p) => p - 1)}
+              className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-30 hover:border-sky-500/40 transition-colors"
+            >
+              {t("treasury.common.previous", "السابق")}
+            </button>
 
-              <div className="flex items-center px-4 text-slate-400">
-                {t("patients.paginationPage", "صفحة")} <span className="text-sky-400 font-bold mx-1">{page}</span>{" "}
-                {t("patients.paginationOf", "من")}{" "}
-                <span className="text-white font-bold mx-1">
-                  {meta?.totalPages || 1}
-                </span>
-              </div>
-
-              <button
-                disabled={page >= (meta?.totalPages || 1) || loading}
-                onClick={() => setPage((p) => p + 1)}
-                className="px-4 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-20 hover:text-sky-400 transition-colors"
-              >
-                {t("treasury.common.next", "التالي")}
-              </button>
+            <div className="flex items-center px-3 text-slate-400 tabular-nums">
+              {t("patients.paginationPage", "صفحة")}{" "}
+              <span className="text-sky-400 font-bold mx-1">{page}</span>{" "}
+              {t("patients.paginationOf", "من")}{" "}
+              <span className="text-slate-100 font-bold mx-1">{meta?.totalPages || 1}</span>
             </div>
+
+            <button
+              type="button"
+              disabled={page >= (meta?.totalPages || 1) || loading}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl disabled:opacity-30 hover:border-sky-500/40 transition-colors"
+            >
+              {t("treasury.common.next", "التالي")}
+            </button>
           </div>
         </div>
       </div>

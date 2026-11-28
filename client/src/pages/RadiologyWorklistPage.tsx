@@ -7,10 +7,30 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/authStore";
 import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Eye,
+  FilePenLine,
+  FileText,
+  Lock,
+  Play,
+  Printer,
+  Radiation,
+  RefreshCw,
+  ScanLine,
+  Search,
+} from "lucide-react";
+import {
   RadiologyReportModal,
   type RadiologyOrderModalItem,
 } from "../components/radiology/RadiologyReportModal";
 import { RadiologyDoseModal } from "../components/radiology/RadiologyDoseModal";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 type PatientLite = { id: number; fullName: string; mrn: string };
 type StudyLite = {
@@ -146,21 +166,21 @@ export default function RadiologyWorklistPage() {
     const st = item.reportStatus;
     if (st === "FINAL") {
       return (
-        <span className="px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-[11px] font-semibold">
-          🔒 موقّع نهائي
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold">
+          <Lock className="w-3 h-3" /> موقّع نهائي
         </span>
       );
     }
     if (st === "AMENDED") {
       return (
-        <span className="px-2 py-0.5 rounded-full bg-sky-950/70 border border-sky-700/60 text-sky-300 text-[11px] font-semibold">
-          📝 معدّل بملحق
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[11px] font-semibold">
+          <FilePenLine className="w-3 h-3" /> معدّل بملحق
         </span>
       );
     }
     if (st === "PRELIMINARY") {
       return (
-        <span className="px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-700/60 text-amber-300 text-[11px]">
+        <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-semibold">
           أولي (بانتظار التوقيع)
         </span>
       );
@@ -168,41 +188,94 @@ export default function RadiologyWorklistPage() {
     return null;
   };
 
+  const pendingCount = useMemo(
+    () =>
+      items.filter((x) => x.status === "PENDING" || x.status === "SCHEDULED")
+        .length,
+    [items],
+  );
+  const inProgressCount = useMemo(
+    () => items.filter((x) => x.status === "IN_PROGRESS").length,
+    [items],
+  );
+  const completedCount = useMemo(
+    () => items.filter((x) => x.status === "COMPLETED").length,
+    [items],
+  );
+  const criticalCount = useMemo(
+    () => items.filter((x) => x.isCriticalFinding).length,
+    [items],
+  );
+
   return (
     <div
-      className="flex flex-col h-full text-slate-100 p-6 space-y-6"
+      className="flex flex-col h-full text-slate-100 space-y-4"
       dir={isRtl ? "rtl" : "ltr"}
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">
-            {t("radiology.title", "قائمة الأشعة (Worklist)")}
-          </h1>
-          <p className="text-sm text-slate-400">
-            {t(
-              "radiology.subtitle",
-              "عرض طلبات الأشعة، إدخال التقارير المهيكلة وتوقيعها إلكترونيًا، ومتابعة النتائج الحرجة.",
-            )}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <input
-            placeholder={t("common.searchPlaceholder", "بحث...")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-sm"
-          />
-          <button
-            onClick={() => load()}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 text-sm hover:bg-slate-700"
-          >
-            {t("common.refresh", "تحديث")}
-          </button>
-        </div>
+      <SarayaPageHeader
+        title={t("radiology.title", "قائمة الأشعة (Worklist)")}
+        subtitle={t(
+          "radiology.subtitle",
+          "عرض طلبات الأشعة، إدخال التقارير المهيكلة وتوقيعها إلكترونيًا، ومتابعة النتائج الحرجة.",
+        )}
+        icon={<ScanLine className="w-6 h-6" />}
+        actions={
+          <>
+            <div className="relative min-w-[220px]">
+              <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
+              <input
+                placeholder={t("common.searchPlaceholder", "بحث...")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl pr-9 pl-3 py-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => load()}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              {t("common.refresh", "تحديث")}
+            </button>
+          </>
+        }
+      />
+
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SarayaKpiCard
+          label="قيد الانتظار / مجدول"
+          value={pendingCount}
+          accent="amber"
+          ltrValue
+          icon={<Clock className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="جاري التصوير الآن"
+          value={inProgressCount}
+          accent="sky"
+          ltrValue
+          icon={<ScanLine className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="دراسات مكتملة"
+          value={completedCount}
+          accent="emerald"
+          ltrValue
+          icon={<CheckCircle2 className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="نتائج حرجة"
+          value={criticalCount}
+          accent="rose"
+          ltrValue
+          icon={<AlertTriangle className="w-5 h-5" />}
+        />
       </div>
 
-      <div className="flex-1 rounded-2xl bg-slate-950/60 border border-slate-800 p-4 overflow-auto">
-        <div className="space-y-3">
+      <div className="flex-1 rounded-xl bg-slate-900/70 border border-slate-800 p-4 overflow-auto custom-scrollbar shadow-sm">
+        <div className="space-y-2.5">
           {filtered.map((it) => {
             const isSigned =
               it.reportStatus === "FINAL" || it.reportStatus === "AMENDED";
@@ -213,46 +286,52 @@ export default function RadiologyWorklistPage() {
             return (
               <div
                 key={it.id}
-                className="border border-slate-800 bg-slate-900/60 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                className="border border-slate-800 bg-slate-950/60 hover:border-slate-700 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-colors"
               >
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-slate-200 text-lg">
+                    <span className="font-bold text-slate-100 text-base">
                       {it.patient?.fullName}
                     </span>
-                    <span className="text-xs text-slate-500 font-mono">
-                      ({it.patient?.mrn})
-                    </span>
+                    {it.patient?.mrn && (
+                      <SarayaLtrBadge className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-xs text-sky-400">
+                        {it.patient.mrn}
+                      </SarayaLtrBadge>
+                    )}
                     {renderReportStatusBadge(it)}
                     {it.isCriticalFinding && (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-950/80 border border-rose-600/70 text-rose-300 text-[11px] font-bold">
-                        🚨 نتيجة حرجة
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/40 text-rose-400 text-[11px] font-bold">
+                        <AlertTriangle className="w-3 h-3" /> نتيجة حرجة
                         {pendingReadBackCount > 0 ? " (بانتظار Read-Back)" : ""}
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-sky-400 font-medium flex flex-wrap items-center gap-2">
+                  <div className="text-sm text-sky-400 font-semibold flex flex-wrap items-center gap-2">
                     <span>{it.study.name}</span>
                     {it.study.modality && (
-                      <span className="text-slate-500 text-xs">
-                        [{it.study.modality}]
-                      </span>
+                      <SarayaLtrBadge className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] border border-slate-700">
+                        {it.study.modality}
+                      </SarayaLtrBadge>
                     )}
                     {it.study.requiresContrast && (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-700/50 text-amber-300 text-[10px]">
+                      <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold">
                         صبغة
                       </span>
                     )}
                     {it.dicomAccessionNumber && (
-                      <span className="text-[11px] font-mono text-slate-400">
-                        Acc: {it.dicomAccessionNumber}
+                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                        Acc:{" "}
+                        <SarayaLtrBadge>{it.dicomAccessionNumber}</SarayaLtrBadge>
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500">
-                    {t("radiology.orderDate", "تاريخ الطلب:")}{" "}
-                    {formatDateTime(it.order.createdAt, dateLocale)} •{" "}
-                    {t("radiology.statusLabel", "الحالة:")}{" "}
+                  <div className="text-xs text-slate-400 flex flex-wrap items-center gap-2">
+                    <span>{t("radiology.orderDate", "تاريخ الطلب:")}</span>
+                    <span dir="ltr" className="font-mono tabular-nums">
+                      {formatDateTime(it.order.createdAt, dateLocale)}
+                    </span>
+                    <span>•</span>
+                    <span>{t("radiology.statusLabel", "الحالة:")}</span>
                     {renderStatus(it.status)}
                   </div>
                 </div>
@@ -263,25 +342,28 @@ export default function RadiologyWorklistPage() {
                       href={it.viewerUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-4 py-2 rounded-xl bg-sky-700 hover:bg-sky-600 text-xs text-white"
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white flex items-center gap-1.5 shadow-sm transition-colors"
                     >
+                      <Eye className="w-3.5 h-3.5" />
                       {t("radiology.actions.openStudy", "فتح دراسة الأشعة")}
                     </a>
                   )}
                   {(it.status === "PENDING" || it.status === "SCHEDULED") && (
                     <button
                       onClick={() => handleStart(it)}
-                      className="px-4 py-2 rounded-xl text-xs flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-500 shadow-lg shadow-indigo-500/20"
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm cursor-pointer transition-colors"
                     >
-                      <span>{t("radiology.actions.start", "⚡ بدء الفحص")}</span>
+                      <Play className="w-3.5 h-3.5" />
+                      <span>{t("radiology.actions.start", "بدء الفحص")}</span>
                     </button>
                   )}
 
                   {(it.status === "IN_PROGRESS" || it.status === "COMPLETED") && (
                     <button
                       onClick={() => setActiveReportItem(it)}
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-600"
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
+                      <FileText className="w-3.5 h-3.5 text-sky-400" />
                       {isSigned
                         ? "عرض / ملحق موقّع"
                         : it.status === "COMPLETED"
@@ -293,9 +375,10 @@ export default function RadiologyWorklistPage() {
                   {it.patient?.id && (
                     <button
                       onClick={() => setActiveDoseItem(it)}
-                      className="px-3 py-2 rounded-xl bg-amber-800/80 hover:bg-amber-700 text-xs text-amber-100 border border-amber-600/50 font-semibold"
+                      className="px-3 py-2 rounded-xl bg-amber-600/15 hover:bg-amber-600/25 text-xs text-amber-400 border border-amber-500/35 font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
-                      ☢️ {t("radiology.dose.button", "الجرعة (RDSR)")}
+                      <Radiation className="w-3.5 h-3.5" />
+                      {t("radiology.dose.button", "الجرعة (RDSR)")}
                     </button>
                   )}
 
@@ -307,9 +390,10 @@ export default function RadiologyWorklistPage() {
                           "_blank",
                         )
                       }
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs text-white shadow-lg shadow-emerald-500/20 font-bold flex items-center gap-2"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs text-white shadow-sm font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
                     >
-                      <span>🖨️</span> {t("radiology.actions.print", "طباعة")}
+                      <Printer className="w-3.5 h-3.5" />
+                      {t("radiology.actions.print", "طباعة")}
                     </button>
                   )}
                 </div>
@@ -317,7 +401,7 @@ export default function RadiologyWorklistPage() {
             );
           })}
           {filtered.length === 0 && !loading && (
-            <div className="text-center py-10 text-slate-500">
+            <div className="text-center py-12 text-slate-500 text-sm">
               {t("radiology.empty", "لا توجد طلبات.")}
             </div>
           )}

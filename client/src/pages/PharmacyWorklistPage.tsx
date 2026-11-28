@@ -9,6 +9,19 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/authStore";
+import {
+  BedDouble,
+  Package,
+  Pill,
+  RefreshCw,
+  ShieldAlert,
+  Stethoscope,
+} from "lucide-react";
+import {
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../components/ui/SarayaPrimitives";
 
 // Enums & Types
 type PrescriptionStatus =
@@ -245,98 +258,145 @@ export default function PharmacyWorklistPage() {
 
   // Helper to determine mode text
   const isIPD = selectedPrescription?.encounter?.type === "IPD";
+  const ipdCount = useMemo(
+    () =>
+      data.filter((x: WorklistPrescription) => x.encounter?.type === "IPD")
+        .length,
+    [data],
+  );
+  const opdCount = data.length - ipdCount;
 
   return (
     <div
-      className="p-6 space-y-6 text-slate-100 h-full flex flex-col"
+      className="space-y-4 text-slate-100 h-full flex flex-col"
       dir={isRtl ? "rtl" : "ltr"}
       data-testid="pharmacy-page"
     >
       <PharmacySourcePolicy />
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{t("pharmacy.title", "صرف الوصفات (الصيدلية)")}</h1>
-          <p className="text-sm text-slate-400">{t("pharmacy.subtitle", "قائمة الوصفات المعلقة للصرف.")}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowGovernanceModal(true)}
-            data-testid="pharmacy-open-cap10-governance"
-            className="px-4 py-2 rounded bg-amber-700 hover:bg-amber-600 text-sm text-white font-semibold"
-          >
-            🔐 {t("pharmacy.cap10Governance", "المخدّرات والأمانة ومرتجع العنابر")}
-          </button>
-          <button
-            onClick={() => loadData()}
-            className="px-4 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm"
-          >
-            {t("common.refresh", "تحديث")}
-          </button>
-          <a
-            href="/pharmacy/stock"
-            target="_blank"
-            className="px-4 py-2 rounded bg-sky-700 hover:bg-sky-600 text-sm text-white"
-          >
-            {t("pharmacy.stockLink", "المخزون")}
-          </a>
-        </div>
+      <SarayaPageHeader
+        title={t("pharmacy.title", "صرف الوصفات (الصيدلية)")}
+        subtitle={t("pharmacy.subtitle", "قائمة الوصفات المعلقة للصرف.")}
+        icon={<Pill className="w-6 h-6" />}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowGovernanceModal(true)}
+              data-testid="pharmacy-open-cap10-governance"
+              className="px-3.5 py-2 rounded-xl bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/35 text-xs text-amber-400 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              {t("pharmacy.cap10Governance", "المخدّرات والأمانة ومرتجع العنابر")}
+            </button>
+            <button
+              type="button"
+              onClick={() => loadData()}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              {t("common.refresh", "تحديث")}
+            </button>
+            <a
+              href="/pharmacy/stock"
+              target="_blank"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs text-white font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+            >
+              <Package className="w-4 h-4" />
+              {t("pharmacy.stockLink", "المخزون")}
+            </a>
+          </>
+        }
+      />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <SarayaKpiCard
+          label="إجمالي الوصفات المعلقة"
+          value={data.length}
+          accent="sky"
+          ltrValue
+          icon={<Pill className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="وصفات الإيواء (المنومين)"
+          value={ipdCount}
+          accent="purple"
+          ltrValue
+          icon={<BedDouble className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="وصفات العيادات والطوارئ"
+          value={opdCount}
+          accent="emerald"
+          ltrValue
+          icon={<Stethoscope className="w-5 h-5" />}
+        />
       </div>
 
       {/* Main List */}
-      <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl overflow-auto p-4">
+      <div className="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl overflow-auto custom-scrollbar shadow-sm">
         <table className="w-full text-sm text-right">
-          <thead className="text-slate-400 border-b border-slate-800">
+          <thead className="bg-slate-950/70 text-slate-400 border-b border-slate-800 text-xs sticky top-0 z-10">
             <tr>
-              <th className="px-4 py-3">{t("pharmacy.table.prescriptionNo", "رقم الوصفة")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.patientType", "نوع المريض")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.patient", "المريض")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.doctor", "الطبيب")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.date", "التاريخ")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.itemCount", "عدد الأصناف")}</th>
-              <th className="px-4 py-3">{t("pharmacy.table.actions", "إجراءات")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.prescriptionNo", "رقم الوصفة")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.patientType", "نوع المريض")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.patient", "المريض")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.doctor", "الطبيب")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.date", "التاريخ")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.itemCount", "عدد الأصناف")}</th>
+              <th className="px-4 py-3 font-bold">{t("pharmacy.table.actions", "إجراءات")}</th>
             </tr>
           </thead>
-          <tbody>
-            {data.map((p) => {
+          <tbody className="divide-y divide-slate-800/60">
+            {data.map((p: WorklistPrescription) => {
               const isIPD = p.encounter?.type === "IPD";
               return (
                 <tr
                   key={p.id}
                   data-testid={`pharmacy-prescription-row-${p.id}`}
-                  className="border-b border-slate-800/60 hover:bg-slate-800/40 align-top"
+                  className="hover:bg-slate-800/30 align-top transition-colors"
                 >
-                  <td className="px-4 py-3 font-mono text-sky-400">#{p.id}</td>
+                  <td className="px-4 py-3">
+                    <SarayaLtrBadge className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-sky-400 text-xs font-bold">
+                      #{p.id}
+                    </SarayaLtrBadge>
+                  </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                         isIPD
-                          ? "bg-purple-900/40 text-purple-300 border border-purple-500/30"
-                          : "bg-emerald-900/40 text-emerald-300 border border-emerald-500/30"
+                          ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
+                          : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
                       }`}
                     >
                       {isIPD ? t("pharmacy.patientType.inpatient", "إيواء (منوم)") : t("pharmacy.patientType.outpatient", "خارجي / طوارئ")}
                     </span>
                   </td>
-                  <td className="px-4 py-3 font-semibold">
-                    {p.patient.fullName}{" "}
-                    <span className="text-xs font-normal text-slate-500">
-                      ({p.patient.mrn})
-                    </span>
+                  <td className="px-4 py-3">
+                    <div className="font-bold text-slate-100">
+                      {p.patient.fullName}
+                    </div>
+                    <SarayaLtrBadge className="text-[11px] text-slate-400 mt-0.5">
+                      {p.patient.mrn}
+                    </SarayaLtrBadge>
                   </td>
-                  <td className="px-4 py-3 text-slate-300">
+                  <td className="px-4 py-3 text-slate-300 text-xs">
                     {p.doctor.fullName}
                   </td>
-                  <td className="px-4 py-3 text-slate-400">
-                    {formatDateTime(p.createdAt, dateLocale)}
+                  <td className="px-4 py-3 text-slate-400 text-xs">
+                    <span dir="ltr" className="font-mono tabular-nums">
+                      {formatDateTime(p.createdAt, dateLocale)}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-200">{p.items.length}</td>
+                  <td className="px-4 py-3 text-slate-200 font-bold tabular-nums">
+                    {p.items.length}
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => openDispenseModal(p)}
                       data-testid={`dispense-prescription-${p.id}`}
-                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-lg"
+                      className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
                     >
                       {t("pharmacy.viewAndDispense", "عرض وصرف")}
                     </button>
@@ -346,7 +406,7 @@ export default function PharmacyWorklistPage() {
             })}
             {data.length === 0 && !loading && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-slate-500">
+                <td colSpan={7} className="text-center py-12 text-slate-500 text-sm">
                   {t("pharmacy.emptyState", "لا توجد وصفات في الانتظار.")}
                 </td>
               </tr>

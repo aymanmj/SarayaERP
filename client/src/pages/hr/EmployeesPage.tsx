@@ -30,6 +30,12 @@ import {
 } from "../../utils/hrExport";
 import { formatMoney } from "../../utils/money";
 import { BulkImportEmployeesModal } from "../../components/hr/BulkImportEmployeesModal";
+import {
+  SarayaFilterSelect,
+  SarayaKpiCard,
+  SarayaLtrBadge,
+  SarayaPageHeader,
+} from "../../components/ui/SarayaPrimitives";
 
 const CATEGORY_BADGES: Record<StaffCategory, string> = {
   MEDICAL: "bg-sky-500/15 text-sky-300 border-sky-500/30",
@@ -126,128 +132,109 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div className="p-6 text-slate-100 h-full flex flex-col space-y-6" dir="rtl">
+    <div className="h-full flex flex-col space-y-4" dir="rtl">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-4 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-sky-500/15 border border-sky-500/40 rounded-2xl text-sky-400">
-            <Users className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">
-              شؤون الموظفين والكوادر (Employees)
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              سجل مركزي موحد لجميع الكوادر الطبية والتمريضية والفنية والإدارية (مستقل عن حسابات دخول النظام)
-            </p>
-          </div>
-        </div>
+      <SarayaPageHeader
+        title="شؤون الموظفين والكوادر (Employees)"
+        subtitle="سجل مركزي موحد لجميع الكوادر الطبية والتمريضية والفنية والإدارية (مستقل عن حسابات دخول النظام)"
+        icon={<Users className="w-6 h-6" />}
+        actions={
+          <>
+            <Link
+              to="/hr/org"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2 transition-colors"
+            >
+              <Building2 className="w-4 h-4 text-amber-400" />
+              الشُعب والمسميات
+            </Link>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Link
-            to="/hr/org"
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2"
-          >
-            <Building2 className="w-4 h-4 text-amber-400" />
-            الشُعب والمسميات
-          </Link>
-
-          <button
-            type="button"
-            onClick={() =>
-              exportEmployeesToExcel(employees, { includeAltamam: altamamEnabled })
-            }
-            disabled={employees.length === 0}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-40 text-xs font-bold flex items-center gap-2"
-          >
-            <Download className="w-4 h-4 text-emerald-400" />
-            تصدير Excel
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setImportModal({ open: true, mode: "standard" })}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-sky-400" />
-            استيراد Excel
-          </button>
-
-          {altamamEnabled && (
             <button
               type="button"
-              onClick={() => setImportModal({ open: true, mode: "altamam" })}
-              data-testid="btn-altamam-import"
-              className="px-4 py-2.5 rounded-xl bg-purple-600/90 hover:bg-purple-500 text-white text-xs font-bold shadow-lg flex items-center gap-2"
+              onClick={() =>
+                exportEmployeesToExcel(employees, { includeAltamam: altamamEnabled })
+              }
+              disabled={employees.length === 0}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-40 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <FileSpreadsheet className="w-4 h-4" />
-              استيراد من منظومة التمام (Excel)
+              <Download className="w-4 h-4 text-emerald-400" />
+              تصدير Excel
             </button>
-          )}
 
-          <Link
-            to="/hr/employees/new"
-            className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black shadow-lg shadow-sky-900/30 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            موظف جديد
-          </Link>
-        </div>
-      </div>
+            <button
+              type="button"
+              onClick={() => setImportModal({ open: true, mode: "standard" })}
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-sky-400" />
+              استيراد Excel
+            </button>
+
+            {altamamEnabled && (
+              <button
+                type="button"
+                onClick={() => setImportModal({ open: true, mode: "altamam" })}
+                data-testid="btn-altamam-import"
+                className="px-3.5 py-2 rounded-xl bg-purple-600/90 hover:bg-purple-500 text-white text-xs font-bold shadow-sm flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                استيراد من منظومة التمام (Excel)
+              </button>
+            )}
+
+            <Link
+              to="/hr/employees/new"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm flex items-center gap-2 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              موظف جديد
+            </Link>
+          </>
+        }
+      />
 
       {/* KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400 font-bold">إجمالي الموظفين</div>
-            <div className="text-2xl font-black mt-1 text-white">
-              {stats?.total ?? 0}
-            </div>
-          </div>
-          <Users className="w-8 h-8 text-sky-500/60" />
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400 font-bold">على رأس العمل</div>
-            <div className="text-2xl font-black mt-1 text-emerald-400">
-              {stats?.active ?? 0}
-            </div>
-          </div>
-          <UserCheck className="w-8 h-8 text-emerald-500/60" />
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400 font-bold">غير نشط / منتهي</div>
-            <div className="text-2xl font-black mt-1 text-rose-400">
-              {stats?.inactive ?? 0}
-            </div>
-          </div>
-          <UserX className="w-8 h-8 text-rose-500/60" />
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400 font-bold">لديهم حساب دخول</div>
-            <div className="text-2xl font-black mt-1 text-indigo-300">
-              {stats?.linkedToUser ?? 0}
-            </div>
-          </div>
-          <KeyRound className="w-8 h-8 text-indigo-400/60" />
-        </div>
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs text-slate-400 font-bold">موظفون بدون حساب نظام</div>
-            <div className="text-2xl font-black mt-1 text-amber-300">
-              {stats?.nonLoginStaff ?? 0}
-            </div>
-          </div>
-          <UserMinus className="w-8 h-8 text-amber-400/60" />
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <SarayaKpiCard
+          label="إجمالي الموظفين"
+          value={stats?.total ?? 0}
+          accent="sky"
+          ltrValue
+          icon={<Users className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="على رأس العمل"
+          value={stats?.active ?? 0}
+          accent="emerald"
+          ltrValue
+          icon={<UserCheck className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="غير نشط / منتهي"
+          value={stats?.inactive ?? 0}
+          accent="rose"
+          ltrValue
+          icon={<UserX className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="لديهم حساب دخول"
+          value={stats?.linkedToUser ?? 0}
+          accent="indigo"
+          ltrValue
+          icon={<KeyRound className="w-5 h-5" />}
+        />
+        <SarayaKpiCard
+          label="موظفون بدون حساب نظام"
+          value={stats?.nonLoginStaff ?? 0}
+          accent="amber"
+          ltrValue
+          icon={<UserMinus className="w-5 h-5" />}
+        />
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-6 gap-3">
+      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 grid grid-cols-1 md:grid-cols-6 gap-2.5 shadow-sm">
         <div className="md:col-span-2 relative">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -255,66 +242,65 @@ export default function EmployeesPage() {
             className="w-full bg-slate-950 border border-slate-700 rounded-xl pr-9 pl-3 py-2 text-xs focus:ring-2 focus:ring-sky-500 outline-none"
           />
         </div>
-        <select
+        <SarayaFilterSelect
           value={departmentId}
-          onChange={(e) => setDepartmentId(e.target.value)}
-          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs"
-        >
-          <option value="">كل الأقسام والإدارات</option>
-          {departments.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setDepartmentId}
+          options={departments.map((d) => ({ value: String(d.id), label: d.name }))}
+          placeholder="كل الأقسام والإدارات"
+          allLabel="كل الأقسام والإدارات"
+          searchPlaceholder="ابحث عن قسم..."
+          ariaLabel="تصفية حسب القسم"
+        />
+        <SarayaFilterSelect
           value={staffCategory}
-          onChange={(e) => setStaffCategory(e.target.value)}
-          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs"
-        >
-          <option value="">كل التصنيفات</option>
-          {(Object.keys(STAFF_CATEGORY_LABELS) as StaffCategory[]).map((cat) => (
-            <option key={cat} value={cat}>
-              {STAFF_CATEGORY_LABELS[cat]}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setStaffCategory}
+          options={(Object.keys(STAFF_CATEGORY_LABELS) as StaffCategory[]).map(
+            (cat) => ({
+              value: cat,
+              label: STAFF_CATEGORY_LABELS[cat],
+            }),
+          )}
+          placeholder="كل التصنيفات"
+          allLabel="كل التصنيفات"
+          ariaLabel="تصفية حسب التصنيف"
+        />
+        <SarayaFilterSelect
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs"
-        >
-          <option value="">كل الحالات</option>
-          {Object.entries(EMPLOYEE_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-        <select
+          onChange={setStatus}
+          options={Object.entries(EMPLOYEE_STATUS_LABELS).map(([k, v]) => ({
+            value: k,
+            label: v,
+          }))}
+          placeholder="كل الحالات"
+          allLabel="كل الحالات"
+          ariaLabel="تصفية حسب الحالة"
+        />
+        <SarayaFilterSelect
           value={hasUserAccount}
-          onChange={(e) => setHasUserAccount(e.target.value)}
-          className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs"
-        >
-          <option value="">حساب النظام (الكل)</option>
-          <option value="true">مرتبط بحساب دخول</option>
-          <option value="false">بدون حساب نظام</option>
-        </select>
+          onChange={setHasUserAccount}
+          options={[
+            { value: "true", label: "مرتبط بحساب دخول" },
+            { value: "false", label: "بدون حساب نظام" },
+          ]}
+          placeholder="حساب النظام (الكل)"
+          allLabel="حساب النظام (الكل)"
+          ariaLabel="تصفية حسب حساب النظام"
+        />
       </div>
 
       {/* Table */}
-      <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-        <div className="overflow-auto flex-1">
+      <div className="flex-1 bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-auto flex-1 custom-scrollbar">
           <table className="w-full text-sm text-right">
-            <thead className="bg-slate-950/70 text-slate-400 sticky top-0 z-10 border-b border-slate-800 text-xs">
+            <thead className="bg-slate-950/80 text-slate-400 sticky top-0 z-10 border-b border-slate-800 text-xs">
               <tr>
-                <th className="px-4 py-3.5">الموظف والرقم الوظيفي</th>
-                <th className="px-4 py-3.5">الإدارة / الشعبة والمسمى</th>
-                <th className="px-4 py-3.5">التصنيف</th>
-                <th className="px-4 py-3.5">حساب النظام</th>
-                <th className="px-4 py-3.5">الراتب الأساسي</th>
-                <th className="px-4 py-3.5">الحالة</th>
-                <th className="px-4 py-3.5 text-center">الإجراءات</th>
+                <th className="px-4 py-3 font-bold">الموظف والرقم الوظيفي</th>
+                <th className="px-4 py-3 font-bold">الإدارة / الشعبة والمسمى</th>
+                <th className="px-4 py-3 font-bold">التصنيف</th>
+                <th className="px-4 py-3 font-bold">حساب النظام</th>
+                <th className="px-4 py-3 font-bold">الراتب الأساسي</th>
+                <th className="px-4 py-3 font-bold">الحالة</th>
+                <th className="px-4 py-3 font-bold text-center">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
@@ -336,9 +322,9 @@ export default function EmployeesPage() {
                     key={emp.id}
                     className="hover:bg-slate-800/30 transition-colors"
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 font-black flex items-center justify-center text-xs shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 font-black flex items-center justify-center text-xs shrink-0">
                           {emp.fullName?.trim()?.slice(0, 2) || "مو"}
                         </div>
                         <div>
@@ -349,24 +335,26 @@ export default function EmployeesPage() {
                             {emp.fullName}
                           </Link>
                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-800 text-sky-300 font-mono text-[11px] border border-slate-700">
+                            <SarayaLtrBadge className="px-2 py-0.5 rounded-md bg-slate-800 text-sky-300 text-[11px] border border-slate-700">
                               {emp.employeeNo}
-                            </span>
+                            </SarayaLtrBadge>
                             {altamamEnabled && emp.altamamEmployeeNo && (
-                              <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 font-mono text-[11px] border border-purple-500/30">
-                                التمام: {emp.altamamEmployeeNo}
+                              <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[11px] border border-purple-500/30">
+                                التمام:{" "}
+                                <SarayaLtrBadge>{emp.altamamEmployeeNo}</SarayaLtrBadge>
                               </span>
                             )}
                             {emp.biometricId && (
-                              <span className="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 font-mono text-[11px]">
-                                بصمة: {emp.biometricId}
+                              <span className="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 text-[11px]">
+                                بصمة:{" "}
+                                <SarayaLtrBadge>{emp.biometricId}</SarayaLtrBadge>
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="font-semibold text-slate-200 text-xs">
                         {emp.department?.name || "غير محدد"}
                         {emp.section ? ` / ${emp.section.name}` : ""}
@@ -375,9 +363,9 @@ export default function EmployeesPage() {
                         {emp.jobTitle?.name || "—"}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                           CATEGORY_BADGES[emp.staffCategory] ||
                           CATEGORY_BADGES.ADMINISTRATIVE
                         }`}
@@ -386,33 +374,38 @@ export default function EmployeesPage() {
                           emp.staffCategory}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       {emp.user ? (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-mono bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        <SarayaLtrBadge className="px-2.5 py-0.5 rounded-full text-[11px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                           @{emp.user.username}
-                        </span>
+                        </SarayaLtrBadge>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] bg-slate-800 text-slate-400 border border-slate-700">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-slate-800 text-slate-400 border border-slate-700">
                           بدون حساب نظام
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-200">
-                      {formatMoney(emp.basicSalary, false)}{" "}
-                      <span className="text-slate-400 text-[10px]">
-                        {emp.currency || "LYD"}
+                    <td className="px-4 py-2.5 text-xs text-slate-200">
+                      <span
+                        dir="ltr"
+                        className="inline-flex items-baseline gap-1 font-mono font-bold tabular-nums"
+                      >
+                        <span>{formatMoney(emp.basicSalary, false)}</span>
+                        <span className="text-slate-400 text-[10px] font-normal">
+                          {emp.currency || "LYD"}
+                        </span>
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
                           STATUS_BADGES[emp.status] || STATUS_BADGES.ACTIVE
                         }`}
                       >
                         {EMPLOYEE_STATUS_LABELS[emp.status] || emp.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"

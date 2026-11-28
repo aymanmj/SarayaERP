@@ -6,23 +6,23 @@ describe("themeStore", () => {
     window.localStorage.clear();
     delete document.documentElement.dataset.theme;
     document.documentElement.style.colorScheme = "";
-    useThemeStore.setState({ theme: "clinical-dark" });
+    useThemeStore.setState({ theme: "clinical-light" });
   });
 
-  it("defaults to clinical-dark when storage is empty or invalid", () => {
+  it("defaults to clinical-light when storage is empty or invalid", () => {
     window.localStorage.setItem(THEME_STORAGE_KEY, "neon-rainbow");
     useThemeStore.getState().hydrateTheme();
 
-    expect(useThemeStore.getState().theme).toBe("clinical-dark");
-    expect(document.documentElement.dataset.theme).toBe("clinical-dark");
-    expect(document.documentElement.style.colorScheme).toBe("dark");
-  });
-
-  it("switches to clinical-light and clinical-emerald and updates document attributes", () => {
-    useThemeStore.getState().setTheme("clinical-light");
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("clinical-light");
+    expect(useThemeStore.getState().theme).toBe("clinical-light");
     expect(document.documentElement.dataset.theme).toBe("clinical-light");
     expect(document.documentElement.style.colorScheme).toBe("light");
+  });
+
+  it("switches to clinical-dark and clinical-emerald and updates document attributes", () => {
+    useThemeStore.getState().setTheme("clinical-dark");
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("clinical-dark");
+    expect(document.documentElement.dataset.theme).toBe("clinical-dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
 
     useThemeStore.getState().setTheme("clinical-emerald");
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("clinical-emerald");

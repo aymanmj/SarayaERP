@@ -71,6 +71,20 @@ export function MainLayout() {
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true,
+  );
+
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   const currentBranchName = useMemo(() => {
     const branch = accessibleBranches.find((b) => b.id === currentBranchId);
@@ -548,13 +562,18 @@ export function MainLayout() {
   }, [location.pathname, authorizedMenu]);
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
-    `block w-full px-4 py-2.5 rounded-lg text-xs md:text-sm transition-all duration-200 ${
+    `saraya-sidebar-link block w-full px-3.5 py-2 rounded-lg text-xs md:text-[13px] transition-all duration-150 ${
       isRtl ? "border-r-[3px]" : "border-l-[3px]"
-    } ${
-      isActive
-        ? "bg-sky-500/10 text-sky-400 border-sky-500 font-medium"
-        : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/5"
-    }`;
+    } ${isActive ? "saraya-sidebar-link-active" : ""}`;
+
+  const userInitials = useMemo(() => {
+    const raw = (user?.fullName || "س").trim();
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return raw.slice(0, 2).toUpperCase();
+  }, [user?.fullName]);
 
   return (
     <div className="h-screen w-screen flex bg-slate-950 text-slate-100 overflow-hidden">
@@ -566,51 +585,57 @@ export function MainLayout() {
       )}
 
       <aside
-        className={`w-64 flex flex-col bg-slate-950/95 backdrop-blur h-full flex-shrink-0 z-50
+        className={`saraya-exec-sidebar w-64 flex flex-col h-full flex-shrink-0 z-50
         fixed md:relative top-0
-        ${isRtl ? "right-0 border-l border-slate-800" : "left-0 border-r border-slate-800"}
+        ${isRtl ? "right-0 border-l" : "left-0 border-r"}
         transition-transform duration-300 ease-in-out
         ${mobileMenuOpen ? "translate-x-0" : isRtl ? "translate-x-full md:translate-x-0" : "-translate-x-full md:translate-x-0"}
         md:flex`}
       >
-        <div className="px-5 py-4 border-b border-slate-800 flex-shrink-0 flex items-center gap-3">
-          <img src="/sarayalogo.png" alt="السرايا" className="w-10 h-10 rounded-lg object-contain" />
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-sky-500 font-bold mb-0.5">
+        <div className="saraya-sidebar-brand px-4 py-3.5 border-b flex-shrink-0 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl border border-[#c5a044]/35 bg-white/5 p-0.5 flex items-center justify-center shrink-0">
+            <img
+              src="/sarayalogo.png"
+              alt="السرايا"
+              className="w-full h-full rounded-lg object-contain"
+            />
+          </div>
+          <div className="min-w-0">
+            <div className="saraya-sidebar-brand-eyebrow text-[10px] uppercase tracking-[0.2em] font-bold mb-0.5">
               HOSPITAL SUITE
             </div>
-            <div className="font-bold text-sm text-white leading-tight">
+            <div className="saraya-sidebar-brand-title font-extrabold text-sm leading-tight truncate">
               {t("common.appName", "نظام السرايا الطبي")}
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto custom-scrollbar">
           {authorizedMenu.map((section) => {
             const isOpen = openSection === section.key;
             return (
-              <div key={section.key} className="mb-1">
+              <div key={section.key} className="mb-0.5">
                 <button
                   type="button"
                   onClick={() => toggleSection(section.key)}
                   data-testid={`menu-section-${section.key}`}
-                  className={`flex items-center justify-between w-full px-3 py-3 text-sm font-medium rounded-xl transition-colors duration-200
-                    ${isOpen ? "text-slate-100" : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50"}`}
+                  data-open={isOpen ? "true" : "false"}
+                  className="saraya-sidebar-section-btn flex items-center justify-between w-full px-3 py-2.5 text-[13px] font-semibold rounded-xl transition-colors duration-150 cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className={isOpen ? "text-sky-500" : "text-slate-500"}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="saraya-sidebar-section-icon shrink-0">
                       {section.icon}
                     </span>
-                    <span>
+                    <span className="truncate">
                       {t("menu." + (section.translationKey || section.key), section.title)}
                     </span>
                   </div>
                   <span
-                    className={`transition-transform duration-300 text-slate-600 ${
+                    className={`transition-transform duration-200 opacity-60 shrink-0 ${
                       isOpen ? (isRtl ? "-rotate-90" : "rotate-90") : "rotate-0"
                     }`}
                   >
-                    <ChevronLeft size={16} strokeWidth={1.75} className={isRtl ? "" : "scale-x-[-1]"} />
+                    <ChevronLeft size={15} strokeWidth={1.75} className={isRtl ? "" : "scale-x-[-1]"} />
                   </span>
                 </button>
 
@@ -620,10 +645,10 @@ export function MainLayout() {
                   }`}
                 >
                   <div
-                    className={`space-y-1 py-1 ${
+                    className={`saraya-sidebar-rail space-y-0.5 py-0.5 ${
                       isRtl
-                        ? "pr-4 pl-1 mr-2 border-r border-slate-800/50"
-                        : "pl-4 pr-1 ml-2 border-l border-slate-800/50"
+                        ? "pr-3.5 pl-1 mr-2.5 border-r"
+                        : "pl-3.5 pr-1 ml-2.5 border-l"
                     }`}
                   >
                     {section.items.map((item) => (
@@ -642,16 +667,23 @@ export function MainLayout() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 bg-slate-950 flex-shrink-0">
+        <div className="saraya-sidebar-footer p-3.5 border-t flex-shrink-0">
           {user && (
-            <div className="mb-3">
-              <div className="font-semibold text-sm text-white">{user.fullName}</div>
-              <div className="text-slate-500 text-[10px] truncate">
+            <div className="mb-2.5">
+              <div className="saraya-sidebar-user-name font-semibold text-xs truncate">
+                {user.fullName}
+              </div>
+              <div
+                dir="ltr"
+                className={`saraya-sidebar-user-meta text-[10px] truncate mt-0.5 ${
+                  isRtl ? "text-right" : "text-left"
+                }`}
+              >
                 {user.roles?.join(" | ")}
               </div>
               <NavLink
                 to="/account/sessions"
-                className="mt-2 inline-block text-xs text-sky-300 hover:text-sky-100 underline-offset-4 hover:underline"
+                className="saraya-sidebar-sessions-link mt-1.5 inline-block text-[11px] underline-offset-4 hover:underline"
               >
                 {t("deviceSessions.title")}
               </NavLink>
@@ -659,7 +691,7 @@ export function MainLayout() {
           )}
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-rose-300 text-xs py-2 transition border border-rose-900/30"
+            className="saraya-sidebar-logout w-full flex items-center justify-center gap-2 rounded-xl text-xs font-semibold py-2 transition border cursor-pointer"
           >
             <LogOut size={14} strokeWidth={1.75} />
             <span>{t("common.logout", "تسجيل الخروج")}</span>
@@ -708,18 +740,37 @@ export function MainLayout() {
             </div>
           )}
 
-        <header className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            aria-label={t("common.openMenu", "فتح القائمة")}
-          >
-            <Menu size={22} strokeWidth={1.75} />
-          </button>
-          <div className="hidden md:block text-slate-400 text-xs font-medium">
-            {t("common.welcomeMsg", "مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية")}
+        <header className="saraya-exec-header flex-shrink-0 h-14 flex items-center justify-between px-4 md:px-5 border-b border-slate-800 bg-slate-950/90 backdrop-blur z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              aria-label={t("common.openMenu", "فتح القائمة")}
+            >
+              <Menu size={20} strokeWidth={1.75} />
+            </button>
+            <div className="hidden md:flex items-center gap-2.5 min-w-0">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                  isOnline
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                    : "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
+                  }`}
+                />
+                <span>{isOnline ? "متصل" : "غير متصل"}</span>
+              </span>
+              <span className="text-slate-400 text-xs font-medium truncate">
+                {t("common.welcomeMsg", "مرحباً بك في نظام السرايا الطبي - النسخة التشغيلية")}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2.5">
             <ThemeSwitcher />
             <LanguageSwitcher />
             <NotificationBell />
@@ -727,11 +778,11 @@ export function MainLayout() {
               <div className="relative">
                 <button
                   onClick={() => setBranchMenuOpen(!branchMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-900/30 hover:bg-sky-900/50 border border-sky-700/30 text-sky-300 text-xs font-medium transition-all duration-200"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-sky-400 text-xs font-semibold transition-all duration-150 cursor-pointer"
                   title={t("common.switchBranch", "تبديل الفرع")}
                 >
                   <GitBranch size={14} strokeWidth={1.75} />
-                  <span className="hidden sm:inline max-w-[120px] truncate">
+                  <span className="hidden sm:inline max-w-[240px] truncate">
                     {currentBranchName}
                   </span>
                   {isSwitchingBranch ? (
@@ -746,9 +797,9 @@ export function MainLayout() {
                       className="fixed inset-0 z-40"
                       onClick={() => setBranchMenuOpen(false)}
                     />
-                    <div className="absolute left-0 top-full mt-2 w-56 bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden backdrop-blur-xl">
-                      <div className="px-3 py-2 border-b border-slate-700/50">
-                        <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                    <div className="absolute left-0 top-full mt-2 w-60 bg-slate-900 border border-slate-700/70 rounded-xl shadow-2xl shadow-black/40 z-50 overflow-hidden backdrop-blur-xl">
+                      <div className="px-3 py-2 border-b border-slate-800">
+                        <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
                           {t("common.switchBranch", "تبديل الفرع")}
                         </div>
                       </div>
@@ -763,8 +814,8 @@ export function MainLayout() {
                             disabled={isSwitchingBranch || branch.id === currentBranchId}
                             className={`w-full text-right px-4 py-2.5 text-sm transition-all duration-150 flex items-center justify-between gap-2 ${
                               branch.id === currentBranchId
-                                ? "bg-sky-900/40 text-sky-300 font-medium"
-                                : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
+                                ? "bg-sky-500/15 text-sky-400 font-semibold"
+                                : "text-slate-300 hover:bg-slate-800/80"
                             }`}
                           >
                             <span className="truncate">{branch.name}</span>
@@ -780,15 +831,24 @@ export function MainLayout() {
               </div>
             )}
             {user && (
-              <div className="text-left text-[11px] hidden md:block">
-                <div className="text-white font-medium">{user.fullName}</div>
-                <div className="text-slate-500">{user.roles?.[0]}</div>
+              <div className="hidden md:flex items-center gap-2.5 ps-2 border-s border-slate-800">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                  {userInitials}
+                </div>
+                <div className="text-right text-[11px] leading-tight">
+                  <div className="text-slate-100 font-bold truncate max-w-[160px]">
+                    {user.fullName}
+                  </div>
+                  <div className="text-slate-400 text-[10px] font-mono">
+                    {user.roles?.[0]}
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-5 custom-scrollbar">
           <div className="max-w-[1600px] mx-auto min-h-full">
             <Outlet />
           </div>
